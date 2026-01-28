@@ -20,10 +20,22 @@ impl MigrationTrait for Migration {
                             .unique_key(),
                     )
                     .col(
+                        ColumnDef::new(Tenants::Domain)
+                            .string_len(255)
+                            .null()
+                            .unique_key(),
+                    )
+                    .col(
                         ColumnDef::new(Tenants::Settings)
                             .json_binary()
                             .not_null()
                             .default("{}"),
+                    )
+                    .col(
+                        ColumnDef::new(Tenants::IsActive)
+                            .boolean()
+                            .not_null()
+                            .default(true),
                     )
                     .col(
                         ColumnDef::new(Tenants::CreatedAt)
@@ -39,6 +51,26 @@ impl MigrationTrait for Migration {
                     )
                     .to_owned(),
             )
+            .await?;
+
+        manager
+            .create_index(
+                Index::create()
+                    .name("idx_tenants_slug")
+                    .table(Tenants::Table)
+                    .col(Tenants::Slug)
+                    .to_owned(),
+            )
+            .await?;
+
+        manager
+            .create_index(
+                Index::create()
+                    .name("idx_tenants_domain")
+                    .table(Tenants::Table)
+                    .col(Tenants::Domain)
+                    .to_owned(),
+            )
             .await
     }
 
@@ -50,12 +82,14 @@ impl MigrationTrait for Migration {
 }
 
 #[derive(Iden)]
-enum Tenants {
+pub enum Tenants {
     Table,
     Id,
     Name,
     Slug,
+    Domain,
     Settings,
+    IsActive,
     CreatedAt,
     UpdatedAt,
 }

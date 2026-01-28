@@ -1,5 +1,7 @@
 use sea_orm_migration::prelude::*;
 
+use super::m20250101_000001_create_tenants::Tenants;
+
 #[derive(DeriveMigrationName)]
 pub struct Migration;
 
@@ -19,12 +21,21 @@ impl MigrationTrait for Migration {
                             .string_len(255)
                             .not_null(),
                     )
+                    .col(ColumnDef::new(Users::Name).string_len(255).null())
                     .col(
                         ColumnDef::new(Users::Role)
                             .string_len(32)
                             .not_null()
                             .default("customer"),
                     )
+                    .col(
+                        ColumnDef::new(Users::Status)
+                            .string_len(32)
+                            .not_null()
+                            .default("active"),
+                    )
+                    .col(ColumnDef::new(Users::EmailVerifiedAt).timestamp_with_time_zone())
+                    .col(ColumnDef::new(Users::LastLoginAt).timestamp_with_time_zone())
                     .col(
                         ColumnDef::new(Users::Metadata)
                             .json_binary()
@@ -45,6 +56,7 @@ impl MigrationTrait for Migration {
                     )
                     .foreign_key(
                         ForeignKey::create()
+                            .name("fk_users_tenant_id")
                             .from(Users::Table, Users::TenantId)
                             .to(Tenants::Table, Tenants::Id)
                             .on_delete(ForeignKeyAction::Cascade),
@@ -63,6 +75,27 @@ impl MigrationTrait for Migration {
                     .unique()
                     .to_owned(),
             )
+            .await?;
+
+        manager
+            .create_index(
+                Index::create()
+                    .name("idx_users_email")
+                    .table(Users::Table)
+                    .col(Users::Email)
+                    .to_owned(),
+            )
+            .await?;
+
+        manager
+            .create_index(
+                Index::create()
+                    .name("idx_users_role")
+                    .table(Users::Table)
+                    .col(Users::TenantId)
+                    .col(Users::Role)
+                    .to_owned(),
+            )
             .await
     }
 
@@ -74,20 +107,18 @@ impl MigrationTrait for Migration {
 }
 
 #[derive(Iden)]
-enum Users {
+pub enum Users {
     Table,
     Id,
     TenantId,
     Email,
     PasswordHash,
+    Name,
     Role,
+    Status,
+    EmailVerifiedAt,
+    LastLoginAt,
     Metadata,
     CreatedAt,
     UpdatedAt,
-}
-
-#[derive(Iden)]
-enum Tenants {
-    Table,
-    Id,
 }
