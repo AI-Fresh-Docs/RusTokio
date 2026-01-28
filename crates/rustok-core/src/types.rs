@@ -2,7 +2,17 @@ use sea_orm::entity::prelude::*;
 use serde::{Deserialize, Serialize};
 use std::fmt;
 
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, EnumIter, DeriveActiveEnum, Default)]
+#[derive(
+    Clone,
+    Debug,
+    PartialEq,
+    Eq,
+    Serialize,
+    Deserialize,
+    EnumIter,
+    DeriveActiveEnum,
+    Default,
+)]
 #[sea_orm(rs_type = "String", db_type = "String(StringLen::N(32))")]
 pub enum UserRole {
     #[sea_orm(string_value = "super_admin")]
@@ -28,7 +38,17 @@ impl fmt::Display for UserRole {
     }
 }
 
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, EnumIter, DeriveActiveEnum, Default)]
+#[derive(
+    Clone,
+    Debug,
+    PartialEq,
+    Eq,
+    Serialize,
+    Deserialize,
+    EnumIter,
+    DeriveActiveEnum,
+    Default,
+)]
 #[sea_orm(rs_type = "String", db_type = "String(StringLen::N(32))")]
 pub enum UserStatus {
     #[sea_orm(string_value = "active")]
