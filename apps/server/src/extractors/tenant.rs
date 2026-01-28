@@ -4,8 +4,8 @@ use axum::{
     http::{request::Parts, StatusCode},
 };
 
-use crate::context::TenantContextExt;
 use crate::context::TenantContext;
+use crate::context::TenantContextExt;
 
 pub struct CurrentTenant(pub TenantContext);
 
@@ -14,16 +14,14 @@ impl<S> FromRequestParts<S> for CurrentTenant
 where
     S: Send + Sync,
 {
-    type Rejection = (StatusCode, &'static str);
+    type Rejection = StatusCode;
 
     async fn from_request_parts(parts: &mut Parts, _state: &S) -> Result<Self, Self::Rejection> {
-        if let Some(tenant) = parts.extensions.get::<TenantContextExt>() {
-            Ok(CurrentTenant(tenant.0.clone()))
-        } else {
-            Err((
-                StatusCode::INTERNAL_SERVER_ERROR,
-                "Tenant context is missing. Is tenant middleware enabled?",
-            ))
-        }
+        let tenant = parts
+            .tenant_context()
+            .cloned()
+            .ok_or(StatusCode::NOT_FOUND)?;
+
+        Ok(Self(tenant))
     }
 }
