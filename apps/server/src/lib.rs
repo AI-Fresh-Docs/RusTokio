@@ -1,5 +1,8 @@
 pub mod app;
+pub mod context;
 pub mod controllers;
 pub mod graphql;
 pub mod models;
+pub mod extractors;
+pub mod middleware;
 pub mod views;

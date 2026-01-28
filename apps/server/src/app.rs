@@ -10,7 +10,8 @@ use loco_rs::{
 use sea_orm::DatabaseConnection;
 use std::path::Path;
 
-use crate::controllers;
+use axum::middleware as axum_middleware;
+use crate::{controllers, middleware};
 use loco_rs::prelude::Queue;
 use migration::Migrator;
 
@@ -40,6 +41,16 @@ impl Hooks for App {
         AppRoutes::with_default_routes()
             .add_route(controllers::health::routes())
             .add_route(controllers::graphql::routes())
+    }
+
+    async fn after_routes(
+        router: axum::Router,
+        ctx: &AppContext,
+    ) -> Result<axum::Router> {
+        Ok(router.layer(axum_middleware::from_fn_with_state(
+            ctx.clone(),
+            middleware::tenant::resolve,
+        )))
     }
 
     async fn truncate(_db: &DatabaseConnection) -> Result<()> {
