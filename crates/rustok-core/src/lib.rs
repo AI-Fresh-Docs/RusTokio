@@ -2,12 +2,12 @@ pub mod error;
 pub mod id;
 pub mod module;
 
-pub use error::{RusToKError, Result};
+pub use error::{Error, Result};
 pub use id::generate_id;
 pub use module::RusToKModule;
 
 pub mod prelude {
-    pub use crate::error::{RusToKError, Result};
+    pub use crate::error::{Error, Result};
     pub use crate::id::generate_id;
     pub use uuid::Uuid;
 }
