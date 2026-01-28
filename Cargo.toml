@@ -4,9 +4,7 @@ members = [
     "apps/server",
     "apps/admin",
     "apps/storefront",
-    "crates/rustok-core",
-    "crates/rustok-commerce",
-    "crates/rustok-blog",
+    "crates/*",
 ]
 
 [workspace.package]
