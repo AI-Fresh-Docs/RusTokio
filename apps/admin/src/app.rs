@@ -1,7 +1,7 @@
 use leptos::*;
-use leptos_router::{Route, Router, Routes};
+use leptos_router::{Route, Router, Routes, use_navigate};
 
-use crate::pages::{dashboard::Dashboard, login::Login};
+use crate::pages::{dashboard::Dashboard, login::Login, not_found::NotFound};
 use crate::providers::auth::{provide_auth_context, use_auth};
 
 #[component]
@@ -16,6 +16,7 @@ pub fn App() -> impl IntoView {
                     <Route path="/login" view=Login />
                     <Route path="/dashboard" view=ProtectedDashboard />
                     <Route path="" view=ProtectedDashboard />
+                    <Route path="/*" view=NotFound />
                 </Routes>
             </main>
         </Router>
@@ -25,6 +26,13 @@ pub fn App() -> impl IntoView {
 #[component]
 fn ProtectedDashboard() -> impl IntoView {
     let auth = use_auth();
+    let navigate = use_navigate();
+
+    create_effect(move |_| {
+        if auth.token.get().is_none() {
+            navigate("/login", Default::default());
+        }
+    });
 
     view! {
         <Show
@@ -80,6 +88,9 @@ fn Style() -> impl IntoView {
             ".activity-item:last-child { border-bottom: none; }\n"
             ".quick-actions { display: grid; gap: 12px; }\n"
             ".quick-actions button { background: #f1f5f9; border: none; padding: 12px 16px; border-radius: 12px; text-align: left; font-weight: 600; }\n"
+            ".not-found { min-height: 100vh; display: flex; align-items: center; justify-content: center; background: #f8fafc; }\n"
+            ".not-found-card { background: #fff; border-radius: 24px; padding: 40px; text-align: center; box-shadow: 0 18px 36px rgba(15, 23, 42, 0.08); display: grid; gap: 12px; }\n"
+            ".not-found-card h1 { margin: 0; font-size: 3rem; }\n"
             "@media (max-width: 960px) {\n"
             "  .auth-grid { grid-template-columns: 1fr; }\n"
             "  .auth-form { padding: 48px 32px; }\n"

@@ -1,10 +1,4 @@
-mod api;
-mod app;
-mod components;
-mod pages;
-mod providers;
-
-use app::App;
+use rustok_admin::app::App;
 use leptos::*;
 
 fn main() {
