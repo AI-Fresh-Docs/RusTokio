@@ -124,7 +124,12 @@ impl ProductQueryService {
         Self { db }
     }
 
+    fn db(&self) -> &DatabaseConnection {
+        &self.db
+    }
+
     pub async fn find(&self, _query: ProductQuery) -> IndexResult<Vec<IndexProductModel>> {
+        let _ = self.db();
         Ok(vec![])
     }
 
@@ -134,10 +139,12 @@ impl ProductQueryService {
         _locale: &str,
         _handle: &str,
     ) -> IndexResult<Option<IndexProductModel>> {
+        let _ = self.db();
         Ok(None)
     }
 
     pub async fn count(&self, _query: ProductQuery) -> IndexResult<u64> {
+        let _ = self.db();
         Ok(0)
     }
 }
