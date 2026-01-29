@@ -1,43 +1,31 @@
-//! Event-driven communication system for RusToK
-//!
-//! # Architecture
-//!
-//! ```text
-//! ┌─────────────┐     ┌───────────────┐     ┌─────────────────┐
-//! │   Service   │────▶│   EventBus    │────▶│  EventDispatcher│
-//! │  (publish)  │     │  (broadcast)  │     │   (handlers)    │
-//! └─────────────┘     └───────────────┘     └─────────────────┘
-//!                                                    │
-//!                           ┌────────────────────────┼────────────┐
-//!                           ▼                        ▼            ▼
-//!                    ┌─────────────┐         ┌─────────────┐ ┌─────────┐
-//!                    │  Indexer    │         │  Notifier   │ │  Audit  │
-//!                    │  Handler    │         │  Handler    │ │ Handler │
-//!                    └─────────────┘         └─────────────┘ └─────────┘
-//! ```
-//!
-//! # Usage
-//!
-//! ```rust,ignore
-//! use rustok_core::events::{EventBus, EventDispatcher, DomainEvent};
-//!
-//! let bus = EventBus::new(1024);
-//! let mut dispatcher = EventDispatcher::new(bus.clone());
-//! dispatcher.register(MyIndexerHandler::new());
-//!
-//! let running = dispatcher.start();
-//! running
-//!     .bus()
-//!     .publish(tenant_id, Some(user_id), DomainEvent::NodeCreated { .. });
-//! ```
+use chrono::{DateTime, Utc};
+use uuid::Uuid;
 
-pub mod bus;
-pub mod handler;
-pub mod types;
+mod bus;
 
-pub use bus::{EventBus, EventBusStats};
-pub use handler::{
-    DispatcherConfig, EventDispatcher, EventHandler, HandlerBuilder, HandlerResult,
-    RunningDispatcher,
-};
-pub use types::{DomainEvent, EventEnvelope};
+pub use bus::EventBus;
+
+#[derive(Debug, Clone)]
+pub struct EventEnvelope {
+    pub id: Uuid,
+    pub occurred_at: DateTime<Utc>,
+    pub event: DomainEvent,
+}
+
+#[derive(Debug, Clone)]
+pub enum DomainEvent {
+    ModuleEnabled {
+        tenant_id: Uuid,
+        module_slug: String,
+    },
+    ModuleDisabled {
+        tenant_id: Uuid,
+        module_slug: String,
+    },
+}
+
+pub trait EventHandler: Send + Sync {
+    fn handles(&self, event: &DomainEvent) -> bool;
+    fn name(&self) -> &'static str;
+    fn handle(&self, envelope: &EventEnvelope) -> crate::Result<()>;
+}
