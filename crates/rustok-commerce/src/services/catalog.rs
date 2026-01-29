@@ -54,7 +54,7 @@ impl CatalogService {
             }),
             vendor: Set(input.vendor.clone()),
             product_type: Set(input.product_type.clone()),
-            metadata: Set(input.metadata.clone().into()),
+            metadata: Set(input.metadata.clone()),
             created_at: Set(now.into()),
             updated_at: Set(now.into()),
             published_at: Set(if input.publish {
@@ -112,8 +112,7 @@ impl CatalogService {
                 position: Set(position as i32),
                 name: Set(opt_input.name.clone()),
                 values: Set(serde_json::to_value(&opt_input.values)
-                    .map_err(|error| CommerceError::Validation(error.to_string()))?
-                    .into()),
+                    .map_err(|error| CommerceError::Validation(error.to_string()))?),
             };
             option.insert(&txn).await?;
         }
@@ -258,7 +257,7 @@ impl CatalogService {
             status: product.status,
             vendor: product.vendor,
             product_type: product.product_type,
-            metadata: product.metadata.into(),
+            metadata: product.metadata,
             created_at: product.created_at.into(),
             updated_at: product.updated_at.into(),
             published_at: product.published_at.map(Into::into),
@@ -278,7 +277,7 @@ impl CatalogService {
                 .map(|option| ProductOptionResponse {
                     id: option.id,
                     name: option.name,
-                    values: serde_json::from_value(option.values.into()).unwrap_or_default(),
+                    values: serde_json::from_value(option.values).unwrap_or_default(),
                     position: option.position,
                 })
                 .collect(),
@@ -322,7 +321,7 @@ impl CatalogService {
             product_active.product_type = Set(Some(product_type));
         }
         if let Some(metadata) = input.metadata {
-            product_active.metadata = Set(metadata.into());
+            product_active.metadata = Set(metadata);
         }
         if let Some(status) = input.status {
             product_active.status = Set(status);
