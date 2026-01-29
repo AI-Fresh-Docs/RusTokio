@@ -126,7 +126,12 @@ impl ContentQueryService {
         Self { db }
     }
 
+    fn db(&self) -> &DatabaseConnection {
+        &self.db
+    }
+
     pub async fn find(&self, _query: ContentQuery) -> IndexResult<Vec<IndexContentModel>> {
+        let _ = self.db();
         Ok(vec![])
     }
 
@@ -137,10 +142,12 @@ impl ContentQueryService {
         _kind: &str,
         _slug: &str,
     ) -> IndexResult<Option<IndexContentModel>> {
+        let _ = self.db();
         Ok(None)
     }
 
     pub async fn count(&self, _query: ContentQuery) -> IndexResult<u64> {
+        let _ = self.db();
         Ok(0)
     }
 
@@ -151,6 +158,7 @@ impl ContentQueryService {
         _q: &str,
         _limit: u64,
     ) -> IndexResult<Vec<IndexContentModel>> {
+        let _ = self.db();
         Ok(vec![])
     }
 }
