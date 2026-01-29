@@ -1,6 +1,7 @@
 use sea_orm_migration::prelude::*;
 
 use super::m20250101_000001_create_tenants::Tenants;
+use super::m20250130_000009_create_media::Media;
 
 #[derive(DeriveMigrationName)]
 pub struct Migration;
@@ -21,8 +22,26 @@ impl MigrationTrait for Migration {
                             .not_null()
                             .default("draft"),
                     )
-                    .col(ColumnDef::new(Products::Vendor).string_len(255))
-                    .col(ColumnDef::new(Products::ProductType).string_len(255))
+                    .col(
+                        ColumnDef::new(Products::IsGiftCard)
+                            .boolean()
+                            .not_null()
+                            .default(false),
+                    )
+                    .col(
+                        ColumnDef::new(Products::Discountable)
+                            .boolean()
+                            .not_null()
+                            .default(true),
+                    )
+                    .col(ColumnDef::new(Products::Weight).integer())
+                    .col(ColumnDef::new(Products::Length).integer())
+                    .col(ColumnDef::new(Products::Height).integer())
+                    .col(ColumnDef::new(Products::Width).integer())
+                    .col(ColumnDef::new(Products::HsCode).string_len(20))
+                    .col(ColumnDef::new(Products::OriginCountry).string_len(2))
+                    .col(ColumnDef::new(Products::MidCode).string_len(50))
+                    .col(ColumnDef::new(Products::ExternalId).string_len(100))
                     .col(
                         ColumnDef::new(Products::Metadata)
                             .json_binary()
@@ -42,6 +61,7 @@ impl MigrationTrait for Migration {
                             .default(Expr::current_timestamp()),
                     )
                     .col(ColumnDef::new(Products::PublishedAt).timestamp_with_time_zone())
+                    .col(ColumnDef::new(Products::DeletedAt).timestamp_with_time_zone())
                     .foreign_key(
                         ForeignKey::create()
                             .from(Products::Table, Products::TenantId)
@@ -63,14 +83,10 @@ impl MigrationTrait for Migration {
                             .not_null()
                             .primary_key(),
                     )
-                    .col(
-                        ColumnDef::new(ProductTranslations::ProductId)
-                            .uuid()
-                            .not_null(),
-                    )
+                    .col(ColumnDef::new(ProductTranslations::ProductId).uuid().not_null())
                     .col(
                         ColumnDef::new(ProductTranslations::Locale)
-                            .string_len(8)
+                            .string_len(5)
                             .not_null(),
                     )
                     .col(
@@ -78,229 +94,20 @@ impl MigrationTrait for Migration {
                             .string_len(255)
                             .not_null(),
                     )
+                    .col(ColumnDef::new(ProductTranslations::Subtitle).string_len(255))
                     .col(
                         ColumnDef::new(ProductTranslations::Handle)
                             .string_len(255)
                             .not_null(),
                     )
                     .col(ColumnDef::new(ProductTranslations::Description).text())
-                    .col(ColumnDef::new(ProductTranslations::MetaTitle).string_len(255))
-                    .col(
-                        ColumnDef::new(ProductTranslations::MetaDescription)
-                            .string_len(500),
-                    )
+                    .col(ColumnDef::new(ProductTranslations::Material).string_len(255))
                     .foreign_key(
                         ForeignKey::create()
                             .from(ProductTranslations::Table, ProductTranslations::ProductId)
                             .to(Products::Table, Products::Id)
                             .on_delete(ForeignKeyAction::Cascade),
                     )
-                    .to_owned(),
-            )
-            .await?;
-
-        manager
-            .create_index(
-                Index::create()
-                    .name("idx_prod_trans_uniq")
-                    .table(ProductTranslations::Table)
-                    .col(ProductTranslations::ProductId)
-                    .col(ProductTranslations::Locale)
-                    .unique()
-                    .to_owned(),
-            )
-            .await?;
-        manager
-            .create_index(
-                Index::create()
-                    .name("idx_prod_trans_handle")
-                    .table(ProductTranslations::Table)
-                    .col(ProductTranslations::Locale)
-                    .col(ProductTranslations::Handle)
-                    .to_owned(),
-            )
-            .await?;
-
-        manager
-            .create_table(
-                Table::create()
-                    .table(ProductOptions::Table)
-                    .if_not_exists()
-                    .col(
-                        ColumnDef::new(ProductOptions::Id)
-                            .uuid()
-                            .not_null()
-                            .primary_key(),
-                    )
-                    .col(ColumnDef::new(ProductOptions::ProductId).uuid().not_null())
-                    .col(
-                        ColumnDef::new(ProductOptions::Position)
-                            .integer()
-                            .not_null()
-                            .default(0),
-                    )
-                    .col(
-                        ColumnDef::new(ProductOptions::Name)
-                            .string_len(100)
-                            .not_null(),
-                    )
-                    .col(
-                        ColumnDef::new(ProductOptions::Values)
-                            .json_binary()
-                            .not_null(),
-                    )
-                    .foreign_key(
-                        ForeignKey::create()
-                            .from(ProductOptions::Table, ProductOptions::ProductId)
-                            .to(Products::Table, Products::Id)
-                            .on_delete(ForeignKeyAction::Cascade),
-                    )
-                    .to_owned(),
-            )
-            .await?;
-
-        manager
-            .create_table(
-                Table::create()
-                    .table(ProductVariants::Table)
-                    .if_not_exists()
-                    .col(
-                        ColumnDef::new(ProductVariants::Id)
-                            .uuid()
-                            .not_null()
-                            .primary_key(),
-                    )
-                    .col(ColumnDef::new(ProductVariants::ProductId).uuid().not_null())
-                    .col(ColumnDef::new(ProductVariants::TenantId).uuid().not_null())
-                    .col(ColumnDef::new(ProductVariants::Sku).string_len(64))
-                    .col(ColumnDef::new(ProductVariants::Barcode).string_len(64))
-                    .col(ColumnDef::new(ProductVariants::Ean).string_len(64))
-                    .col(ColumnDef::new(ProductVariants::Upc).string_len(64))
-                    .col(
-                        ColumnDef::new(ProductVariants::InventoryPolicy)
-                            .string_len(32)
-                            .not_null()
-                            .default("deny"),
-                    )
-                    .col(
-                        ColumnDef::new(ProductVariants::InventoryManagement)
-                            .string_len(32)
-                            .not_null()
-                            .default("manual"),
-                    )
-                    .col(
-                        ColumnDef::new(ProductVariants::InventoryQuantity)
-                            .integer()
-                            .not_null()
-                            .default(0),
-                    )
-                    .col(ColumnDef::new(ProductVariants::Weight).decimal())
-                    .col(
-                        ColumnDef::new(ProductVariants::WeightUnit)
-                            .string_len(8)
-                            .default("kg"),
-                    )
-                    .col(ColumnDef::new(ProductVariants::Option1).string_len(100))
-                    .col(ColumnDef::new(ProductVariants::Option2).string_len(100))
-                    .col(ColumnDef::new(ProductVariants::Option3).string_len(100))
-                    .col(
-                        ColumnDef::new(ProductVariants::Position)
-                            .integer()
-                            .not_null()
-                            .default(0),
-                    )
-                    .col(
-                        ColumnDef::new(ProductVariants::CreatedAt)
-                            .timestamp_with_time_zone()
-                            .not_null()
-                            .default(Expr::current_timestamp()),
-                    )
-                    .col(
-                        ColumnDef::new(ProductVariants::UpdatedAt)
-                            .timestamp_with_time_zone()
-                            .not_null()
-                            .default(Expr::current_timestamp()),
-                    )
-                    .foreign_key(
-                        ForeignKey::create()
-                            .from(ProductVariants::Table, ProductVariants::ProductId)
-                            .to(Products::Table, Products::Id)
-                            .on_delete(ForeignKeyAction::Cascade),
-                    )
-                    .foreign_key(
-                        ForeignKey::create()
-                            .from(ProductVariants::Table, ProductVariants::TenantId)
-                            .to(Tenants::Table, Tenants::Id)
-                            .on_delete(ForeignKeyAction::Cascade),
-                    )
-                    .to_owned(),
-            )
-            .await?;
-
-        manager
-            .create_table(
-                Table::create()
-                    .table(VariantTranslations::Table)
-                    .if_not_exists()
-                    .col(
-                        ColumnDef::new(VariantTranslations::Id)
-                            .uuid()
-                            .not_null()
-                            .primary_key(),
-                    )
-                    .col(
-                        ColumnDef::new(VariantTranslations::VariantId)
-                            .uuid()
-                            .not_null(),
-                    )
-                    .col(
-                        ColumnDef::new(VariantTranslations::Locale)
-                            .string_len(8)
-                            .not_null(),
-                    )
-                    .col(ColumnDef::new(VariantTranslations::Title).string_len(255))
-                    .foreign_key(
-                        ForeignKey::create()
-                            .from(VariantTranslations::Table, VariantTranslations::VariantId)
-                            .to(ProductVariants::Table, ProductVariants::Id)
-                            .on_delete(ForeignKeyAction::Cascade),
-                    )
-                    .to_owned(),
-            )
-            .await?;
-
-        manager
-            .create_table(
-                Table::create()
-                    .table(Prices::Table)
-                    .if_not_exists()
-                    .col(ColumnDef::new(Prices::Id).uuid().not_null().primary_key())
-                    .col(ColumnDef::new(Prices::VariantId).uuid().not_null())
-                    .col(
-                        ColumnDef::new(Prices::CurrencyCode)
-                            .string_len(3)
-                            .not_null(),
-                    )
-                    .col(ColumnDef::new(Prices::Amount).decimal().not_null())
-                    .col(ColumnDef::new(Prices::CompareAtAmount).decimal())
-                    .foreign_key(
-                        ForeignKey::create()
-                            .from(Prices::Table, Prices::VariantId)
-                            .to(ProductVariants::Table, ProductVariants::Id)
-                            .on_delete(ForeignKeyAction::Cascade),
-                    )
-                    .to_owned(),
-            )
-            .await?;
-
-        manager
-            .create_index(
-                Index::create()
-                    .name("idx_prices_uniq")
-                    .table(Prices::Table)
-                    .col(Prices::VariantId)
-                    .col(Prices::CurrencyCode)
-                    .unique()
                     .to_owned(),
             )
             .await?;
@@ -317,20 +124,139 @@ impl MigrationTrait for Migration {
                             .primary_key(),
                     )
                     .col(ColumnDef::new(ProductImages::ProductId).uuid().not_null())
-                    .col(ColumnDef::new(ProductImages::MediaId).uuid().not_null())
+                    .col(ColumnDef::new(ProductImages::MediaId).uuid())
+                    .col(
+                        ColumnDef::new(ProductImages::Url)
+                            .string_len(500)
+                            .not_null(),
+                    )
                     .col(
                         ColumnDef::new(ProductImages::Position)
                             .integer()
                             .not_null()
                             .default(0),
                     )
-                    .col(ColumnDef::new(ProductImages::AltText).string_len(255))
+                    .col(
+                        ColumnDef::new(ProductImages::Metadata)
+                            .json_binary()
+                            .not_null()
+                            .default("{}"),
+                    )
+                    .col(
+                        ColumnDef::new(ProductImages::CreatedAt)
+                            .timestamp_with_time_zone()
+                            .not_null()
+                            .default(Expr::current_timestamp()),
+                    )
                     .foreign_key(
                         ForeignKey::create()
                             .from(ProductImages::Table, ProductImages::ProductId)
                             .to(Products::Table, Products::Id)
                             .on_delete(ForeignKeyAction::Cascade),
                     )
+                    .foreign_key(
+                        ForeignKey::create()
+                            .from(ProductImages::Table, ProductImages::MediaId)
+                            .to(Media::Table, Media::Id)
+                            .on_delete(ForeignKeyAction::SetNull),
+                    )
+                    .to_owned(),
+            )
+            .await?;
+
+        manager
+            .create_table(
+                Table::create()
+                    .table(ProductImageTranslations::Table)
+                    .if_not_exists()
+                    .col(
+                        ColumnDef::new(ProductImageTranslations::Id)
+                            .uuid()
+                            .not_null()
+                            .primary_key(),
+                    )
+                    .col(
+                        ColumnDef::new(ProductImageTranslations::ImageId)
+                            .uuid()
+                            .not_null(),
+                    )
+                    .col(
+                        ColumnDef::new(ProductImageTranslations::Locale)
+                            .string_len(5)
+                            .not_null(),
+                    )
+                    .col(ColumnDef::new(ProductImageTranslations::AltText).string_len(255))
+                    .foreign_key(
+                        ForeignKey::create()
+                            .from(ProductImageTranslations::Table, ProductImageTranslations::ImageId)
+                            .to(ProductImages::Table, ProductImages::Id)
+                            .on_delete(ForeignKeyAction::Cascade),
+                    )
+                    .to_owned(),
+            )
+            .await?;
+
+        manager
+            .create_index(
+                Index::create()
+                    .name("idx_products_tenant")
+                    .table(Products::Table)
+                    .col(Products::TenantId)
+                    .col(Products::Status)
+                    .to_owned(),
+            )
+            .await?;
+        manager
+            .create_index(
+                Index::create()
+                    .name("idx_products_external")
+                    .table(Products::Table)
+                    .col(Products::TenantId)
+                    .col(Products::ExternalId)
+                    .to_owned(),
+            )
+            .await?;
+
+        manager
+            .create_index(
+                Index::create()
+                    .name("idx_product_trans_unique")
+                    .table(ProductTranslations::Table)
+                    .col(ProductTranslations::ProductId)
+                    .col(ProductTranslations::Locale)
+                    .unique()
+                    .to_owned(),
+            )
+            .await?;
+        manager
+            .create_index(
+                Index::create()
+                    .name("idx_product_trans_handle")
+                    .table(ProductTranslations::Table)
+                    .col(ProductTranslations::Locale)
+                    .col(ProductTranslations::Handle)
+                    .to_owned(),
+            )
+            .await?;
+
+        manager
+            .create_index(
+                Index::create()
+                    .name("idx_product_images_product")
+                    .table(ProductImages::Table)
+                    .col(ProductImages::ProductId)
+                    .col(ProductImages::Position)
+                    .to_owned(),
+            )
+            .await?;
+        manager
+            .create_index(
+                Index::create()
+                    .name("idx_product_image_trans_unique")
+                    .table(ProductImageTranslations::Table)
+                    .col(ProductImageTranslations::ImageId)
+                    .col(ProductImageTranslations::Locale)
+                    .unique()
                     .to_owned(),
             )
             .await?;
@@ -340,19 +266,10 @@ impl MigrationTrait for Migration {
 
     async fn down(&self, manager: &SchemaManager) -> Result<(), DbErr> {
         manager
+            .drop_table(Table::drop().table(ProductImageTranslations::Table).to_owned())
+            .await?;
+        manager
             .drop_table(Table::drop().table(ProductImages::Table).to_owned())
-            .await?;
-        manager
-            .drop_table(Table::drop().table(Prices::Table).to_owned())
-            .await?;
-        manager
-            .drop_table(Table::drop().table(VariantTranslations::Table).to_owned())
-            .await?;
-        manager
-            .drop_table(Table::drop().table(ProductVariants::Table).to_owned())
-            .await?;
-        manager
-            .drop_table(Table::drop().table(ProductOptions::Table).to_owned())
             .await?;
         manager
             .drop_table(Table::drop().table(ProductTranslations::Table).to_owned())
@@ -370,12 +287,21 @@ enum Products {
     Id,
     TenantId,
     Status,
-    Vendor,
-    ProductType,
+    IsGiftCard,
+    Discountable,
+    Weight,
+    Length,
+    Height,
+    Width,
+    HsCode,
+    OriginCountry,
+    MidCode,
+    ExternalId,
     Metadata,
     CreatedAt,
     UpdatedAt,
     PublishedAt,
+    DeletedAt,
 }
 
 #[derive(Iden)]
@@ -385,62 +311,10 @@ enum ProductTranslations {
     ProductId,
     Locale,
     Title,
+    Subtitle,
     Handle,
     Description,
-    MetaTitle,
-    MetaDescription,
-}
-
-#[derive(Iden)]
-enum ProductOptions {
-    Table,
-    Id,
-    ProductId,
-    Position,
-    Name,
-    Values,
-}
-
-#[derive(Iden)]
-enum ProductVariants {
-    Table,
-    Id,
-    ProductId,
-    TenantId,
-    Sku,
-    Barcode,
-    Ean,
-    Upc,
-    InventoryPolicy,
-    InventoryManagement,
-    InventoryQuantity,
-    Weight,
-    WeightUnit,
-    Option1,
-    Option2,
-    Option3,
-    Position,
-    CreatedAt,
-    UpdatedAt,
-}
-
-#[derive(Iden)]
-enum VariantTranslations {
-    Table,
-    Id,
-    VariantId,
-    Locale,
-    Title,
-}
-
-#[derive(Iden)]
-enum Prices {
-    Table,
-    Id,
-    VariantId,
-    CurrencyCode,
-    Amount,
-    CompareAtAmount,
+    Material,
 }
 
 #[derive(Iden)]
@@ -449,6 +323,17 @@ enum ProductImages {
     Id,
     ProductId,
     MediaId,
+    Url,
     Position,
+    Metadata,
+    CreatedAt,
+}
+
+#[derive(Iden)]
+enum ProductImageTranslations {
+    Table,
+    Id,
+    ImageId,
+    Locale,
     AltText,
 }
