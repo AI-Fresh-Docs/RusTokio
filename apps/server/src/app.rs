@@ -46,8 +46,7 @@ impl Hooks for App {
             .add_route(controllers::health::routes())
             .add_route(controllers::auth::routes())
             .add_route(controllers::graphql::routes())
-            .add_route(controllers::admin_product::routes())
-            .add_route(controllers::storefront_product::routes())
+            .add_route(controllers::commerce::routes())
     }
 
     async fn after_routes(router: AxumRouter, ctx: &AppContext) -> Result<AxumRouter> {

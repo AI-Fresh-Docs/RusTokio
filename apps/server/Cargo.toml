@@ -7,7 +7,6 @@ edition.workspace = true
 rustok-core.workspace = true
 rustok-commerce.workspace = true
 rustok-blog.workspace = true
-rustok-index.workspace = true
 
 loco-rs.workspace = true
 tokio.workspace = true
@@ -24,6 +23,7 @@ base64.workspace = true
 eyre = "0.6"
 async-trait.workspace = true
 thiserror.workspace = true
+rust_decimal = "1.36"
 argon2 = "0.5"
 hex = "0.4"
 jsonwebtoken = "9.3"
