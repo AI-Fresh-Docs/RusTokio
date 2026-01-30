@@ -43,6 +43,80 @@ jobs:
       - uses: Swatinem/rust-cache@v2
       - run: cargo check --workspace --all-targets --all-features
 
+  audit:
+    name: Security Audit
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: rustsec/audit-check@v1
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+  deny:
+    name: Cargo Deny
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: EmbarkStudios/cargo-deny-action@v1
+
+  typos:
+    name: Spell Check (Typos)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: crate-ci/typos@master
+
+  doc:
+    name: Documentation
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - run: cargo doc --no-deps --all-features --workspace
+        env:
+          RUSTDOCFLAGS: "-D warnings"
+
+  udeps:
+    name: Unused Dependencies
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@nightly
+      - uses: Swatinem/rust-cache@v2
+      - name: Install cargo-udeps
+        run: cargo install cargo-udeps --locked
+      - run: cargo udeps --workspace --all-targets --all-features
+
+  coverage:
+    name: Code Coverage
+    runs-on: ubuntu-latest
+    needs: build-crates
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: rustok_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    env:
+      DATABASE_URL: postgres://postgres:postgres@localhost:5432/rustok_test
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: llvm-tools-preview
+      - uses: Swatinem/rust-cache@v2
+      - name: Install cargo-llvm-cov
+        run: cargo install cargo-llvm-cov --locked
+      - run: cargo llvm-cov --workspace --all-features --lcov --output-path lcov.info
+
   build-crates:
     name: Build Crates
     runs-on: ubuntu-latest
@@ -114,7 +188,7 @@ jobs:
   ci-success:
     name: CI Success
     runs-on: ubuntu-latest
-    needs: [fmt, clippy, check, build-server, build-admin, build-storefront, test]
+    needs: [fmt, clippy, check, audit, deny, typos, doc, udeps, coverage, build-server, build-admin, build-storefront, test]
     if: always()
     steps:
       - name: Check all jobs
@@ -122,6 +196,12 @@ jobs:
           if [[ "${{ needs.fmt.result }}" != "success" ]] || \
              [[ "${{ needs.clippy.result }}" != "success" ]] || \
              [[ "${{ needs.check.result }}" != "success" ]] || \
+             [[ "${{ needs.audit.result }}" != "success" ]] || \
+             [[ "${{ needs.deny.result }}" != "success" ]] || \
+             [[ "${{ needs.typos.result }}" != "success" ]] || \
+             [[ "${{ needs.doc.result }}" != "success" ]] || \
+             [[ "${{ needs.udeps.result }}" != "success" ]] || \
+             [[ "${{ needs.coverage.result }}" != "success" ]] || \
              [[ "${{ needs.build-server.result }}" != "success" ]] || \
              [[ "${{ needs.build-admin.result }}" != "success" ]] || \
              [[ "${{ needs.build-storefront.result }}" != "success" ]] || \
