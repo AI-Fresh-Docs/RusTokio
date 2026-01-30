@@ -226,9 +226,6 @@ async fn login(
     format::json(response)
 }
 
-    format::json(response)
-}
-
 /// Refresh access token
 #[utoipa::path(
     post,
@@ -298,9 +295,6 @@ async fn refresh(
     format::json(response)
 }
 
-    format::json(response)
-}
-
 /// Revoke refresh token (Logout)
 #[utoipa::path(
     post,
@@ -327,9 +321,6 @@ async fn logout(
         session_model.revoked_at = Set(Some(Utc::now().into()));
         session_model.update(&ctx.db).await?;
     }
-
-    format::json(LogoutResponse { status: "ok" })
-}
 
     format::json(LogoutResponse { status: "ok" })
 }
