@@ -40,22 +40,22 @@
 - **Compile-Time Safety:** Если компилируется — работает.
 - **Monorepo:** Backend, Admin и Storefront живут вместе.
 
-### 2.2 Universal Core, Specific Modules
+### 2.2 Core Module, Specific Modules
 
-- **Unified Core:** Ядро содержит только то, что нужно всем (SEO, Tags, Users, Basic Nodes).
-- **Specialized Modules:** Товары ≠ статьи, у каждого модуля своя бизнес-логика и таблицы.
-- **Empty Tables Cost Zero:** Неиспользуемые таблицы не мешают.
+- **Core Module (`rustok-core`):** Содержит только универсальные возможности (Traits, Auth, Events). Без таблиц БД.
+- **Specialized Modules:** Товары, Блог и пр. — у каждого свои таблицы и бизнес-логика.
+- **Empty Tables Cost Zero:** Неиспользуемые таблицы не нагружают систему.
 
 ### 2.3 CQRS (Write vs Read)
 
 - **Write Model (Modules):** строгие реляционные таблицы (3NF), транзакции, валидация.
-- **Read Model (Index/Catalog):** денормализованный JSONB/индексы, GIN, быстрый поиск.
+- **Read Model (Index/Catalog):** денормализованные JSONB-таблицы/индексы, GIN, быстрый поиск.
 - **Event-Driven Sync:** изменения propagate через события.
 
 ### 2.4 Highload by Default
 
-- **Event-Driven Glue:** модули не знают друг о друге напрямую. Они общаются через EventBus.
-- **No Heavy JOINs on Storefront:** данные "склеиваются" при записи, а не при чтении.
+- **Event-Driven Glue:** модули не знают друг друга напрямую. Они общаются через EventBus.
+- **No Heavy JOINs on Storefront:** данные "склеиваются" при записи (в Indexer), а не при чтении.
 
 ---
 
@@ -90,61 +90,47 @@ rustok/
 │   └── storefront/                 # Leptos SSR
 │
 ├── crates/
-│   ├── rustok-core/                # Универсальное ядро
+│   ├── rustok-core/                # 🧠 Инфраструктурное ядро (Lib)
 │   │   ├── src/
 │   │   │   ├── lib.rs
 │   │   │   ├── id.rs               # ULID → UUID
-│   │   │   ├── error.rs
-│   │   │   ├── traits.rs           # Universal traits
-│   │   │   ├── events/             # Event Bus
+│   │   │   ├── auth/               # JWT & Auth logic
+│   │   │   ├── events/             # Event Bus traits
+│   │   │   └── rbac/               # Permissions logic
+│   │   └── Cargo.toml
+│   │
+│   ├── rustok-content/             # 📝 Контент (Nodes/Bodies)
+│   │   ├── src/
 │   │   │   ├── entities/
 │   │   │   │   ├── mod.rs
-│   │   │   │   ├── user.rs
-│   │   │   │   ├── tenant.rs
 │   │   │   │   ├── node.rs         # Универсальный контент
 │   │   │   │   ├── body.rs         # Тяжёлый текст
-│   │   │   │   ├── category.rs     # Контентные категории
-│   │   │   │   ├── tag.rs          # Универсальные теги
-│   │   │   │   ├── taggable.rs     # Полиморфная связь
-│   │   │   │   ├── meta.rs         # SEO
-│   │   │   │   └── media.rs        # Файлы
+│   │   │   │   └── ...
 │   │   │   └── services/
 │   │   └── Cargo.toml
 │   │
-│   ├── rustok-commerce/            # E-commerce модуль
+│   ├── rustok-blog/                # 📰 Блог (Модуль)
+│   │   ├── src/
+│   │   │   └── entities/           # post, comment
+│   │   └── Cargo.toml
+│   │
+│   ├── rustok-commerce/            # 🛒 E-commerce модуль
 │   │   ├── src/
 │   │   │   ├── entities/
 │   │   │   │   ├── product.rs
 │   │   │   │   ├── variant.rs
-│   │   │   │   ├── option.rs
-│   │   │   │   ├── price.rs
-│   │   │   │   ├── category.rs     # СВОИ категории
-│   │   │   │   ├── inventory.rs
 │   │   │   │   ├── order.rs
-│   │   │   │   └── order_item.rs
-│   │   │   ├── services/
-│   │   │   └── graphql/
-│   │   └── Cargo.toml
-│   │
-│   ├── rustok-community/           # Социальные фичи
-│   │   ├── src/
-│   │   │   ├── entities/
-│   │   │   │   ├── reaction.rs
-│   │   │   │   ├── reputation.rs
-│   │   │   │   └── follow.rs
+│   │   │   │   └── ...
 │   │   │   └── services/
 │   │   └── Cargo.toml
 │   │
-│   └── rustok-index/               # CQRS Read Models
+│   ├── rustok-community/           # (Planned) Социальные фичи
+│   │   └── ...
+│   │
+│   └── rustok-index/               # 🔎 CQRS Read Models
 │       ├── src/
-│       │   ├── lib.rs
-│       │   ├── config.rs
 │       │   ├── indexers/
-│       │   │   ├── product_indexer.rs
-│       │   │   └── content_indexer.rs
 │       │   └── entities/
-│       │       ├── search_product.rs
-│       │       └── search_content.rs
 │       └── Cargo.toml
 │
 ├── Cargo.toml
@@ -175,23 +161,25 @@ pub fn parse_id(s: &str) -> Result<Uuid, IdError> {
 }
 ```
 
-### 5.2 RusToK Core (Unified Foundation)
+### 5.2 RusToK App Core (Server)
+`apps/server/src/models`
 
 ```sql
 -- =============================================
--- CORE: Tenants
+-- SERVER: Tenants
 -- =============================================
 CREATE TABLE tenants (
     id              UUID PRIMARY KEY,
     name            VARCHAR(255) NOT NULL,
     slug            VARCHAR(64) NOT NULL UNIQUE,
     settings        JSONB NOT NULL DEFAULT '{}',
+    is_active       BOOLEAN NOT NULL DEFAULT true,
     created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at      TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
 -- =============================================
--- CORE: Users
+-- SERVER: Users
 -- =============================================
 CREATE TABLE users (
     id              UUID PRIMARY KEY,
@@ -199,6 +187,7 @@ CREATE TABLE users (
     email           VARCHAR(255) NOT NULL,
     password_hash   VARCHAR(255) NOT NULL,
     role            VARCHAR(32) NOT NULL DEFAULT 'customer',
+    status          VARCHAR(32) NOT NULL DEFAULT 'active',
     metadata        JSONB NOT NULL DEFAULT '{}',
     created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
@@ -206,7 +195,25 @@ CREATE TABLE users (
 );
 
 -- =============================================
--- CORE: Nodes (универсальный контент)
+-- SERVER: Module Toggles
+-- =============================================
+CREATE TABLE tenant_modules (
+    id              UUID PRIMARY KEY,
+    tenant_id       UUID NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
+    module_slug     VARCHAR(64) NOT NULL,
+    enabled         BOOLEAN NOT NULL DEFAULT true,
+    settings        JSONB NOT NULL DEFAULT '{}',
+    created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    UNIQUE (tenant_id, module_slug)
+);
+```
+
+### 5.3 RusToK Content (Module)
+`crates/rustok-content/src/entities`
+
+```sql
+-- =============================================
+-- CONTENT: Nodes (универсальный контент)
 -- Страницы, посты, комментарии — всё здесь
 -- =============================================
 CREATE TABLE nodes (
@@ -230,15 +237,8 @@ CREATE TABLE nodes (
     UNIQUE (tenant_id, kind, slug) WHERE slug IS NOT NULL
 );
 
-CREATE INDEX idx_nodes_tenant_kind ON nodes(tenant_id, kind, status);
-CREATE INDEX idx_nodes_parent ON nodes(parent_id);
-CREATE INDEX idx_nodes_category ON nodes(category_id);
-CREATE INDEX idx_nodes_author ON nodes(author_id);
-CREATE INDEX idx_nodes_published ON nodes(tenant_id, kind, published_at DESC)
-    WHERE status = 'published';
-
 -- =============================================
--- CORE: Bodies (тяжёлый контент отдельно)
+-- CONTENT: Bodies (тяжёлый контент отдельно)
 -- =============================================
 CREATE TABLE bodies (
     node_id         UUID PRIMARY KEY REFERENCES nodes(id) ON DELETE CASCADE,
@@ -248,117 +248,26 @@ CREATE TABLE bodies (
     updated_at      TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
-CREATE INDEX idx_bodies_search ON bodies USING GIN(search_vector);
-
 -- =============================================
--- CORE: Categories (контентные)
+-- CONTENT: Categories (контентные)
 -- =============================================
 CREATE TABLE categories (
     id              UUID PRIMARY KEY,
     tenant_id       UUID NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
-    parent_id       UUID REFERENCES categories(id) ON DELETE CASCADE,
+    -- ...
     name            VARCHAR(255) NOT NULL,
     slug            VARCHAR(255) NOT NULL,
-    description     TEXT,
-    position        INT NOT NULL DEFAULT 0,
-    depth           INT NOT NULL DEFAULT 0,
-    node_count      INT NOT NULL DEFAULT 0,
-    settings        JSONB NOT NULL DEFAULT '{}',
-    created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    -- ...
     UNIQUE (tenant_id, slug)
 );
 
-CREATE INDEX idx_categories_tenant ON categories(tenant_id, position);
-CREATE INDEX idx_categories_parent ON categories(parent_id);
-
 -- =============================================
--- CORE: Tags (универсальные ярлыки)
+-- CONTENT: Tags & Taggables
 -- =============================================
-CREATE TABLE tags (
-    id              UUID PRIMARY KEY,
-    tenant_id       UUID NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
-    name            VARCHAR(100) NOT NULL,
-    slug            VARCHAR(100) NOT NULL,
-    use_count       INT NOT NULL DEFAULT 0,
-    created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    UNIQUE (tenant_id, slug)
-);
-
-CREATE INDEX idx_tags_tenant ON tags(tenant_id);
-CREATE INDEX idx_tags_popular ON tags(tenant_id, use_count DESC);
-
--- =============================================
--- CORE: Taggables (полиморфная связь)
--- =============================================
-CREATE TABLE taggables (
-    tag_id          UUID NOT NULL REFERENCES tags(id) ON DELETE CASCADE,
-    target_type     VARCHAR(32) NOT NULL,       -- 'node', 'product'
-    target_id       UUID NOT NULL,
-    created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    PRIMARY KEY (tag_id, target_type, target_id)
-);
-
-CREATE INDEX idx_taggables_target ON taggables(target_type, target_id);
-
--- =============================================
--- CORE: Meta (SEO, универсальное)
--- =============================================
-CREATE TABLE meta (
-    id              UUID PRIMARY KEY,
-    tenant_id       UUID NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
-    target_type     VARCHAR(32) NOT NULL,       -- 'node', 'product', 'category'
-    target_id       UUID NOT NULL,
-    title           VARCHAR(255),
-    description     VARCHAR(500),
-    keywords        VARCHAR(255),
-    og_title        VARCHAR(255),
-    og_description  VARCHAR(500),
-    og_image        VARCHAR(500),
-    og_type         VARCHAR(32),
-    twitter_card    VARCHAR(32),
-    no_index        BOOLEAN NOT NULL DEFAULT false,
-    no_follow       BOOLEAN NOT NULL DEFAULT false,
-    canonical_url   VARCHAR(500),
-    structured_data JSONB,
-    UNIQUE (target_type, target_id)
-);
-
-CREATE INDEX idx_meta_target ON meta(target_type, target_id);
-
--- =============================================
--- CORE: Media (файлы)
--- =============================================
-CREATE TABLE media (
-    id              UUID PRIMARY KEY,
-    tenant_id       UUID NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
-    uploaded_by     UUID REFERENCES users(id) ON DELETE SET NULL,
-    filename        VARCHAR(255) NOT NULL,
-    original_name   VARCHAR(255) NOT NULL,
-    mime_type       VARCHAR(100) NOT NULL,
-    size            BIGINT NOT NULL,
-    storage_path    VARCHAR(500) NOT NULL,
-    storage_driver  VARCHAR(32) NOT NULL DEFAULT 'local',
-    width           INT,
-    height          INT,
-    alt_text        VARCHAR(255),
-    metadata        JSONB NOT NULL DEFAULT '{}',
-    created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW()
-);
-
-CREATE INDEX idx_media_tenant ON media(tenant_id);
-
--- =============================================
--- CORE: Module Toggles
--- =============================================
-CREATE TABLE tenant_modules (
-    id              UUID PRIMARY KEY,
-    tenant_id       UUID NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
-    module_slug     VARCHAR(64) NOT NULL,
-    enabled         BOOLEAN NOT NULL DEFAULT true,
-    settings        JSONB NOT NULL DEFAULT '{}',
-    created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    UNIQUE (tenant_id, module_slug)
-);
+CREATE TABLE tags ( ... );
+CREATE TABLE taggables ( ... );
+CREATE TABLE meta ( ... );
+CREATE TABLE media ( ... );
 ```
 
 ### 5.3 RusToK Commerce (Module)
@@ -732,72 +641,263 @@ CREATE TABLE nodes_p2 PARTITION OF nodes FOR VALUES WITH (MODULUS 4, REMAINDER 2
 CREATE TABLE nodes_p3 PARTITION OF nodes FOR VALUES WITH (MODULUS 4, REMAINDER 3);
 ```
 
-#### 5.6.2 Index Module (как Medusa)
+
+---
+
+## 6. TRAITS & INTERFACES (Rust Code)
+
+### 6.1 Универсальные трейты (rustok-core)
 
 ```rust
-// crates/rustok-index/src/lib.rs
+// crates/rustok-core/src/traits.rs
 
-/// Конфигурация индекса
-pub struct IndexConfig {
-    pub name: &'static str,
-    pub sources: Vec<IndexSource>,
-    pub fields: Vec<IndexField>,
+#[async_trait]
+pub trait ModelHook {
+    async fn on_create(&self, ctx: &AppContext) -> Result<()>;
+    async fn on_update(&self, ctx: &AppContext) -> Result<()>;
+    async fn on_delete(&self, ctx: &AppContext) -> Result<()>;
 }
 
-/// Источник данных для индекса
-pub enum IndexSource {
-    Table { name: &'static str, join_on: &'static str },
-    Module { slug: &'static str, entity: &'static str },
+pub trait Taggable {
+    fn get_tags(&self) -> Vec<String>;
 }
 
-// Пример: индекс товаров для поиска
-pub fn product_search_index() -> IndexConfig {
-    IndexConfig {
-        name: "search_products",
-        sources: vec![
-            IndexSource::Table { name: "commerce_products", join_on: "id" },
-            IndexSource::Table { name: "commerce_variants", join_on: "product_id" },
-            IndexSource::Table { name: "meta", join_on: "target_id WHERE target_type = 'product'" },
-            IndexSource::Table { name: "taggables", join_on: "target_id WHERE target_type = 'product'" },
-        ],
-        fields: vec![
-            IndexField::new("product_id", "commerce_products.id"),
-            IndexField::new("title", "commerce_products.title"),
-            IndexField::new("prices", "jsonb_agg(commerce_variants.prices)"),
-            IndexField::new("tags", "array_agg(tags.name)"),
-            IndexField::new("meta_title", "meta.title"),
-            // ...
-        ],
+pub trait Indexable {
+    fn to_search_document(&self) -> SearchDocument;
+}
+```
+
+---
+
+## 7. EVENT SYSTEM
+
+### 7.1 Domain Events
+
+```rust
+// crates/rustok-core/src/events/mod.rs
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+#[serde(tag = "type", content = "payload")]
+pub enum DomainEvent {
+    // Content Events
+    NodeCreated { node_id: Uuid, tenant_id: Uuid },
+    NodeUpdated { node_id: Uuid, tenant_id: Uuid },
+    NodePublished { node_id: Uuid, tenant_id: Uuid },
+    
+    // Commerce Events
+    ProductUpdated { product_id: Uuid, tenant_id: Uuid },
+    OrderCreated { order_id: Uuid, tenant_id: Uuid },
+}
+```
+
+### 7.2 Event Bus и Handlers
+
+**Принцип:** Модули не вызывают друг друга напрямую. Они публикуют события.
+
+```rust
+// Основной цикл обработки событий
+pub async fn event_listener(bus: &EventBus, indexer: &IndexService) {
+    let mut rx = bus.subscribe();
+    
+    while let Ok(event) = rx.recv().await {
+        match event {
+            DomainEvent::NodePublished { node_id, .. } => {
+                // Если контент опубликован — индексируем его
+                if let Err(e) = indexer.reindex_node(node_id).await {
+                   tracing::error!("Failed to index node: {}", e);
+                }
+            }
+            DomainEvent::ProductUpdated { product_id, .. } => {
+                // Если товар обновлен — обновляем поисковый индекс
+                indexer.reindex_product(product_id).await.ok();
+            }
+            _ => {}
+        }
     }
 }
 ```
 
-#### 5.6.3 Синхронизация через Events
+---
+
+## 8. INDEX MODULE (CQRS)
+
+**Read Model** — это не просто кэш. Это специально подготовленные данные для UI.
+
+### 8.1 Пример Indexer'а
 
 ```rust
-// При изменении товара — обновляем индекс
-impl HookProvider for IndexModule {
-    async fn on_product_updated(&self, ctx: &Context, product_id: Uuid) -> Result<()> {
-        self.reindex_product(product_id).await
-    }
+// crates/rustok-index/src/indexers/product_indexer.rs
 
-    async fn on_content_published(&self, ctx: &Context, node_id: Uuid) -> Result<()> {
-        self.reindex_content(node_id).await
-    }
+pub async fn reindex_product(db: &Db, id: Uuid) -> Result<()> {
+    // 1. Загружаем "тяжелую" сущность со всеми связями
+    let product = Products::find_by_id(id)
+        .find_with_related(Variants)
+        .all(db).await?;
+        
+    // 2. Превращаем в плоский JSON документ для поиска
+    let doc = SearchProduct {
+        id: product.id,
+        title: product.title,
+        price_min: product.variants.iter().map(|v| v.price).min(),
+        tags: product.tags.join(", "),
+        // Функция truncate для превью
+        desc_preview: truncate(&product.description, 200), 
+    };
+    
+    // 3. Сохраняем в таблицу index_products
+    IndexProducts::insert(doc).on_conflict_overwrite().exec(db).await?;
+    
+    Ok(())
 }
 ```
 
-#### 5.6.4 Деплой: монолит или микросервисы
+---
 
-**Вариант 1: Монолит (старт)**
+## 9. MODULE REGISTRATION
 
-```text
-┌─────────────────────────────┐
-│         rustok-server       │
-│  ┌───────┐ ┌───────┐        │
-│  │ core  │ │commerce│       │
-│  └───────┘ └───────┘        │
-│  ┌───────┐ ┌───────┐        │
+```rust
+// apps/server/src/app.rs
+
+pub async fn initializers(ctx: &AppContext) -> Result<()> {
+    // Регистрируем модули при старте
+    ModuleRegistry::register("commerce", rustok_commerce::Module::new());
+    ModuleRegistry::register("content", rustok_content::Module::new());
+    
+    Ok(())
+}
+```
+
+---
+
+## 10. DEPLOYMENT ARCHITECTURE
+
+### 10.3 Architecture Diagram
+
+```
+                         ┌─────────────────┐
+                         │   Load Balancer │
+                         └────────┬────────┘
+                                  │
+              ┌───────────────────┼───────────────────┐
+              │                   │                   │
+              ▼                   ▼                   ▼
+       ┌────────────┐      ┌────────────┐      ┌────────────┐
+       │  API Pod 1 │      │  API Pod 2 │      │  API Pod 3 │
+       └─────┬──────┘      └─────┬──────┘      └─────┬──────┘
+             │                   │                   │
+             └───────────────────┼───────────────────┘
+                                 │
+              ┌──────────────────┼──────────────────┐
+              │                  │                  │
+              ▼                  ▼                  ▼
+       ┌────────────┐     ┌────────────┐    ┌─────────────┐
+       │ PostgreSQL │     │   Redis    │    │ Event Bus   │
+       │  Primary   │     │  (Cache)   │    │ (In-memory) │
+       └─────┬──────┘     └────────────┘    └──────┬──────┘
+             │                                     │
+             │ Replication                         │ Events
+             ▼                                     ▼
+       ┌────────────┐                      ┌─────────────┐
+       │ PostgreSQL │◄─────────────────────│Index Service│
+       │  Replica   │                      └──────┬──────┘
+       └────────────┘                             │
+                                                  ▼
+                                          ┌─────────────┐
+                                          │ Meilisearch │
+                                          └─────────────┘
+```
+
+---
+
+## 11. SUMMARY: What Lives Where
+
+| Layer | Entities | Purpose |
+|-------|----------|---------|
+| **Server** | users, tenants, tenant_modules, sessions | Общие сущности приложения, авторизация. |
+| **Rustok Core** | (Нет таблиц) | Инфраструктура: Auth, Events, ID, Traits. |
+| **Rustok Content** | nodes, bodies, categories, tags | Весь контент: статьи, страницы, теги. |
+| **Rustok Commerce** | products, variants, orders, prices | E-commerce логика. |
+| **Rustok Index** | index_products, index_content | Денормализованные данные для чтения (CQRS). |
+
+---
+
+## 12. DATA FLOW
+
+### WRITE PATH (Медленный, Надежный)
+
+```
+┌──────────────────────────────────────────────────────────────────┐
+│                         WRITE PATH                               │
+│                                                                  │
+│  User Request                                                    │
+│       │                                                          │
+│       ▼                                                          │
+│  ┌─────────┐    ┌─────────┐    ┌─────────┐    ┌──────────────┐   │
+│  │ GraphQL │───▶│ Service │───▶│   ORM   │───▶│ PostgreSQL   │   │
+│  │  API    │    │  Layer  │    │(SeaORM) │    │ (normalized) │   │
+│  └─────────┘    └────┬────┘    └─────────┘    └──────────────┘   │
+│                      │                                           │
+│                      ▼                                           │
+│                 ┌─────────┐                                      │
+│                 │  Event  │                                      │
+│                 │   Bus   │                                      │
+│                 └────┬────┘                                      │
+└──────────────────────┼───────────────────────────────────────────┘
+```
+
+### READ PATH (Быстрый, Оптимизированный)
+
+```
+┌──────────────────────────────────────────────────────────────────┐
+│                         READ PATH                                │
+│                                                                  │
+│                 ┌─────────────┐                                  │
+│                 │   Index     │                                  │
+│                 │  Handlers   │                                  │
+│                 └──────┬──────┘                                  │
+│                        │                                         │
+│                        ▼                                         │
+│  ┌────────────────────────────────────────────────────────────┐  │
+│  │                   INDEX TABLES                             │  │
+│  │  ┌─────────────────┐    ┌─────────────────┐               │  │
+│  │  │ index_products  │    │  index_content  │               │  │
+│  │  │ (denormalized)  │    │ (denormalized)  │               │  │
+│  │  └─────────────────┘    └─────────────────┘               │  │
+│  └────────────────────────────────────────────────────────────┘  │
+│                        │                                         │
+│                        ▼                                         │
+│                 ┌─────────────┐                                  │
+│                 │   Search    │    (Optional: Meilisearch)       │
+│                 │   Queries   │                                  │
+│                 └─────────────┘                                  │
+└──────────────────────────────────────────────────────────────────┘
+```
+
+---
+
+## 13. SUMMARY: WHY THIS ROCKS
+
+1. **Independent Scaling:** Index Module можно выделить в отдельный сервис.
+2. **Zero-Bloat Core:** `rustok-core` — это чистая логика, а не свалка таблиц.
+3. **Fast Storefront:** Один запрос к индекс-таблицам вместо 5-ти JOIN-ов.
+4. **Admin DX:** Админ видит единую систему, хотя модули изолированы.
+
+---
+
+## 14. DEVELOPER CHECKLIST (Code Standards)
+
+**Перед тем как сделать Pull Message, проверьте:**
+
+- [ ] **IDs:** Используются `Uuid` (генерируемые через `rustok_core::generate_id()`).
+- [ ] **Tenancy:** Вся сущность БД (кроме справочников) имеет `tenant_id`.
+- [ ] **Error Handling:** Используется `rustok_core::Error`, никаких `unwrap()`.
+- [ ] **Service Layer:** Логика вынесена в сервисы. В контроллере только вызов сервиса.
+- [ ] **Events:** Если вы поменяли данные (`ActiveModel::save`), вы **ОБЯЗАНЫ** отправить событие в EventBus.
+- [ ] **GraphQL:** Резолверы всегда проверяют `ctx.data::<Tenant>()`.
+- [ ] **Index:** Если данных нет в поиске — проверьте, написан ли Indexer Handler.
+- [ ] **Core Usage:** Не дублируйте логику. Нужен тэг? Берите `rustok_core::traits::Taggable`.
+
+---
 │  │content│ │ index │        │
 │  └───────┘ └───────┘        │
 └─────────────────────────────┘
