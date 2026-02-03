@@ -534,6 +534,15 @@ pub struct EventDispatcher {
 }
 ```
 
+### 8.4 Event Schema (First-Class)
+
+Event schema is a **first-class artifact** in RusToK:
+- Every `DomainEvent` must have a **versioned schema** (e.g., `schema_version: u16`) and stable `event_type`.
+- Schemas live in-repo and are treated like API contracts (reviewed, documented, and versioned).
+- Validation happens on publish/ingest boundaries (guards against invalid payloads).
+- Breaking changes require new versions; old versions remain supported for replay/outbox.
+- `sys_events` keeps payload + version to enable replay and migrations.
+
 ---
 
 ## 9. INDEX MODULE (CQRS)
