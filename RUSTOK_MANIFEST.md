@@ -101,7 +101,7 @@
 | **Events (L1)** | Outbox Pattern | Custom crate `rustok-outbox` |
 | **Events (L2)** | Iggy | Streaming (remote/embedded) |
 | **Cache** | Loco Cache (Redis) | Built-in cache integration |
-| **Search** | PostgreSQL FTS (Tantivy optional) | Start with `tsvector`, add Tantivy when needed |
+| **Search** | PostgreSQL FTS + Tantivy/Meilisearch (optional) | Start with `tsvector`, add Tantivy or Meilisearch when needed |
 | **Storage** | object_store | Unified object storage API |
 | **Tracing** | tracing + OpenTelemetry | `tracing`, `tracing-opentelemetry` |
 | **Metrics** | Prometheus | `metrics`, `metrics-exporter-prometheus` |
@@ -116,7 +116,7 @@
 ## 4. API ARCHITECTURE
 
 ### 4.1 REST + GraphQL in Parallel
-RusToK develops REST and GraphQL APIs simultaneously for platform and domain endpoints, with **GraphQL as a high-priority surface for frontend clients**:
+RusToK develops REST and GraphQL APIs simultaneously for platform and domain endpoints, keeping both available for flexibility:
 - **REST (Axum):** Authentication, Health, Admin endpoints.
 - **GraphQL:** Modular schema (MergedObject) for domain operations.
 
@@ -150,8 +150,8 @@ rustok/
     │   └── src/
     │       ├── app.rs         # Loco hooks & routes
     │       └── main.rs
-    ├── admin/                 # Admin UI
-    └── storefront/            # Storefront UI
+    ├── admin/                 # Admin UI (Next.js)
+    └── storefront/            # Storefront UI (Next.js)
 ```
 
 ---
@@ -847,11 +847,11 @@ impl RusToKModule for MyModule {
 | Loco RS foundation | ✅ |
 | Loco YAML config | ✅ |
 | Axum + utoipa (via Loco) | ✅ |
-| PostgreSQL FTS first (Tantivy optional) | ✅ |
+| PostgreSQL FTS first (Tantivy/Meilisearch optional) | ✅ |
 | Loco Storage (object_store) | ✅ |
 | Loco Cache (Redis) | ✅ |
 | tracing + metrics | ✅ |
-| GraphQL high priority | ✅ |
+| REST + GraphQL in parallel | ✅ |
 
 ## 23. MASTER PLAN v4.1 (Implementation Order)
 
@@ -868,7 +868,7 @@ PHASE 2: Event System (Week 2-3)
 □ 2.4 apps/server (sys_events migration)
 
 PHASE 3: Infrastructure (Week 3-4)
-□ 3.1 rustok-index (PostgreSQL FTS, Tantivy optional)
+□ 3.1 rustok-index (PostgreSQL FTS, Tantivy/Meilisearch optional)
 □ 3.2 Loco storage/cache integrations (via apps/server)
 
 PHASE 4: Iggy Integration (Week 4-5)
