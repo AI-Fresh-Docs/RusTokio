@@ -185,17 +185,21 @@ impl CategoryService {
     ) -> CategoryResponse {
         let translation = node
             .translations
-            .into_iter()
+            .iter()
             .find(|t| t.locale == locale)
-            .or_else(|| node.translations.into_iter().next());
+            .or_else(|| node.translations.first());
         let metadata = node.metadata;
 
         CategoryResponse {
             id: node.id,
             locale: locale.to_string(),
-            name: translation.as_ref().and_then(|t| t.title.clone()).unwrap_or_default(),
-            slug: translation.as_ref().and_then(|t| t.slug.clone()).unwrap_or_default(),
-            description: translation.and_then(|t| t.excerpt),
+            name: translation
+                .and_then(|t| t.title.clone())
+                .unwrap_or_default(),
+            slug: translation
+                .and_then(|t| t.slug.clone())
+                .unwrap_or_default(),
+            description: translation.and_then(|t| t.excerpt.clone()),
             icon: metadata.get("icon").and_then(|v| v.as_str()).map(|v| v.to_string()),
             color: metadata.get("color").and_then(|v| v.as_str()).map(|v| v.to_string()),
             parent_id: node.parent_id,
