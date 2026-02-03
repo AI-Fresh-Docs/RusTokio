@@ -1,5 +1,10 @@
 use rustok_core::Result;
 
-pub async fn ensure_consumer_groups() -> Result<()> {
-    Ok(())
+#[derive(Debug, Default)]
+pub struct ConsumerGroupManager;
+
+impl ConsumerGroupManager {
+    pub async fn ensure_consumer_groups(&self) -> Result<()> {
+        Ok(())
+    }
 }
