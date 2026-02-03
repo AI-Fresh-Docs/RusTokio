@@ -2,7 +2,9 @@ use sea_orm::DatabaseConnection;
 use tracing::instrument;
 use uuid::Uuid;
 
-use rustok_content::{CreateNodeInput, ListNodesFilter, NodeService, NodeTranslationInput, UpdateNodeInput};
+use rustok_content::{
+    CreateNodeInput, ListNodesFilter, NodeService, NodeTranslationInput, UpdateNodeInput,
+};
 use rustok_core::events::EventBus;
 use rustok_core::SecurityContext;
 
@@ -98,16 +100,17 @@ impl CategoryService {
             "reply_count": existing.reply_count
         });
 
-        let translations = if input.name.is_some() || input.slug.is_some() || input.description.is_some() {
-            Some(vec![NodeTranslationInput {
-                locale: input.locale.clone(),
-                title: Some(input.name.unwrap_or(existing.name)),
-                slug: Some(input.slug.unwrap_or(existing.slug)),
-                excerpt: input.description.or(existing.description),
-            }])
-        } else {
-            None
-        };
+        let translations =
+            if input.name.is_some() || input.slug.is_some() || input.description.is_some() {
+                Some(vec![NodeTranslationInput {
+                    locale: input.locale.clone(),
+                    title: Some(input.name.unwrap_or(existing.name)),
+                    slug: Some(input.slug.unwrap_or(existing.slug)),
+                    excerpt: input.description.or(existing.description),
+                }])
+            } else {
+                None
+            };
 
         let node = self
             .nodes
@@ -128,11 +131,7 @@ impl CategoryService {
     }
 
     #[instrument(skip(self, security))]
-    pub async fn delete(
-        &self,
-        category_id: Uuid,
-        security: SecurityContext,
-    ) -> ForumResult<()> {
+    pub async fn delete(&self, category_id: Uuid, security: SecurityContext) -> ForumResult<()> {
         self.nodes.delete_node(category_id, security).await?;
         Ok(())
     }
@@ -179,10 +178,7 @@ impl CategoryService {
         Ok(list)
     }
 
-    fn node_to_category(
-        node: rustok_content::NodeResponse,
-        locale: &str,
-    ) -> CategoryResponse {
+    fn node_to_category(node: rustok_content::NodeResponse, locale: &str) -> CategoryResponse {
         let translation = node
             .translations
             .into_iter()
@@ -193,11 +189,23 @@ impl CategoryService {
         CategoryResponse {
             id: node.id,
             locale: locale.to_string(),
-            name: translation.as_ref().and_then(|t| t.title.clone()).unwrap_or_default(),
-            slug: translation.as_ref().and_then(|t| t.slug.clone()).unwrap_or_default(),
+            name: translation
+                .as_ref()
+                .and_then(|t| t.title.clone())
+                .unwrap_or_default(),
+            slug: translation
+                .as_ref()
+                .and_then(|t| t.slug.clone())
+                .unwrap_or_default(),
             description: translation.and_then(|t| t.excerpt),
-            icon: metadata.get("icon").and_then(|v| v.as_str()).map(|v| v.to_string()),
-            color: metadata.get("color").and_then(|v| v.as_str()).map(|v| v.to_string()),
+            icon: metadata
+                .get("icon")
+                .and_then(|v| v.as_str())
+                .map(|v| v.to_string()),
+            color: metadata
+                .get("color")
+                .and_then(|v| v.as_str())
+                .map(|v| v.to_string()),
             parent_id: node.parent_id,
             position: node.position,
             topic_count: metadata
@@ -208,7 +216,10 @@ impl CategoryService {
                 .get("reply_count")
                 .and_then(|v| v.as_i64())
                 .unwrap_or(0) as i32,
-            moderated: metadata.get("moderated").and_then(|v| v.as_bool()).unwrap_or(false),
+            moderated: metadata
+                .get("moderated")
+                .and_then(|v| v.as_bool())
+                .unwrap_or(false),
         }
     }
 }

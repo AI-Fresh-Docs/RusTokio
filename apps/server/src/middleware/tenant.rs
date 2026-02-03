@@ -32,8 +32,8 @@ pub async fn resolve(
     mut req: Request<Body>,
     next: Next,
 ) -> Result<Response, StatusCode> {
-    let settings =
-        RustokSettings::from_settings(&ctx.config.settings).map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+    let settings = RustokSettings::from_settings(&ctx.config.settings)
+        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
     let identifier = resolve_identifier(&req, &settings)?;
 
     // Check cache first

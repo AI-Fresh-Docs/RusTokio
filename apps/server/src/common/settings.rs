@@ -112,10 +112,11 @@ impl Default for RateLimitSettings {
 
 impl RustokSettings {
     pub fn from_settings(settings: &Option<serde_json::Value>) -> Result<Self, serde_json::Error> {
-        let root = settings
-            .clone()
+        let root = settings.clone().unwrap_or_else(|| serde_json::json!({}));
+        let rustok = root
+            .get("rustok")
+            .cloned()
             .unwrap_or_else(|| serde_json::json!({}));
-        let rustok = root.get("rustok").cloned().unwrap_or_else(|| serde_json::json!({}));
         serde_json::from_value(rustok)
     }
 }
