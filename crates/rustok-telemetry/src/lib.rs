@@ -24,6 +24,14 @@ pub struct TelemetryHandles {
     pub metrics: Option<PrometheusHandle>,
 }
 
+impl std::fmt::Debug for TelemetryHandles {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("TelemetryHandles")
+            .field("metrics", &self.metrics.is_some())
+            .finish()
+    }
+}
+
 #[derive(Debug, thiserror::Error)]
 pub enum TelemetryError {
     #[error("failed to set global tracing subscriber")]
