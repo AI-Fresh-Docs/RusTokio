@@ -1,0 +1,39 @@
+pub mod dto;
+pub mod entities;
+pub mod error;
+pub mod services;
+
+use async_trait::async_trait;
+use rustok_core::module::{HealthStatus, MigrationSource, RusToKModule};
+use sea_orm_migration::MigrationTrait;
+
+pub struct TenantModule;
+
+impl MigrationSource for TenantModule {
+    fn migrations(&self) -> Vec<Box<dyn MigrationTrait>> {
+        Vec::new()
+    }
+}
+
+#[async_trait]
+impl RusToKModule for TenantModule {
+    fn slug(&self) -> &'static str {
+        "tenant"
+    }
+
+    fn name(&self) -> &'static str {
+        "Tenant"
+    }
+
+    fn description(&self) -> &'static str {
+        "Multi-tenancy helpers and tenant metadata."
+    }
+
+    fn version(&self) -> &'static str {
+        env!("CARGO_PKG_VERSION")
+    }
+
+    async fn health(&self) -> HealthStatus {
+        HealthStatus::Healthy
+    }
+}

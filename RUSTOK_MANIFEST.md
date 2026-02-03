@@ -42,6 +42,9 @@
 | `rustok-content` | `content` | Content | Core CMS Module (Nodes, Bodies, Categories) |
 | `rustok-blog` | `blog` | Blog | Posts, Pages, Comments |
 | `rustok-commerce` | `commerce` | Commerce | Products, Orders, Cart, Checkout |
+| `rustok-pages` | `pages` | Pages | Static pages, menus, blocks |
+| `rustok-tenant` | `tenant` | Tenant | Multi-tenancy helpers |
+| `rustok-rbac` | `rbac` | RBAC | Roles & permissions |
 | `rustok-index` | `index` | Index | CQRS Read Model (Fast Search) |
 
 ### 2.3 CQRS (Write vs Read)
@@ -132,8 +135,11 @@ rustok/
 │   ├── rustok-content         # CMS domain
 │   ├── rustok-blog            # Blog domain
 │   ├── rustok-forum           # Forum domain
+│   ├── rustok-pages           # Pages domain
 │   ├── rustok-commerce        # Commerce domain
 │   ├── rustok-index           # CQRS read model
+│   ├── rustok-tenant          # Multi-tenancy helpers
+│   ├── rustok-rbac            # Roles & permissions
 │   ├── rustok-outbox          # Outbox transport
 │   └── rustok-iggy            # Streaming (optional)
 │
