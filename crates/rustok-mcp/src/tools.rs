@@ -22,7 +22,7 @@ pub struct ModuleListResponse {
     pub modules: Vec<ModuleInfo>,
 }
 
-#[rmcp::mcp_tool]
+#[rmcp::tool]
 pub async fn list_modules(state: &McpState) -> ModuleListResponse {
     let modules = state
         .registry
@@ -55,7 +55,7 @@ pub struct ModuleLookupRequest {
     pub slug: String,
 }
 
-#[rmcp::mcp_tool]
+#[rmcp::tool]
 pub async fn module_exists(state: &McpState, input: ModuleLookupRequest) -> ModuleLookupResponse {
     let exists = state.registry.contains(&input.slug);
 
