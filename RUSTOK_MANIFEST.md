@@ -33,6 +33,7 @@
 - **Core Module (`rustok-core`):** Содержит только универсальные возможности (Traits, Events, Module Registry). Без таблиц БД.
 - **Specialized Modules:** Товары, Блог и пр. — у каждого свои таблицы и бизнес-логика.
 - **Empty Tables Cost Zero:** Неиспользуемые таблицы не нагружают систему.
+- **Module Boundaries:** модули не импортируют доменные таблицы/сервисы друг друга напрямую; интеграция только через Events/Interfaces.
 
 **Module Contracts (code-aligned):**
 `rustok-core` — инфраструктурный crate, не регистрируется как `RusToKModule`. Остальные модули реализуют единый контракт (slug/name/description/version) и стандартный набор unit-тестов для метаданных и миграций.
