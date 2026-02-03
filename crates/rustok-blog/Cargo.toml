@@ -2,6 +2,7 @@
 name = "rustok-blog"
 version.workspace = true
 edition.workspace = true
+license.workspace = true
 
 [dependencies]
 async-trait.workspace = true

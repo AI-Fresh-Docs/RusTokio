@@ -2,6 +2,7 @@
 name = "rustok-commerce"
 version.workspace = true
 edition.workspace = true
+license.workspace = true
 
 [dependencies]
 rustok-core.workspace = true
