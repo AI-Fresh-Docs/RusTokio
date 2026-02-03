@@ -3,6 +3,7 @@ name = "rustok-index"
 version.workspace = true
 edition.workspace = true
 description = "CQRS Read Model - Denormalized indexes for RusToK"
+license.workspace = true
 
 [dependencies]
 rustok-core.workspace = true
