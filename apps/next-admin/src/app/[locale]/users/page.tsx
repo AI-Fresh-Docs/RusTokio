@@ -80,13 +80,13 @@ async function fetchRestUser() {
     });
 
     if (!response.ok) {
-      return { error: `REST ${response.status}` };
+      return { error: { kind: "http", status: response.status } satisfies FetchError };
     }
 
     const data = (await response.json()) as RestUser;
     return { data };
   } catch (error) {
-    return { error: "REST network error" };
+    return { error: { kind: "network" } satisfies FetchError };
   }
 }
 
@@ -128,17 +128,22 @@ async function fetchGraphqlUsers(options: {
     });
 
     if (!response.ok) {
-      return { error: `GraphQL ${response.status}` };
+      return { error: { kind: "http", status: response.status } satisfies FetchError };
     }
 
     const payload = (await response.json()) as GraphqlUsersResponse;
     if (payload.errors?.length) {
-      return { error: payload.errors[0]?.message ?? "GraphQL error" };
+      return {
+        error: {
+          kind: "graphql",
+          message: payload.errors[0]?.message ?? "GraphQL error",
+        } satisfies FetchError,
+      };
     }
 
     return { data: payload.data?.users };
   } catch (error) {
-    return { error: "GraphQL network error" };
+    return { error: { kind: "network" } satisfies FetchError };
   }
 }
 
@@ -228,7 +233,7 @@ export default async function UsersPage({ searchParams }: UsersPageProps) {
             <p className="mt-2 text-sm text-slate-500">{t("rest.subtitle")}</p>
             {restResult.error ? (
               <div className="mt-4 rounded-xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-600">
-                {restResult.error}
+                {formatError(restResult.error)}
               </div>
             ) : (
               <div className="mt-4 rounded-xl border border-slate-200 bg-slate-50 p-4">
@@ -257,7 +262,7 @@ export default async function UsersPage({ searchParams }: UsersPageProps) {
             </p>
             {graphqlResult.error ? (
               <div className="mt-4 rounded-xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-600">
-                {graphqlResult.error}
+                {formatError(graphqlResult.error)}
               </div>
             ) : (
               <div className="mt-4 overflow-x-auto rounded-xl border border-slate-200">
