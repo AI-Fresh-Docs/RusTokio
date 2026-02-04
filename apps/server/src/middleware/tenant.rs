@@ -22,20 +22,12 @@ use crate::models::tenants;
 
 // Tenant cache: normalized identifier (host/slug/uuid) -> TenantContext
 // TTL: 5 minutes, Max entries: 1000
-static TENANT_CACHE: Lazy<Arc<dyn CacheBackend>> = Lazy::new(|| {
-    Arc::new(InMemoryCacheBackend::new(
-        Duration::from_secs(300),
-        1_000,
-    ))
-});
+static TENANT_CACHE: Lazy<Arc<dyn CacheBackend>> =
+    Lazy::new(|| Arc::new(InMemoryCacheBackend::new(Duration::from_secs(300), 1_000)));
 
 // Negative cache for 404 lookups (short-lived).
-static TENANT_NEGATIVE_CACHE: Lazy<Arc<dyn CacheBackend>> = Lazy::new(|| {
-    Arc::new(InMemoryCacheBackend::new(
-        Duration::from_secs(60),
-        1_000,
-    ))
-});
+static TENANT_NEGATIVE_CACHE: Lazy<Arc<dyn CacheBackend>> =
+    Lazy::new(|| Arc::new(InMemoryCacheBackend::new(Duration::from_secs(60), 1_000)));
 
 static TENANT_NEGATIVE_INSERTS: AtomicU64 = AtomicU64::new(0);
 
@@ -228,10 +220,7 @@ async fn get_cached_tenant(cache_key: &str) -> Result<Option<TenantContext>, Sta
     }
 }
 
-async fn set_cached_tenant(
-    cache_key: String,
-    context: &TenantContext,
-) -> Result<(), StatusCode> {
+async fn set_cached_tenant(cache_key: String, context: &TenantContext) -> Result<(), StatusCode> {
     let bytes = serde_json::to_vec(context).map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
     TENANT_CACHE
         .set(cache_key, bytes)

@@ -39,8 +39,8 @@ pub struct RedisCacheBackend {
 #[cfg(feature = "redis-cache")]
 impl RedisCacheBackend {
     pub fn new(url: &str, prefix: impl Into<String>, ttl: Duration) -> Result<Self> {
-        let client = redis::Client::open(url)
-            .map_err(|err| crate::Error::Cache(err.to_string()))?;
+        let client =
+            redis::Client::open(url).map_err(|err| crate::Error::Cache(err.to_string()))?;
         Ok(Self {
             client,
             prefix: prefix.into(),

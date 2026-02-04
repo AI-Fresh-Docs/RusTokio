@@ -10,9 +10,9 @@ pub mod permissions;
 pub mod rbac;
 pub mod registry;
 pub mod types;
-pub use cache::{CacheStats, InMemoryCacheBackend};
 #[cfg(feature = "redis-cache")]
 pub use cache::RedisCacheBackend;
+pub use cache::{CacheStats, InMemoryCacheBackend};
 pub use context::{AppContext, CacheBackend, SearchBackend};
 pub use error::{Error, Result};
 pub use events::{
@@ -41,8 +41,8 @@ pub mod prelude {
     pub use crate::permissions::{Action, Permission, Resource};
     pub use crate::rbac::{PermissionScope, Rbac, SecurityContext};
     pub use crate::types::{UserRole, UserStatus};
-    pub use crate::{AppContext, CacheBackend, CacheStats, InMemoryCacheBackend, SearchBackend};
     #[cfg(feature = "redis-cache")]
     pub use crate::RedisCacheBackend;
+    pub use crate::{AppContext, CacheBackend, CacheStats, InMemoryCacheBackend, SearchBackend};
     pub use uuid::Uuid;
 }
