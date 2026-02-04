@@ -84,7 +84,9 @@ impl AlloyMutation {
         if let Some(permissions) = input.permissions {
             script.permissions = permissions;
         }
-        if let Some(author_id) = input.author_id {
+        if input.clear_author_id {
+            script.author_id = None;
+        } else if let Some(author_id) = input.author_id {
             script.author_id = Some(author_id);
         }
 
@@ -124,13 +126,12 @@ impl AlloyMutation {
                 params
                     .0
                     .as_object()
-                    .map(|map| {
-                        map.iter()
-                            .map(|(key, value)| (key.clone(), json_to_dynamic(value.clone())))
-                            .collect()
-                    })
-                    .unwrap_or_default()
+                    .ok_or_else(|| async_graphql::Error::new("params must be a JSON object"))?
+                    .iter()
+                    .map(|(key, value)| (key.clone(), json_to_dynamic(value.clone())))
+                    .collect()
             })
+            .transpose()?
             .unwrap_or_default();
 
         let result = state

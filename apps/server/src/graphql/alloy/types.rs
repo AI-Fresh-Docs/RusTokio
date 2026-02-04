@@ -280,6 +280,8 @@ pub struct UpdateScriptInput {
     pub run_as_system: Option<bool>,
     pub permissions: Option<Vec<String>>,
     pub author_id: Option<String>,
+    #[graphql(default)]
+    pub clear_author_id: bool,
 }
 
 #[derive(InputObject)]
