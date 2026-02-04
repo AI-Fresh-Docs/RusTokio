@@ -53,7 +53,6 @@ impl ScriptEngine {
         func: F,
     ) where
         F: rhai::RhaiNativeFunc<A, N, X, R, RETURN_RESULT> + Send + Sync + 'static,
-        R: rhai::Variant + Clone,
     {
         self.engine.register_fn(name, func);
     }
