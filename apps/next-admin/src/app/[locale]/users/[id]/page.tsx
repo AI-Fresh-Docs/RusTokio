@@ -15,6 +15,12 @@ type GraphqlUserResponse = {
   errors?: Array<{ message: string }>;
 };
 
+type FetchError = {
+  kind: "http" | "network" | "graphql";
+  status?: number;
+  message?: string;
+};
+
 const graphqlQuery = `query User($id: ID!) {
   user(id: $id) {
     id
@@ -59,17 +65,22 @@ async function fetchGraphqlUser(id: string) {
     });
 
     if (!response.ok) {
-      return { error: `GraphQL ${response.status}` };
+      return { error: { kind: "http", status: response.status } satisfies FetchError };
     }
 
     const payload = (await response.json()) as GraphqlUserResponse;
     if (payload.errors?.length) {
-      return { error: payload.errors[0]?.message ?? "GraphQL error" };
+      return {
+        error: {
+          kind: "graphql",
+          message: payload.errors[0]?.message ?? "GraphQL error",
+        } satisfies FetchError,
+      };
     }
 
     return { data: payload.data?.user ?? null };
   } catch (error) {
-    return { error: "GraphQL network error" };
+    return { error: { kind: "network" } satisfies FetchError };
   }
 }
 
@@ -79,8 +90,22 @@ type UsersDetailPageProps = {
 
 export default async function UsersDetailPage({ params }: UsersDetailPageProps) {
   const t = await getTranslations("users");
+  const errors = await getTranslations("errors");
   const locale = await getLocale();
   const result = await fetchGraphqlUser(params.id);
+  const formatError = (error: FetchError) => {
+    switch (error.kind) {
+      case "http":
+        return error.status ? `${errors("http")} ${error.status}` : errors("http");
+      case "graphql":
+        return error.message
+          ? `${errors("unknown")} ${error.message}`
+          : errors("unknown");
+      case "network":
+      default:
+        return errors("network");
+    }
+  };
 
   return (
     <main className="min-h-screen bg-slate-50">
@@ -108,7 +133,7 @@ export default async function UsersDetailPage({ params }: UsersDetailPageProps) 
           </h2>
           {result.error ? (
             <div className="mt-4 rounded-xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-600">
-              {result.error}
+              {formatError(result.error)}
             </div>
           ) : result.data ? (
             <div className="mt-4 grid gap-4 text-sm text-slate-600 md:grid-cols-2">

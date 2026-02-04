@@ -81,5 +81,14 @@
         "id": "User ID"
       }
     }
+  },
+  "errors": {
+    "auth": {
+      "invalid_credentials": "Invalid email or password.",
+      "unauthorized": "You are not authorized to perform this action."
+    },
+    "http": "Server error. Please try again.",
+    "network": "Network error. Check your connection.",
+    "unknown": "Something went wrong. Please try again."
   }
 }
