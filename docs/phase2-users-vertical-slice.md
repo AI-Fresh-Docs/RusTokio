@@ -1,6 +1,8 @@
-# Phase 2 — Users vertical slice (Leptos + Next)
+# Phase 2.1 — Users vertical slice (Leptos + Next)
 
 ## Goals
+
+This document defines **Phase 2.1** (the Users vertical slice) and is the source of truth for completion status.
 
 Build a production-ready **Users** vertical slice with **auth + list + details + CRUD + i18n** in both admin frontends (Leptos and Next). The scope below is the minimal, iterative path to parity across both UIs.
 
@@ -139,7 +141,7 @@ mutation DisableUser($id: ID!) {
 - [ ] i18n refactor + aligned keys
 - [ ] Login flow (REST) in both apps
 - [ ] Users list (GraphQL) with pagination + filters
-- [ ] User details
+- [x] User details
 - [ ] CRUD mutations + RBAC
 - [ ] Admin UI parity + shared components
 

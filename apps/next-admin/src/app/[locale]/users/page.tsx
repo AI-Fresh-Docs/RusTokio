@@ -27,6 +27,12 @@ type GraphqlUsersResponse = {
   errors?: Array<{ message: string }>;
 };
 
+type FetchError = {
+  kind: "http" | "network" | "graphql";
+  status?: number;
+  message?: string;
+};
+
 const graphqlQuery = `query Users($pagination: PaginationInput) {
   users(pagination: $pagination) {
     edges {
@@ -73,13 +79,13 @@ async function fetchRestUser() {
     });
 
     if (!response.ok) {
-      return { error: `REST ${response.status}` };
+      return { error: { kind: "http", status: response.status } satisfies FetchError };
     }
 
     const data = (await response.json()) as RestUser;
     return { data };
   } catch (error) {
-    return { error: "REST network error" };
+    return { error: { kind: "network" } satisfies FetchError };
   }
 }
 
@@ -95,27 +101,46 @@ async function fetchGraphqlUsers() {
     });
 
     if (!response.ok) {
-      return { error: `GraphQL ${response.status}` };
+      return { error: { kind: "http", status: response.status } satisfies FetchError };
     }
 
     const payload = (await response.json()) as GraphqlUsersResponse;
     if (payload.errors?.length) {
-      return { error: payload.errors[0]?.message ?? "GraphQL error" };
+      return {
+        error: {
+          kind: "graphql",
+          message: payload.errors[0]?.message ?? "GraphQL error",
+        } satisfies FetchError,
+      };
     }
 
     return { data: payload.data?.users };
   } catch (error) {
-    return { error: "GraphQL network error" };
+    return { error: { kind: "network" } satisfies FetchError };
   }
 }
 
 export default async function UsersPage() {
-  const t = await getTranslations("Users");
+  const t = await getTranslations("users");
+  const errors = await getTranslations("errors");
   const locale = await getLocale();
   const [restResult, graphqlResult] = await Promise.all([
     fetchRestUser(),
     fetchGraphqlUsers(),
   ]);
+  const formatError = (error: FetchError) => {
+    switch (error.kind) {
+      case "http":
+        return error.status ? `${errors("http")} ${error.status}` : errors("http");
+      case "graphql":
+        return error.message
+          ? `${errors("unknown")} ${error.message}`
+          : errors("unknown");
+      case "network":
+      default:
+        return errors("network");
+    }
+  };
 
   return (
     <main className="min-h-screen bg-slate-50">
@@ -165,7 +190,7 @@ export default async function UsersPage() {
             <p className="mt-2 text-sm text-slate-500">{t("rest.subtitle")}</p>
             {restResult.error ? (
               <div className="mt-4 rounded-xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-600">
-                {restResult.error}
+                {formatError(restResult.error)}
               </div>
             ) : (
               <div className="mt-4 rounded-xl border border-slate-200 bg-slate-50 p-4">
@@ -194,7 +219,7 @@ export default async function UsersPage() {
             </p>
             {graphqlResult.error ? (
               <div className="mt-4 rounded-xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-600">
-                {graphqlResult.error}
+                {formatError(graphqlResult.error)}
               </div>
             ) : (
               <div className="mt-4 overflow-x-auto rounded-xl border border-slate-200">
