@@ -155,6 +155,7 @@ fn Style() -> impl IntoView {
             ".data-table td { padding: 10px 0; border-bottom: 1px solid #e2e8f0; font-size: 0.95rem; }\n"
             ".status-pill { background: #e2e8f0; color: #475569; padding: 4px 10px; border-radius: 999px; font-size: 0.75rem; }\n"
             ".table-actions { display: flex; align-items: center; gap: 12px; margin-top: 16px; flex-wrap: wrap; }\n"
+            ".table-filters { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; margin-bottom: 16px; }\n"
             ".details-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 16px; }\n"
             ".details-grid p { margin: 4px 0 0; font-size: 0.95rem; }\n"
             ".locale-toggle { display: flex; gap: 8px; }\n"

@@ -70,6 +70,9 @@ pub fn Users() -> impl IntoView {
     let (page, set_page) = create_signal(1i64);
     let (limit, set_limit) = create_signal(12i64);
     let (limit_input, set_limit_input) = create_signal("12".to_string());
+    let (search_query, set_search_query) = create_signal(String::new());
+    let (role_filter, set_role_filter) = create_signal(String::new());
+    let (status_filter, set_status_filter) = create_signal(String::new());
 
     let rest_resource = create_resource(
         move || refresh_counter.get(),
@@ -215,6 +218,26 @@ pub fn Users() -> impl IntoView {
                                 <p class="meta-text">
                                     {move || translate(locale.locale.get(), "users.graphql.total")} " " {response.users.page_info.total_count}
                                 </p>
+                                <div class="table-filters">
+                                    <Input
+                                        value=search_query
+                                        set_value=set_search_query
+                                        placeholder=move || translate(locale.locale.get(), "users.filters.searchPlaceholder").to_string()
+                                        label=move || translate(locale.locale.get(), "users.filters.search").to_string()
+                                    />
+                                    <Input
+                                        value=role_filter
+                                        set_value=set_role_filter
+                                        placeholder=move || translate(locale.locale.get(), "users.filters.rolePlaceholder").to_string()
+                                        label=move || translate(locale.locale.get(), "users.filters.role").to_string()
+                                    />
+                                    <Input
+                                        value=status_filter
+                                        set_value=set_status_filter
+                                        placeholder=move || translate(locale.locale.get(), "users.filters.statusPlaceholder").to_string()
+                                        label=move || translate(locale.locale.get(), "users.filters.status").to_string()
+                                    />
+                                </div>
                                 <div class="table-wrap">
                                     <table class="data-table">
                                         <thead>
@@ -227,29 +250,52 @@ pub fn Users() -> impl IntoView {
                                             </tr>
                                         </thead>
                                         <tbody>
-                                            {response
-                                                .users
-                                                .edges
-                                                .iter()
-                                                .map(|edge| {
-                                                    let user = &edge.node;
-                                                    view! {
-                                                        <tr>
-                                                            <td>
-                                                                <Link href=format!("/users/{}", user.id.clone())>
-                                                                    {user.email.clone()}
-                                                                </Link>
-                                                            </td>
-                                                            <td>{user.name.clone().unwrap_or_else(|| translate(locale.locale.get(), "users.placeholderDash").to_string())}</td>
-                                                            <td>{user.role.clone()}</td>
-                                                            <td>
-                                                                <span class="status-pill">{user.status.clone()}</span>
-                                                            </td>
-                                                            <td>{user.created_at.clone()}</td>
-                                                        </tr>
-                                                    }
-                                                })
-                                                .collect_view()}
+                                            {({
+                                                let query = search_query.get().to_lowercase();
+                                                let role = role_filter.get().to_lowercase();
+                                                let status = status_filter.get().to_lowercase();
+
+                                                response
+                                                    .users
+                                                    .edges
+                                                    .iter()
+                                                    .filter(|edge| {
+                                                        let user = &edge.node;
+                                                        let name = user.name.clone().unwrap_or_default().to_lowercase();
+                                                        let email = user.email.to_lowercase();
+                                                        let role_value = user.role.to_lowercase();
+                                                        let status_value = user.status.to_lowercase();
+
+                                                        let matches_query = query.is_empty()
+                                                            || email.contains(&query)
+                                                            || name.contains(&query);
+                                                        let matches_role = role.is_empty()
+                                                            || role_value.contains(&role);
+                                                        let matches_status = status.is_empty()
+                                                            || status_value.contains(&status);
+
+                                                        matches_query && matches_role && matches_status
+                                                    })
+                                                    .map(|edge| {
+                                                        let user = &edge.node;
+                                                        view! {
+                                                            <tr>
+                                                                <td>
+                                                                    <Link href=format!("/users/{}", user.id.clone())>
+                                                                        {user.email.clone()}
+                                                                    </Link>
+                                                                </td>
+                                                                <td>{user.name.clone().unwrap_or_else(|| translate(locale.locale.get(), "users.placeholderDash").to_string())}</td>
+                                                                <td>{user.role.clone()}</td>
+                                                                <td>
+                                                                    <span class="status-pill">{user.status.clone()}</span>
+                                                                </td>
+                                                                <td>{user.created_at.clone()}</td>
+                                                            </tr>
+                                                        }
+                                                    })
+                                                    .collect_view()
+                                            })}
                                         </tbody>
                                     </table>
                                 </div>
