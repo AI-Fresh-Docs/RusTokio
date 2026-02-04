@@ -1,0 +1,65 @@
+pub fn translate_en(key: &str) -> Option<&'static str> {
+    match key {
+        "users.title" => Some("Users"),
+        "users.subtitle" => Some(
+            "REST and GraphQL API preview. Provide admin token and tenant slug.",
+        ),
+        "users.refresh" => Some("Refresh"),
+        "users.access.title" => Some("Access settings"),
+        "users.access.hint" => Some(
+            "REST /api/auth/me requires a Bearer token. GraphQL users needs users:list permission.",
+        ),
+        "users.access.token" => Some("Bearer token"),
+        "users.access.tenant" => Some("Tenant slug"),
+        "users.rest.title" => Some("REST: /api/auth/me"),
+        "users.rest.loading" => Some("Loading..."),
+        "users.rest.pending" => Some("Waiting for response..."),
+        "users.rest.unauthorized" => Some("Unauthorized: check the token."),
+        "users.rest.error" => Some("REST error:"),
+        "users.graphql.title" => Some("GraphQL: users"),
+        "users.graphql.total" => Some("Total users:"),
+        "users.graphql.email" => Some("Email"),
+        "users.graphql.name" => Some("Name"),
+        "users.graphql.role" => Some("Role"),
+        "users.graphql.status" => Some("Status"),
+        "users.graphql.error" => Some("GraphQL error:"),
+        "users.graphql.network" => Some("Network error."),
+        "users.graphql.unauthorized" => Some("Unauthorized: check the token."),
+        "users.noName" => Some("No name"),
+        "users.placeholderDash" => Some("—"),
+        _ => None,
+    }
+}
+
+pub fn translate_ru(key: &str) -> Option<&'static str> {
+    match key {
+        "users.title" => Some("Пользователи"),
+        "users.subtitle" => Some(
+            "Демонстрация работы с REST и GraphQL API. Введите токен администратора и tenant slug для доступа.",
+        ),
+        "users.refresh" => Some("Обновить"),
+        "users.access.title" => Some("Параметры доступа"),
+        "users.access.hint" => Some(
+            "REST эндпоинт /api/auth/me требует Bearer-токен. GraphQL users требует permissions users:list.",
+        ),
+        "users.access.token" => Some("Bearer token"),
+        "users.access.tenant" => Some("Tenant slug"),
+        "users.rest.title" => Some("REST: /api/auth/me"),
+        "users.rest.loading" => Some("Загрузка..."),
+        "users.rest.pending" => Some("Ожидание ответа..."),
+        "users.rest.unauthorized" => Some("Нет доступа: проверьте токен."),
+        "users.rest.error" => Some("Ошибка REST:"),
+        "users.graphql.title" => Some("GraphQL: users"),
+        "users.graphql.total" => Some("Всего пользователей:"),
+        "users.graphql.email" => Some("Email"),
+        "users.graphql.name" => Some("Имя"),
+        "users.graphql.role" => Some("Роль"),
+        "users.graphql.status" => Some("Статус"),
+        "users.graphql.error" => Some("Ошибка GraphQL:"),
+        "users.graphql.network" => Some("Сетевая ошибка."),
+        "users.graphql.unauthorized" => Some("Нет доступа: проверьте токен."),
+        "users.noName" => Some("Без имени"),
+        "users.placeholderDash" => Some("—"),
+        _ => None,
+    }
+}
