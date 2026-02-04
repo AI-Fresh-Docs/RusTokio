@@ -2,6 +2,7 @@ pub mod bridge;
 pub mod context;
 pub mod engine;
 pub mod error;
+pub mod integration;
 pub mod model;
 pub mod runner;
 pub mod storage;
@@ -10,6 +11,7 @@ pub use bridge::Bridge;
 pub use context::{ExecutionContext, ExecutionPhase};
 pub use engine::{EngineConfig, ScriptEngine};
 pub use error::{ScriptError, ScriptResult};
+pub use integration::{BeforeHookResult, HookExecutor};
 pub use model::{
     register_entity_proxy, EntityProxy, EventType, HttpMethod, Script, ScriptId, ScriptStatus,
     ScriptTrigger,
