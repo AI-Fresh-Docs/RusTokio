@@ -5,7 +5,7 @@ use axum::{
     Router,
 };
 // GlobalAttributes enables id= usage in view! macros.
-use leptos::prelude::{ClassAttribute, CollectView, ElementChild, GlobalAttributes};
+use leptos::prelude::{ClassAttribute, CollectView, ElementChild, GlobalAttributes, RenderHtml};
 use leptos::ssr::render_to_string;
 use leptos::{component, view, IntoView};
 use serde::{Deserialize, Serialize};
