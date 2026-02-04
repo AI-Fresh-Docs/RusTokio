@@ -13,7 +13,7 @@ pub use bridge::Bridge;
 pub use context::{ExecutionContext, ExecutionPhase};
 pub use engine::{EngineConfig, ScriptEngine};
 pub use error::{ScriptError, ScriptResult};
-pub use integration::{BeforeHookResult, HookExecutor};
+pub use integration::{BeforeHookResult, HookExecutor, ScriptableEntity};
 pub use api::{AppState, create_router};
 pub use model::{
     register_entity_proxy, EntityProxy, EventType, HttpMethod, Script, ScriptId, ScriptStatus,
