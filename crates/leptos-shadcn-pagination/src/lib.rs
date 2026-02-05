@@ -1,10 +1,7 @@
 use leptos::prelude::*;
 
 #[component]
-pub fn Pagination(
-    #[prop(optional, into)] class: String,
-    children: Children,
-) -> impl IntoView {
+pub fn Pagination(#[prop(optional, into)] class: String, children: Children) -> impl IntoView {
     let class = format!("pagination {class}");
     view! { <nav class=class>{children()}</nav> }
 }
@@ -19,10 +16,7 @@ pub fn PaginationContent(
 }
 
 #[component]
-pub fn PaginationItem(
-    #[prop(optional, into)] class: String,
-    children: Children,
-) -> impl IntoView {
+pub fn PaginationItem(#[prop(optional, into)] class: String, children: Children) -> impl IntoView {
     let class = format!("pagination-item {class}");
     view! { <li class=class>{children()}</li> }
 }
@@ -62,7 +56,9 @@ pub fn PaginationPrevious(
         format!("pagination-previous {class}")
     };
     let href = href.unwrap_or_else(|| "#".to_string());
-    let label = children.map(|child| child()).unwrap_or_else(|| view! { "Previous" });
+    let label = children
+        .map(|child| child())
+        .unwrap_or_else(|| view! { "Previous" });
 
     view! {
         <a class=class href=href aria-disabled=disabled>
@@ -84,7 +80,9 @@ pub fn PaginationNext(
         format!("pagination-next {class}")
     };
     let href = href.unwrap_or_else(|| "#".to_string());
-    let label = children.map(|child| child()).unwrap_or_else(|| view! { "Next" });
+    let label = children
+        .map(|child| child())
+        .unwrap_or_else(|| view! { "Next" });
 
     view! {
         <a class=class href=href aria-disabled=disabled>
