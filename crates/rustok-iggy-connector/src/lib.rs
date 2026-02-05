@@ -1,3 +1,8 @@
+//! Connector layer for Iggy transports.
+//!
+//! Status: initial implementation with logging-only stubs. Replace `RemoteConnector`
+//! and `EmbeddedConnector` with real SDK/embedded runtime wiring.
+
 use async_trait::async_trait;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
