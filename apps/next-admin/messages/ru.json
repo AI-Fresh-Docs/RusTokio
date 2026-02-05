@@ -71,7 +71,13 @@
     "passwordUpdated": "Пароль обновлён.",
     "resetTokenPreview": "Токен сброса: {token}",
     "resetTokenExpired": "Срок действия токена сброса истёк.",
-    "resetTokenExpiredRecovery": "Запросите новую ссылку для сброса и повторите попытку."
+    "resetTokenExpiredRecovery": "Запросите новую ссылку для сброса и повторите попытку.",
+    "inviteTitle": "Есть приглашение?",
+    "inviteSubtitle": "Примите приглашение с заранее выбранной ролью.",
+    "inviteSubmit": "Принять приглашение",
+    "inviteRequired": "Введите tenant и токен приглашения.",
+    "inviteAccepted": "Приглашение принято. Теперь можно войти.",
+    "inviteExpired": "Токен приглашения недействителен или истёк."
   },
   "users": {
     "eyebrow": "Users",
