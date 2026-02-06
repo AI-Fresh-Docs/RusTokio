@@ -25,7 +25,7 @@
 
 | Document | Description |
 |----------|-------------|
-| [MODULE_MATRIX.md](docs/MODULE_MATRIX.md) | Полная карта модулей, зависимости, типы |
+| [MODULE_MATRIX.md](docs/modules/MODULE_MATRIX.md) | Полная карта модулей, зависимости, типы |
 | [DATABASE_SCHEMA.md](docs/DATABASE_SCHEMA.md) | Все таблицы БД с колонками и связями |
 | [ARCHITECTURE_GUIDE.md](docs/ARCHITECTURE_GUIDE.md) | Архитектурные принципы и решения |
 | [ROADMAP.md](docs/ROADMAP.md) | Фазы разработки и стратегия |
@@ -188,13 +188,13 @@ rustok/
 ```
 
 Admin docs:
-- `docs/admin-auth-phase3.md`
-- `docs/admin-phase3-architecture.md`
-- `docs/admin-phase3-gap-analysis.md`
-- `docs/ui-parity.md`
-- `docs/tech-parity.md`
-- `docs/admin-template-integration-plan.md`
-- `docs/admin-libraries-parity.md`
+- `docs/UI/admin-auth-phase3.md`
+- `docs/UI/admin-phase3-architecture.md`
+- `docs/UI/admin-phase3-gap-analysis.md`
+- `docs/UI/ui-parity.md`
+- `docs/UI/tech-parity.md`
+- `docs/UI/admin-template-integration-plan.md`
+- `docs/UI/admin-libraries-parity.md`
 
 ---
 

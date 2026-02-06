@@ -304,5 +304,5 @@ mYYYYMMDD_<module>_<nnn>_<description>.rs
 
 ## См. также
 
-- [MODULE_MATRIX.md](./MODULE_MATRIX.md) — матрица модулей
+- [MODULE_MATRIX.md](./modules/MODULE_MATRIX.md) — матрица модулей
 - [ARCHITECTURE_GUIDE.md](./ARCHITECTURE_GUIDE.md) — архитектура

@@ -1,16 +1,22 @@
 # Admin Phase 3 gap analysis (Leptos + Next.js)
 
 This document compares the current implementation with the target scope from
-`docs/admin-auth-phase3.md` and adds parity guidance for a unified admin UX.
+`docs/UI/admin-auth-phase3.md` and adds parity guidance for a unified admin UX.
 
-Implementation architecture is documented in `docs/admin-phase3-architecture.md`.
+## Контекст админок
+
+- **Описание:** сводка расхождений между админками и контрольная карта закрытия Phase 3.
+- **Стек:** Leptos CSR (`apps/admin`) + Next.js App Router (`apps/next-admin`), TailwindCSS, shadcn/ui, leptos-shadcn-ui, общие дизайн‑токены.
+- **Ссылки:** [UI документы](./) • [UI parity](./ui-parity.md) • [IU библиотеки](../../IU/README.md)
+
+Implementation architecture is documented in `docs/UI/admin-phase3-architecture.md`.
 
 > Context: the project is converging on a shared admin look/behavior and a unified
 > component approach (`shadcn/ui`-style design system in both admin apps).
 
 ## Scope source
 
-Phase 3 target scope is defined in `docs/admin-auth-phase3.md`:
+Phase 3 target scope is defined in `docs/UI/admin-auth-phase3.md`:
 
 - Auth core (`/login`)
 - Password recovery (`/reset`)

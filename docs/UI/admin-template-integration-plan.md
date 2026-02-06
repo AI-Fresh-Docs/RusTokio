@@ -2,10 +2,16 @@
 
 Цель: аккуратно «натянуть» новый UI-шаблон на обе админки (Leptos и Next.js), сохранив единый UX, совместимость с текущими API и требованиями Phase 3.
 
+## Контекст админок
+
+- **Описание:** единый план интеграции UI‑шаблона в обе админки с сохранением паритета и общего UI контракта.
+- **Стек:** Leptos CSR (`apps/admin`) + Next.js App Router (`apps/next-admin`), TailwindCSS, shadcn/ui, leptos-shadcn-ui, общие дизайн‑токены.
+- **Ссылки:** [UI документы](./) • [UI parity](./ui-parity.md) • [IU библиотеки](../../IU/README.md)
+
 ## 1. Подготовка и аудит
 
 1. Зафиксировать исходные цели (scope Phase 3 и требования к паритету).
-   - Документы: `docs/admin-auth-phase3.md`, `docs/admin-phase3-architecture.md`, `docs/admin-phase3-gap-analysis.md`.
+   - Документы: `docs/UI/admin-auth-phase3.md`, `docs/UI/admin-phase3-architecture.md`, `docs/UI/admin-phase3-gap-analysis.md`.
 2. Снять инвентаризацию шаблона:
    - Список страниц, layouts, UI-компонентов, токены дизайна, типографика.
    - Зависимости (Tailwind/shadcn/ui/иконки/таблицы/формы).

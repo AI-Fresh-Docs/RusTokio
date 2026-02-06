@@ -124,5 +124,5 @@ RusToK — это модульный монолит: модули собираю
 ## 6. Связанные документы
 
 - Архитектура: `docs/architecture.md`
-- Реестр модулей: `docs/module-registry.md`
+- Реестр модулей: `docs/modules/module-registry.md`
 - MCP: `docs/mcp.md`
