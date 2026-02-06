@@ -4,6 +4,12 @@ This document outlines the Phase 3 scope for **standard** multi-language admin a
 and user security flows. It intentionally excludes SSO/OIDC/SAML to keep the first iteration
 simple and production-ready.
 
+## Контекст админок
+
+- **Описание:** целевой объём работ по аутентификации и профилю в обеих админках, чтобы UI и поведение были синхронизированы.
+- **Стек:** Leptos CSR (`apps/admin`) + Next.js App Router (`apps/next-admin`), TailwindCSS, shadcn/ui, leptos-shadcn-ui, общие дизайн‑токены.
+- **Ссылки:** [UI документы](./) • [UI parity](./ui-parity.md) • [IU библиотеки](../../IU/README.md)
+
 ## Goals
 
 - Ship a production-grade login/register experience in the admin panel.

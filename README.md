@@ -322,7 +322,7 @@ cargo loco generate controller products --api
 | Document | Description |
 |----------|-------------|
 | [RUSTOK_MANIFEST.md](RUSTOK_MANIFEST.md) | **Главный манифест** — философия, архитектура, стек |
-| [MODULE_MATRIX.md](docs/MODULE_MATRIX.md) | Карта всех модулей и зависимостей |
+| [MODULE_MATRIX.md](docs/modules/MODULE_MATRIX.md) | Карта всех модулей и зависимостей |
 | [DATABASE_SCHEMA.md](docs/DATABASE_SCHEMA.md) | Все таблицы БД с колонками и ERD |
 | [ARCHITECTURE_GUIDE.md](docs/ARCHITECTURE_GUIDE.md) | Архитектурные принципы и решения |
 | [ROADMAP.md](docs/ROADMAP.md) | Фазы разработки (Forge → Blueprint → Construction) |
@@ -331,21 +331,21 @@ cargo loco generate controller products --api
 ### Implementation Guides
 
 - [Architecture & system logic](docs/architecture.md)
-- [Module registry](docs/module-registry.md)
-- [Modules overview](docs/modules.md)
+- [Module registry](docs/modules/module-registry.md)
+- [Modules overview](docs/modules/modules.md)
 - [MCP adapter](docs/mcp.md)
-- [Storefront SSR notes](docs/storefront.md)
+- [Storefront SSR notes](docs/UI/storefront.md)
 - [Testing guidelines](docs/testing-guidelines.md)
 
 ### Admin Auth (Phase 3)
 
-- [Admin auth phase 3 scope](docs/admin-auth-phase3.md)
-- [Gap analysis (Leptos + Next.js)](docs/admin-phase3-gap-analysis.md)
-- [Architecture (Server + Leptos + Next.js)](docs/admin-phase3-architecture.md)
-- [UI parity (admin + storefront)](docs/ui-parity.md)
-- [Tech parity tracker](docs/tech-parity.md)
-- [Template integration plan](docs/admin-template-integration-plan.md)
-- [Admin libraries parity](docs/admin-libraries-parity.md)
+- [Admin auth phase 3 scope](docs/UI/admin-auth-phase3.md)
+- [Gap analysis (Leptos + Next.js)](docs/UI/admin-phase3-gap-analysis.md)
+- [Architecture (Server + Leptos + Next.js)](docs/UI/admin-phase3-architecture.md)
+- [UI parity (admin + storefront)](docs/UI/ui-parity.md)
+- [Tech parity tracker](docs/UI/tech-parity.md)
+- [Template integration plan](docs/UI/admin-template-integration-plan.md)
+- [Admin libraries parity](docs/UI/admin-libraries-parity.md)
 
 ---
 
@@ -428,8 +428,8 @@ cargo build --release
 
 Modules can be enabled/disabled per tenant without recompilation. The server
 tracks compiled modules in a registry and calls module lifecycle hooks when
-tenants enable or disable a module. See `docs/module-registry.md` for details.
-Storefront SSR notes live in `docs/storefront.md`.
+tenants enable or disable a module. See `docs/modules/module-registry.md` for details.
+Storefront SSR notes live in `docs/UI/storefront.md`.
 
 ```sql
 -- Stored in database

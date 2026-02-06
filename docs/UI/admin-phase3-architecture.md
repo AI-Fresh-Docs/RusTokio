@@ -3,9 +3,15 @@
 This document describes the **implemented architecture** for Phase 3 admin auth/security
 flows and the contracts that both admin frontends should follow.
 
+## Контекст админок
+
+- **Описание:** архитектурные договорённости между сервером и UI для админских auth/security сценариев.
+- **Стек:** Leptos CSR (`apps/admin`) + Next.js App Router (`apps/next-admin`), TailwindCSS, shadcn/ui, leptos-shadcn-ui, общие дизайн‑токены.
+- **Ссылки:** [UI документы](./) • [UI parity](./ui-parity.md) • [IU библиотеки](../../IU/README.md)
+
 Related docs:
-- Scope: `docs/admin-auth-phase3.md`
-- Progress/gaps: `docs/admin-phase3-gap-analysis.md`
+- Scope: `docs/UI/admin-auth-phase3.md`
+- Progress/gaps: `docs/UI/admin-phase3-gap-analysis.md`
 
 ## 1) Runtime layers
 
