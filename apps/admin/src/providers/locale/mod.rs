@@ -46,7 +46,8 @@ pub fn use_locale() -> LocaleContext {
 }
 
 pub fn translate(key: &str) -> String {
-    i18n::translate(key)
+    let locale = use_locale().locale.get_untracked();
+    i18n::translate(locale, key)
 }
 
 fn local_storage() -> Option<web_sys::Storage> {

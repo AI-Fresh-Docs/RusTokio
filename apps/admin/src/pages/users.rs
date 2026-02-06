@@ -68,21 +68,9 @@ pub fn Users() -> impl IntoView {
     let query = use_query_map();
 
     // Initialize state from URL params
-    let initial_search = query
-        .get_untracked()
-        .get("search")
-        .cloned()
-        .unwrap_or_default();
-    let initial_role = query
-        .get_untracked()
-        .get("role")
-        .cloned()
-        .unwrap_or_default();
-    let initial_status = query
-        .get_untracked()
-        .get("status")
-        .cloned()
-        .unwrap_or_default();
+    let initial_search = query.get_untracked().get("search").unwrap_or_default();
+    let initial_role = query.get_untracked().get("role").unwrap_or_default();
+    let initial_status = query.get_untracked().get("status").unwrap_or_default();
     let initial_page = query
         .get_untracked()
         .get("page")
@@ -196,9 +184,9 @@ pub fn Users() -> impl IntoView {
         <section class="px-10 py-8">
             <PageHeader
                 title=translate("users.title")
-                subtitle=Some(translate("users.subtitle"))
-                eyebrow=Some(translate("app.nav.users"))
-                actions=Some(move || view! {
+                subtitle=translate("users.subtitle")
+                eyebrow=translate("app.nav.users")
+                actions=view! {
                     <LanguageToggle />
                     <Button
                         on_click=refresh
@@ -206,7 +194,8 @@ pub fn Users() -> impl IntoView {
                     >
                         {move || translate("users.refresh")}
                     </Button>
-                }.into_any())
+                }
+                .into_any()
             />
 
             <div class="mb-6 rounded-2xl bg-white p-6 shadow-[0_18px_36px_rgba(15,23,42,0.08)]">
