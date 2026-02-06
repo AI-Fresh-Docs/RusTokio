@@ -3,6 +3,12 @@ use leptos::web_sys;
 
 use crate::providers::locale::{use_locale, Locale};
 
+pub mod page_header;
+pub use page_header::*;
+
+pub mod stats_card;
+pub use stats_card::*;
+
 #[component]
 pub fn Button(
     #[prop(into)] on_click: Callback<web_sys::MouseEvent>,

@@ -1,9 +1,10 @@
 use leptos::prelude::*;
 use leptos_router::components::A;
+use leptos_router::hooks::{use_navigate, use_query_map};
 use serde::{Deserialize, Serialize};
 
 use crate::api::{request, rest_get, ApiError};
-use crate::components::ui::{Button, Input, LanguageToggle};
+use crate::components::ui::{Button, Input, LanguageToggle, PageHeader};
 use crate::providers::auth::use_auth;
 use crate::providers::locale::{translate, use_locale};
 
@@ -64,15 +65,49 @@ struct PaginationInput {
 pub fn Users() -> impl IntoView {
     let auth = use_auth();
     let locale = use_locale();
+    let navigate = use_navigate();
+    let query = use_query_map();
+
+    // Initialize state from URL params
+    let initial_search = query.get_untracked().get("search").cloned().unwrap_or_default();
+    let initial_role = query.get_untracked().get("role").cloned().unwrap_or_default();
+    let initial_status = query.get_untracked().get("status").cloned().unwrap_or_default();
+    let initial_page = query.get_untracked().get("page").and_then(|p| p.parse::<i64>().ok()).unwrap_or(1);
+
     let (api_token, set_api_token) = signal(auth.token.get().unwrap_or_default());
     let (tenant_slug, set_tenant_slug) = signal(String::new());
     let (refresh_counter, set_refresh_counter) = signal(0u32);
-    let (page, set_page) = signal(1i64);
+    let (page, set_page) = signal(initial_page);
     let (limit, set_limit) = signal(12i64);
     let (limit_input, set_limit_input) = signal("12".to_string());
-    let (search_query, set_search_query) = signal(String::new());
-    let (role_filter, set_role_filter) = signal(String::new());
-    let (status_filter, set_status_filter) = signal(String::new());
+    
+    // Filter signals
+    let (search_query, set_search_query) = signal(initial_search);
+    let (role_filter, set_role_filter) = signal(initial_role);
+    let (status_filter, set_status_filter) = signal(initial_status);
+
+    // Sync filters to URL
+    Effect::new(move |_| {
+        let s = search_query.get();
+        let r = role_filter.get();
+        let st = status_filter.get();
+        let p = page.get();
+
+        let mut params = Vec::new();
+        if !s.is_empty() { params.push(format!("search={}", s)); }
+        if !r.is_empty() { params.push(format!("role={}", r)); }
+        if !st.is_empty() { params.push(format!("status={}", st)); }
+        if p > 1 { params.push(format!("page={}", p)); }
+
+        let search_string = if params.is_empty() {
+            String::new()
+        } else {
+            format!("?{}", params.join("&"))
+        };
+
+        // Update URL without reloading page
+        navigate(&format!("/users{}", search_string), Default::default());
+    });
 
     let rest_resource = Resource::new(
         move || refresh_counter.get(),
@@ -136,19 +171,11 @@ pub fn Users() -> impl IntoView {
 
     view! {
         <section class="px-10 py-8">
-            <header class="mb-8 flex flex-wrap items-center justify-between gap-4">
-                <div>
-                    <span class="inline-flex items-center rounded-full bg-slate-200 px-3 py-1 text-xs font-semibold text-slate-600">
-                        {move || translate(locale.locale.get(), "app.nav.users")}
-                    </span>
-                    <h1 class="mt-2 text-2xl font-semibold">
-                        {move || translate(locale.locale.get(), "users.title")}
-                    </h1>
-                    <p class="mt-2 text-sm text-slate-500">
-                        {move || translate(locale.locale.get(), "users.subtitle")}
-                    </p>
-                </div>
-                <div class="flex flex-wrap items-center gap-3">
+            <PageHeader
+                title=translate(locale.locale.get(), "users.title")
+                subtitle=Some(translate(locale.locale.get(), "users.subtitle"))
+                eyebrow=Some(translate(locale.locale.get(), "app.nav.users"))
+                actions=Some(move || view! {
                     <LanguageToggle />
                     <Button
                         on_click=refresh
@@ -156,8 +183,8 @@ pub fn Users() -> impl IntoView {
                     >
                         {move || translate(locale.locale.get(), "users.refresh")}
                     </Button>
-                </div>
-            </header>
+                }.into_any())
+            />
 
             <div class="mb-6 rounded-2xl bg-white p-6 shadow-[0_18px_36px_rgba(15,23,42,0.08)]">
                 <h4 class="mb-4 text-lg font-semibold">

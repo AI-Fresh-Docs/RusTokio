@@ -1,0 +1,17 @@
+[build]
+target = "index.html"
+dist = "dist"
+public_url = "/"
+
+[watch]
+ignore = ["./dist"]
+
+[[hooks]]
+stage = "build"
+command = "npx"
+command_arguments = ["tailwindcss", "-i", "input.css", "-o", "dist/output.css", "--minify"]
+
+[[hooks]]
+stage = "watch"
+command = "npx"
+command_arguments = ["tailwindcss", "-i", "input.css", "-o", "dist/output.css"]

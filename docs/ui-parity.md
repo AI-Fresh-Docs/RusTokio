@@ -98,3 +98,12 @@ and can consume the same design tokens and shadcn-style component contracts.
 - Migrate admin screens first, then storefront screens.
 - Maintain a UI gap log and update it as Leptos libraries evolve.
 - Track blocked Leptos library upgrades in the technical parity doc until upstream fixes are available.
+
+## Progress (Admin)
+
+| Component | Status | Notes |
+| --- | --- | --- |
+| PageHeader | ✅ | Implemented in `components/ui/page_header.rs` |
+| Users Table | ✅ | Implemented with URL sync and PageHeader |
+| Auth Guards | ✅ | Refactored to generic `ProtectedRoute` |
+| Tailwind | ✅ | Build pipeline via `Trunk` configured |

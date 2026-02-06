@@ -24,7 +24,7 @@ feature parity **in behavior and integration**, independent of UI design.
 | --- | --- | --- | --- | --- | --- |
 | REST integration | ✅ | ⚠️ | ✅ | ⚠️ | Align auth headers, error mapping, pagination.
 | GraphQL integration | ✅ | ⚠️ | ✅ | ⚠️ | Align query/mutation names and filtering semantics.
-| Routing structure | ✅ | ⚠️ | ✅ | ⚠️ | Match paths, dynamic segments, and redirects.
+| Routing structure | ✅ | ✅ | ✅ | ⚠️ | Match paths, dynamic segments, and redirects.
 | Auth/session | ✅ | ⚠️ | ✅ | ⚠️ | Match token storage, expiry, refresh, and logout.
 | Error handling | ✅ | ⚠️ | ✅ | ⚠️ | Standardize error codes → UI states.
 | i18n | ✅ | ⚠️ | ✅ | ⚠️ | Same locale list, fallback order, and URL strategy.

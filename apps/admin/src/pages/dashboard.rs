@@ -1,6 +1,6 @@
 use leptos::prelude::*;
 
-use crate::components::ui::{Button, LanguageToggle};
+use crate::components::ui::{Button, LanguageToggle, PageHeader, StatsCard};
 use crate::providers::auth::use_auth;
 use crate::providers::locale::{translate, use_locale};
 
@@ -15,21 +15,41 @@ pub fn Dashboard() -> impl IntoView {
                 translate(locale.locale.get(), "app.dashboard.stats.tenants"),
                 "28",
                 translate(locale.locale.get(), "app.dashboard.stats.tenantsHint"),
+                view! {
+                    <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+                    </svg>
+                }.into_any()
             ),
             (
                 translate(locale.locale.get(), "app.dashboard.stats.modules"),
                 "12",
                 translate(locale.locale.get(), "app.dashboard.stats.modulesHint"),
+                view! {
+                    <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" />
+                    </svg>
+                }.into_any()
             ),
             (
                 translate(locale.locale.get(), "app.dashboard.stats.latency"),
                 "128ms",
                 translate(locale.locale.get(), "app.dashboard.stats.latencyHint"),
+                view! {
+                    <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
+                    </svg>
+                }.into_any()
             ),
             (
                 translate(locale.locale.get(), "app.dashboard.stats.queue"),
                 "7",
                 translate(locale.locale.get(), "app.dashboard.stats.queueHint"),
+                view! {
+                    <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+                    </svg>
+                }.into_any()
             ),
         ]
     };
@@ -66,24 +86,11 @@ pub fn Dashboard() -> impl IntoView {
 
     view! {
         <section class="px-10 py-8">
-            <header class="mb-8 flex flex-wrap items-center justify-between gap-4">
-                <div>
-                    <span class="inline-flex items-center rounded-full bg-slate-200 px-3 py-1 text-xs font-semibold text-slate-600">
-                        {move || translate(locale.locale.get(), "app.nav.dashboard")}
-                    </span>
-                    <h1 class="mt-2 text-2xl font-semibold">
-                        {move || {
-                            auth.user
-                                .get()
-                                .and_then(|user| user.name)
-                                .unwrap_or_else(|| "Добро пожаловать, Админ".to_string())
-                        }}
-                    </h1>
-                    <p class="mt-2 text-sm text-slate-500">
-                        {move || translate(locale.locale.get(), "app.dashboard.subtitle")}
-                    </p>
-                </div>
-                <div class="flex flex-wrap items-center gap-3">
+            <PageHeader
+                title=move || auth.user.get().and_then(|u| u.name).unwrap_or_else(|| "Dashboard".to_string())
+                eyebrow=Some(translate(locale.locale.get(), "app.nav.dashboard"))
+                subtitle=Some(translate(locale.locale.get(), "app.dashboard.subtitle"))
+                actions=Some(move || view! {
                     <LanguageToggle />
                     <Button
                         on_click=logout
@@ -94,19 +101,21 @@ pub fn Dashboard() -> impl IntoView {
                     <Button on_click=move |_| {}>
                         {move || translate(locale.locale.get(), "app.dashboard.createTenant")}
                     </Button>
-                </div>
-            </header>
+                }.into_any())
+            />
 
             <div class="mb-8 grid gap-5 md:grid-cols-2 xl:grid-cols-4">
                 {stats()
-                    .iter()
-                    .map(|(title, value, hint)| {
+                    .into_iter()
+                    .map(|(title, value, hint, icon)| {
                         view! {
-                            <div class="rounded-2xl bg-white p-5 shadow-[0_16px_30px_rgba(15,23,42,0.08)]">
-                                <h3 class="text-sm text-slate-500">{title.clone()}</h3>
-                                <strong class="text-2xl">{*value}</strong>
-                                <p class="mt-2 text-sm text-slate-400">{hint.clone()}</p>
-                            </div>
+                            <StatsCard
+                                title=title
+                                value=value
+                                icon=icon
+                                trend=Some(hint) // Reusing hint as trend text for now
+                                class="transition-all hover:scale-[1.02]"
+                            />
                         }
                     })
                     .collect_view()}
@@ -157,18 +166,6 @@ pub fn Dashboard() -> impl IntoView {
                         >
                             {move || translate(locale.locale.get(), "app.dashboard.quick.users")}
                         </a>
-                        <button
-                            type="button"
-                            class="rounded-xl bg-slate-100 px-4 py-3 text-left text-sm font-semibold text-slate-900 transition hover:bg-slate-200"
-                        >
-                            {move || translate(locale.locale.get(), "app.dashboard.quick.metrics")}
-                        </button>
-                        <button
-                            type="button"
-                            class="rounded-xl bg-slate-100 px-4 py-3 text-left text-sm font-semibold text-slate-900 transition hover:bg-slate-200"
-                        >
-                            {move || translate(locale.locale.get(), "app.dashboard.quick.roles")}
-                        </button>
                     </div>
                 </div>
             </div>
