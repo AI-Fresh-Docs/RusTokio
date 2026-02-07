@@ -1,4 +1,4 @@
-# RusTok GraphQL Kit
+# Leptos GraphQL
 
 Specialized internal helpers for **GraphQL calls** across both admin and storefront
 frontends (Leptos + Next.js). This kit standardizes request shapes, headers, and
@@ -25,14 +25,14 @@ endpoint constants so we avoid divergent one-off fetch code.
 ## Runtime implementations
 
 ### 1) Leptos (Rust)
-Rust helpers live in `crates/rustok-leptos-graphql-kit`.
+Rust helpers live in `crates/leptos-graphql`.
 
 Exports:
 - `GraphqlRequest`, `GraphqlResponse`, `GraphqlError`
 - `GRAPHQL_ENDPOINT`, `TENANT_HEADER`, `AUTH_HEADER`
 
 ### 2) Next.js (TypeScript)
-TypeScript helpers live in `packages/leptos-graphql-kit/next`.
+TypeScript helpers live in `packages/leptos-graphql/next`.
 
 Exports:
 - `GraphqlRequest`, `GraphqlResponse`, `GraphqlError`
@@ -45,14 +45,14 @@ Exports:
 
 ### Leptos
 ```rust
-use rustok_leptos_graphql_kit::{GraphqlRequest, GRAPHQL_ENDPOINT};
+use leptos_graphql::{GraphqlRequest, GRAPHQL_ENDPOINT};
 
 let request = GraphqlRequest::new("query { me { id } }", None::<()>);
 ```
 
 ### Next.js
 ```ts
-import { fetchGraphql } from "@/lib/leptos-graphql-kit";
+import { fetchGraphql } from "@/lib/leptos-graphql";
 
 const response = await fetchGraphql({
   token,

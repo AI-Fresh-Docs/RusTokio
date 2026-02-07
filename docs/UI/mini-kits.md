@@ -5,12 +5,12 @@
 
 ## Уже есть
 
-### 1) Leptos Auth Kit
+### 1) Leptos Auth
 - Контракт для `/api/auth/*`
 - Ключи хранения, маппинг ошибок
 - Rust + TS реализации
 
-### 2) Leptos GraphQL Kit
+### 2) Leptos GraphQL
 - Контракт для `/api/graphql`
 - Заголовки tenant/auth
 - Rust + TS реализации

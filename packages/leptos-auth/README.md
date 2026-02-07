@@ -1,4 +1,4 @@
-# RusTok Leptos Auth Kit
+# Leptos Auth
 
 Specialized internal library that standardizes authentication flows, storage keys,
 error mapping, and UX contracts across **both admin and storefront frontends**:
@@ -85,7 +85,7 @@ These keys are **fixed** and used in both admin and storefront apps:
 ## Runtime implementations
 
 ### 1) Leptos (Rust)
-Rust helpers live in `crates/rustok-leptos-auth-kit` and are meant to be used in
+Rust helpers live in `crates/leptos-auth` and are meant to be used in
 `apps/admin` or `apps/storefront` (or other Rust-based frontends).
 
 Exports:
@@ -94,7 +94,7 @@ Exports:
 - storage key constants
 
 ### 2) Next.js (TypeScript)
-TypeScript helpers live in `packages/leptos-auth-kit/next` and are meant to be used in
+TypeScript helpers live in `packages/leptos-auth/next` and are meant to be used in
 `apps/next-admin` or `apps/next-frontend` (or other React-based frontends).
 
 Exports:
@@ -104,7 +104,7 @@ Exports:
 - storage key constants
 
 To consume in Next.js, add a path alias or import it via a relative path from the
-monorepo (e.g. by wiring `tsconfig` paths to `packages/leptos-auth-kit/next`).
+monorepo (e.g. by wiring `tsconfig` paths to `packages/leptos-auth/next`).
 
 ---
 
@@ -112,14 +112,14 @@ monorepo (e.g. by wiring `tsconfig` paths to `packages/leptos-auth-kit/next`).
 
 ### Leptos
 ```rust
-use rustok_leptos_auth_kit::{AuthError, AuthSession, ADMIN_TENANT_KEY};
+use leptos_auth::{AuthError, AuthSession, ADMIN_TENANT_KEY};
 
 let error = AuthError::from_status(401, true);
 ```
 
 ### Next.js
 ```ts
-import { getClientAuth, mapAuthError } from "@/lib/leptos-auth-kit";
+import { getClientAuth, mapAuthError } from "@/lib/leptos-auth";
 
 const { token, tenant } = getClientAuth();
 const error = mapAuthError(401, true);
@@ -143,8 +143,8 @@ This keeps parity between Leptos and Next and avoids hidden behavior drift.
 ## Repo layout
 
 ```
-crates/rustok-leptos-auth-kit/   # Rust helper crate for Leptos frontends
-packages/leptos-auth-kit/        # TS helper module for Next.js frontends
+crates/leptos-auth/   # Rust helper crate for Leptos frontends
+packages/leptos-auth/ # TS helper module for Next.js frontends
 ```
 
 ---
