@@ -20,6 +20,7 @@ rebuild, после чего появляется новый бинарник с
 - Реестр модулей поднимается в `apps/server/src/modules/mod.rs`.
 - Контракт модулей и registry находится в `crates/rustok-core`.
 - Манифест модулей: `docs/modules/module-manifest.md`.
+- План внедрения rebuild‑подхода: `docs/modules/module-rebuild-plan.md`.
 
 ## 2. Модули, зарегистрированные в сервере (реальная сборка)
 
