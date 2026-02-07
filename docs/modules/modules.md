@@ -42,7 +42,8 @@ rebuild, после чего появляется новый бинарник с
 **манифест модулей**, который фиксирует состав сборки и источники модулей
 (crates.io/git/path). Изменение манифеста инициирует rebuild.
 
-Схема и формат описаны в: `docs/modules/module-manifest.md`.
+Схема и формат описаны в: `docs/modules/module-manifest.md` (включая blueprint
+API для admin rebuild, пайплайн сборки и rollback).
 
 ## 2.2 Install/Uninstall через rebuild
 

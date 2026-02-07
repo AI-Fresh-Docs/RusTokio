@@ -96,3 +96,83 @@ UI шаги:
 - **Консистентность**: если сборка прошла, модуль гарантированно присутствует.
 - **Безопасность**: нет runtime-подгрузки нативного кода.
 - **Воспроизводимость**: манифест фиксирует точный состав и версии.
+
+## Blueprint: API для admin rebuild
+
+Ниже — минимальная схема API, которую можно подключить к админке, чтобы запускать
+пересборки и показывать прогресс.
+
+### Endpoint: создать сборку
+
+`POST /admin/builds`
+
+```json
+{
+  "manifest_ref": "main",
+  "requested_by": "admin@rustok",
+  "reason": "install module: forum",
+  "modules": {
+    "content": { "source": "crates-io", "crate": "rustok-content", "version": "0.1" },
+    "forum": { "source": "git", "crate": "rustok-forum", "git": "ssh://git/forum.git", "rev": "abc123" }
+  }
+}
+```
+
+**Ответ:**
+```json
+{ "build_id": "bld_01H...", "status": "queued" }
+```
+
+### Endpoint: статус сборки
+
+`GET /admin/builds/{build_id}`
+
+```json
+{
+  "build_id": "bld_01H...",
+  "status": "running",
+  "stage": "build",
+  "progress": 62,
+  "logs_url": "https://builds/rustok/bld_01H.../logs"
+}
+```
+
+### Endpoint: деплой/активация
+
+`POST /admin/builds/{build_id}/deploy`
+
+```json
+{ "environment": "prod" }
+```
+
+### Endpoint: rollback
+
+`POST /admin/builds/{build_id}/rollback`
+
+```json
+{ "target_release": "rel_2025_01_10_001" }
+```
+
+## Blueprint: build pipeline (Docker/K8s)
+
+Пример пайплайна:
+
+1. **Checkout + deps**: забрать repo + загрузить зависимости.
+2. **Render manifest**: зафиксировать `modules.toml` в workspace.
+3. **Cargo build**: `cargo build -p rustok-server --release`.
+4. **Docker image**: собрать образ с готовым бинарником.
+5. **Push**: загрузить в registry.
+6. **Deploy**: обновить deployment (K8s) или контейнер (docker-compose).
+7. **Smoke**: проверить `/health` и `/health/modules`.
+
+## Blueprint: rollback
+
+1. **Хранить релизы**: у каждого деплоя есть `release_id` и образ.
+2. **Откат**: переключить deployment на предыдущий `release_id`.
+3. **Проверка**: повторить smoke-check.
+4. **Фиксация**: записать rollback в журнал событий админки.
+
+## Blueprint: что сохраняет админка
+
+- `build_id`, `release_id`, `status`, `started_at`, `finished_at`
+- `manifest_hash`, `modules_delta`, `requested_by`, `reason`
