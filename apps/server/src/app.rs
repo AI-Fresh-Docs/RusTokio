@@ -16,9 +16,15 @@ use std::path::Path;
 use crate::controllers;
 use crate::middleware;
 use crate::modules;
+use crate::services::event_transport_factory::{build_event_runtime, spawn_outbox_relay_worker};
 use loco_rs::prelude::Queue;
 use migration::Migrator;
 use std::sync::Arc;
+use tokio::task::JoinHandle;
+
+struct OutboxRelayWorkerHandle {
+    _handle: JoinHandle<()>,
+}
 
 pub struct App;
 
@@ -60,6 +66,8 @@ impl Hooks for App {
     }
 
     async fn after_routes(router: AxumRouter, ctx: &AppContext) -> Result<AxumRouter> {
+        let event_runtime = build_event_runtime(ctx).await?;
+        ctx.shared_store.insert(event_runtime.transport.clone());
         let registry = modules::build_registry();
         middleware::tenant::init_tenant_cache_infrastructure(ctx).await;
         let engine = Arc::new(alloy_scripting::create_default_engine());
@@ -89,7 +97,18 @@ impl Hooks for App {
         Ok(vec![])
     }
 
-    async fn connect_workers(_ctx: &AppContext, _queue: &Queue) -> Result<()> {
+    async fn connect_workers(ctx: &AppContext, _queue: &Queue) -> Result<()> {
+        if ctx.shared_store.contains::<OutboxRelayWorkerHandle>() {
+            return Ok(());
+        }
+
+        let event_runtime = build_event_runtime(ctx).await?;
+        if let Some(relay_config) = event_runtime.relay_config {
+            let handle = spawn_outbox_relay_worker(relay_config);
+            ctx.shared_store
+                .insert(OutboxRelayWorkerHandle { _handle: handle });
+        }
+
         Ok(())
     }
 

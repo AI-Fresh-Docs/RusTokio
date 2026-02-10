@@ -77,6 +77,7 @@ RusToK — это headless-платформа на Rust для e-commerce и к�
 - Изменение состава модулей = изменение manifest + rebuild (а не hot-plug в runtime).
 - Кэш tenant resolver должен быть консистентным между инстансами (Redis + pub/sub invalidation).
 - Метрики `/metrics` должны отражать реальное состояние shared cache (а не только локальный процесс).
+- Транспорт событий на сервере задаётся через `settings.rustok.events.transport` или `RUSTOK_EVENT_TRANSPORT`; при неверном значении сервер должен падать на старте.
 
 ---
 
@@ -1114,14 +1115,13 @@ crates/rustok-iggy/
     └── replay.rs           # event replay API
 ```
 
-**2.2 Add Iggy config (P1)**  
-**File:** `apps/server/config/*.yaml` (section `rustok.iggy`)  
+**2.2 Add event transport config (P1)**  
+**File:** `apps/server/config/*.yaml` (section `settings.rustok.events`)  
 Add:
 
-- `IggyConfig`
-- `IggyEmbeddedConfig`
-- `IggyRemoteConfig`
-- `IggyTopologyConfig`
+- `transport: memory|outbox|iggy`
+- `relay_interval_ms`
+- nested `iggy` block (`IggyConfig`, embedded/remote/topology)
 
 **2.3 Feature flag for Iggy (P1)**  
 **File:** `crates/rustok-core/Cargo.toml` or workspace  
@@ -1177,7 +1177,7 @@ Check/add:
 | 1.3 | OutboxTransport | New crate | `rustok-outbox` | P0 |
 | 1.4 | MemoryTransport | Add/Check | `rustok-core/events` | P1 |
 | 2.1 | IggyTransport | New crate | `rustok-iggy` | P1 |
-| 2.2 | Iggy config | Add | `apps/server/config` | P1 |
+| 2.2 | Event transport config (`settings.rustok.events`) | Add | `apps/server/config` | P1 |
 | 2.3 | Iggy feature flag | Add | `Cargo.toml` | P1 |
 | 3.1 | Module dependencies/health | Modify | `rustok-core/module` | P0 |
 | 3.2 | AppContext fields | Modify | `rustok-core/context` | P0 |
