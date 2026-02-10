@@ -5,7 +5,6 @@ in Next.js, so Leptos frontends can share the same error structure.
 
 Target apps:
 - `apps/admin` (Leptos CSR)
-- `apps/next-admin` (Next.js)
 - `apps/storefront` (Leptos SSR)
 - `apps/next-frontend` (Next.js)
 

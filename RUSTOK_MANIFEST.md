@@ -185,7 +185,6 @@ rustok/
     │       ├── app.rs         # Loco hooks & routes
     │       └── main.rs
     ├── admin/                 # Admin UI (Leptos CSR)
-    ├── next-admin/            # Admin UI (Next.js App Router)
     ├── storefront/            # Storefront UI (Next.js)
     └── mcp/                   # MCP server (stdio)
 ```

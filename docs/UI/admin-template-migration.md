@@ -3,8 +3,8 @@
 **Template Source:** `vendor/ui/next-shadcn-dashboard-starter`
 **Target Apps:**
 
-1. `apps/next-admin` (Next.js) — **Prioritized** (Direct port)
-2. `apps/admin` (Leptos) — **Follow-up** (Rust port)
+1. `apps/admin` (Leptos) — **Prioritized**
+2. `apps/storefront` (Leptos) — **Follow-up** (reuse shared blocks)
 
 Этот документ описывает процесс переноса UI/UX из готового шаблона в наши админки с учетом **наших библиотек**.
 
@@ -52,7 +52,7 @@
 
 Самая важная часть. Переносим обертку приложения.
 
-| Task | ⚛️ Next.js | 🦀 Leptos | Notes |
+| Task | 🧩 Template UI | 🦀 Leptos | Notes |
 | :--- | :--- | :--- | :--- |
 | **Icons**: Setup `lucide-react` / `lucide-leptos`. | ⬜ | ⬜ | Unified icon set. |
 | **Sidebar**: Create `AppSidebar` component. | ⬜ | ⬜ | Поддержка Collapsible state. |
@@ -64,7 +64,7 @@
 
 Главная страница с виджетами.
 
-| Task | ⚛️ Next.js | 🦀 Leptos | Notes |
+| Task | 🧩 Template UI | 🦀 Leptos | Notes |
 | :--- | :--- | :--- | :--- |
 | **Stats Cards**: Port `KpiCard` styles. | ⬜ | ⬜ | У нас есть `StatsCard`, обновить дизайн. |
 | **Charts**: Add `recharts` / Rust Charts. | ⬜ | ⬜ | `Overview` graph (Sales/Activity). |
@@ -75,7 +75,7 @@
 
 Самая сложная часть — таблицы с данными.
 
-| Task | ⚛️ Next.js | 🦀 Leptos | Notes |
+| Task | 🧩 Template UI | 🦀 Leptos | Notes |
 | :--- | :--- | :--- | :--- |
 | **DataTable**: Port generic table component. | ⬜ | ⬜ | Shadcn `Table`, `TableHeader`... |
 | **Pagination**: Port pagination UI. | ⬜ | ⬜ | Connect to `leptos-shadcn-pagination`. |
@@ -86,7 +86,7 @@
 
 Формы ввода данных.
 
-| Task | ⚛️ Next.js | 🦀 Leptos | Notes |
+| Task | 🧩 Template UI | 🦀 Leptos | Notes |
 | :--- | :--- | :--- | :--- |
 | **Input Fields**: Confirm styles (Input, Select). | ⬜ | ⬜ | Проверить Error states. |
 | **Form Layout**: Grid/Stack layout. | ⬜ | ⬜ | `AutoForm` patterns if applicable. |
@@ -96,7 +96,7 @@
 
 ## 3. Technical Guidelines
 
-### ⚛️ Next.js Implementation
+### 🦀 Leptos Implementation
 
 1. Copy component code from `vendor/ui/.../components/...`.
 2. Replace `import { ... }` to relative paths.

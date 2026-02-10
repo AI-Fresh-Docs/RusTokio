@@ -5,7 +5,6 @@ admin and storefront frontends (Leptos + Next.js).
 
 Target apps:
 - `apps/admin` (Leptos CSR)
-- `apps/next-admin` (Next.js)
 - `apps/storefront` (Leptos SSR)
 - `apps/next-frontend` (Next.js)
 

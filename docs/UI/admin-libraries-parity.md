@@ -1,18 +1,18 @@
-# Паритет библиотек админок (Next.js ↔ Leptos)
+# Паритет библиотек для админки (Leptos-first)
 
 Этот документ фиксирует **известные** соответствия библиотек между админками и станет базой для унификации стека.
 
 ## Контекст админок
 
 - **Описание:** сравнение библиотек и паттернов между админками, чтобы стек был единым и прогнозируемым.
-- **Стек:** Leptos CSR (`apps/admin`) + Next.js App Router (`apps/next-admin`), TailwindCSS, shadcn/ui, leptos-shadcn-ui, общие дизайн‑токены.
+- **Стек:** Leptos CSR (`apps/admin`), TailwindCSS, shadcn-style компоненты, общие дизайн‑токены для админки и фронтенда.
 - **Ссылки:** [UI документы](./) • [UI parity](./ui-parity.md) • [IU библиотеки](../../IU/README.md)
 
 ## Известные аналоги (подтверждено в коде/доках)
 
-| Категория | Next.js admin | Leptos admin | Примечание |
+| Категория | Leptos admin | Frontend parity | Примечание |
 | --- | --- | --- | --- |
-| CSS/дизайн-токены | TailwindCSS | TailwindCSS (`tailwind-rs`) | Next.js uses TailwindCSS; Leptos uses the WASM-first, type-safe `tailwind-rs`. |
+| CSS/дизайн-токены | TailwindCSS (`tailwind-rs`) | TailwindCSS (storefront) | Один набор токенов и переменных должен использоваться и в админке, и во фронтенде. |
 | CSS pipeline | PostCSS + Autoprefixer | PostCSS + Autoprefixer | Одинаковая цепочка сборки стилей. |
 | UI контракт | shadcn/ui | shadcn-style components | В документации зафиксирован единый shadcn‑style подход для обеих админок. |
 | Каталог аналогов | N/A | N/A | Список библиотек и адаптеров: https://github.com/leptos-rs/awesome-leptos |
