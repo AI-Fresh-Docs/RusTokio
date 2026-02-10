@@ -2,6 +2,6 @@
 
 В этой папке хранится документация модуля `apps/server`.
 
-## Содержимое
+## Документы
 
-- [`health.md`](./health.md) — описание `health/live/ready/modules`, readiness-контракт и правила агрегации статуса.
+- [`event-transport.md`](./event-transport.md) — как работает конфигурация и runtime-пайплайн транспорта событий.

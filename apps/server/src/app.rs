@@ -22,11 +22,6 @@ use migration::Migrator;
 use std::sync::Arc;
 use tokio::task::JoinHandle;
 
-#[derive(Clone)]
-struct EventTransportExtension {
-    _transport: Arc<dyn rustok_core::events::EventTransport>,
-}
-
 struct OutboxRelayWorkerHandle {
     _handle: JoinHandle<()>,
 }
