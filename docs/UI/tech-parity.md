@@ -1,7 +1,7 @@
 # Technical parity plan (Leptos-first)
 
 This document tracks **technical parity** with Leptos as the source of truth for admin and storefront, plus optional Next.js storefront alignment.
-It focuses on shared integration points like REST/GraphQL, routing, SEO, auth, and error handling. The goal is
+It focuses on shared integration points like GraphQL, routing, SEO, auth, and error handling. The goal is
 feature parity **in behavior and integration**, independent of UI design.
 
 ## Scope
@@ -22,7 +22,6 @@ feature parity **in behavior and integration**, independent of UI design.
 
 | Area | Next.js (admin) | Leptos (admin) | Next.js (storefront) | Leptos (storefront) | Notes |
 | --- | --- | --- | --- | --- | --- |
-| REST integration | ✅ | ⚠️ | ✅ | ⚠️ | Align auth headers, error mapping, pagination.
 | GraphQL integration | ✅ | ⚠️ | ✅ | ⚠️ | Align query/mutation names and filtering semantics.
 | Routing structure | ✅ | ✅ | ✅ | ⚠️ | Match paths, dynamic segments, and redirects.
 | Auth/session | ✅ | ⚠️ | ✅ | ⚠️ | Match token storage, expiry, refresh, and logout.
@@ -76,15 +75,6 @@ Use a short, consistent marker near the custom implementation:
 
 ## Implementation tables
 
-### REST integration
-
-| Item | Contract | Next.js | Leptos | Notes |
-| --- | --- | --- | --- | --- |
-| Base URL | `API_BASE_URL` | ✅ | ⚠️ | Centralize via config module.
-| Auth header | `Authorization: Bearer` | ✅ | ⚠️ | Reuse token key names across stacks.
-| Error mapping | 4xx/5xx → UI | ✅ | ⚠️ | Align with shared error codes.
-| Pagination | `page/limit` | ✅ | ⚠️ | Match defaults and boundaries.
-
 ### GraphQL integration
 
 | Item | Contract | Next.js | Leptos | Notes |
@@ -119,7 +109,7 @@ Use a short, consistent marker near the custom implementation:
 
 ## Next steps
 
-- Create a shared API contract reference (REST + GraphQL) and link it here.
+- Create a shared API contract reference (GraphQL for UI clients) and link it here.
 - Define shared route maps for admin and storefront.
 - Add a standard error code map and i18n keys list.
 - Add a parity gap log (custom implementations + planned migrations).
