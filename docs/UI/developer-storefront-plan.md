@@ -1,10 +1,10 @@
 # Unified Development Plan (Admin + Storefront)
 
-Этот документ объединяет планы разработки **Admin Panel** и **Storefront** для двух стеков: **Leptos (Rust)** и **Next.js (React)**.
+Этот документ объединяет планы разработки **Admin Panel** и **Storefront** с упором на Leptos и переиспользование общих элементов между админкой и фронтендом.
 
 > 🛑 **CRITICAL: USE INTERNAL LIBRARIES FIRST**
 >
-> | **Functional Area** | **🦀 Leptos (Rust)** | **⚛️ Next.js (React)** |
+> | **Functional Area** | **🦀 Leptos (Rust)** | **⚛️ Next.js (React, storefront)** |
 > | :--- | :--- | :--- |
 > | **Forms** | [`leptos-hook-form`](../../crates/leptos-hook-form) | `react-hook-form` |
 > | **Validation** | [`leptos-zod`](../../crates/leptos-zod) | `zod` |
@@ -35,7 +35,7 @@
 
 ## Phase 1 — Foundation (Completed)
 
-| Работа | Leptos (`apps/admin`) | Next.js (`apps/next-admin`) |
+| Работа | Leptos (`apps/admin`) | — |
 | --- | --- | --- |
 | Базовый layout и навигационный shell. | ✅ | ✅ |
 | Dashboard/главная админки. | ✅ | ✅ |

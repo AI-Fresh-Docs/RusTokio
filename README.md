@@ -273,11 +273,6 @@ RUSTOK_DEMO_MODE=1 trunk serve --open
 # Run storefront (terminal 3)
 cargo run -p rustok-storefront
 
-# (Optional) Run Next.js admin (terminal 4)
-cd apps/next-admin
-npm install
-npm run dev
-
 # (Optional) Run Next.js storefront (terminal 5)
 cd apps/next-frontend
 npm install
@@ -369,11 +364,6 @@ RusToK/
 │   │   └── migration/          # Database migrations
 │   │
 │   ├── admin/                  # ⚙️ Admin Panel (Leptos CSR)
-│   ├── next-admin/             # ⚙️ Admin Panel (Next.js App Router)
-│   │   └── src/
-│   │       ├── pages/          # Admin views
-│   │       └── components/     # Reusable UI
-│   │
 │   ├── storefront/             # 🛍️ Public Store (Leptos SSR)
 │   ├── next-frontend/          # 🛍️ Public Store (Next.js App Router)
 │   │   └── src/

@@ -1,12 +1,12 @@
-# Technical parity plan (Leptos + Next.js)
+# Technical parity plan (Leptos-first)
 
-This document tracks **technical parity** between the Leptos and Next.js implementations (admin + storefront).
+This document tracks **technical parity** with Leptos as the source of truth for admin and storefront, plus optional Next.js storefront alignment.
 It focuses on shared integration points like REST/GraphQL, routing, SEO, auth, and error handling. The goal is
 feature parity **in behavior and integration**, independent of UI design.
 
 ## Scope
 
-- Admin: `apps/admin` (Leptos CSR) + `apps/next-admin` (Next.js).
+- Admin: `apps/admin` (Leptos CSR).
 - Storefront: `apps/storefront` (Leptos SSR) + `apps/next-frontend` (Next.js).
 
 ## Parity goals
@@ -33,7 +33,7 @@ feature parity **in behavior and integration**, independent of UI design.
 | Forms/validation | ✅ | ⚠️ | ✅ | ⚠️ | Same constraints, messages, and server mapping.
 | SSR/CSR strategy | ✅ | ⚠️ | ✅ | ⚠️ | Align hydration and caching strategy.
 | SEO | ✅ | ⚠️ | ✅ | ⚠️ | Same metadata, structured data, and robots rules.
-| Auth kit helpers (`leptos-auth`) | ✅ | ✅ | ✅ | ✅ | Use in `apps/admin`, `apps/next-admin`, `apps/storefront`, `apps/next-frontend`.
+| Auth kit helpers (`leptos-auth`) | — | ✅ | ✅ | ✅ | Use in `apps/admin`, `apps/storefront`, `apps/next-frontend`.
 | GraphQL kit helpers (`leptos-graphql`) | ✅ | ✅ | ✅ | ✅ | Standardize `/api/graphql` headers and request shapes across all apps.
 | Form kit helpers (`leptos-hook-form`) | ✅ | ✅ | ✅ | ✅ | Standardize form state + errors across admin/storefront.
 | Validation kit helpers (`leptos-zod`) | ✅ | ✅ | ✅ | ✅ | Standardize zod-style validation errors across stacks.
@@ -113,7 +113,7 @@ Use a short, consistent marker near the custom implementation:
 ## Review process
 
 1. Update this document whenever a new integration is added or changed.
-2. Require dual implementation PRs (Next.js + Leptos) for parity-sensitive work.
+2. Require Leptos implementation first; add Next.js only for storefront parity-sensitive work.
 3. Add a snapshot or checklist per release to ensure parity stays intact.
 4. Document any parity gaps and the intended migration path.
 

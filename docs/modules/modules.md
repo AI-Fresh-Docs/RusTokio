@@ -133,16 +133,13 @@ API для admin rebuild, пайплайн сборки и rollback).
 ### 5.2 `apps/admin`
 - **Роль:** админ-панель (Leptos CSR).
 
-### 5.3 `apps/next-admin`
-- **Роль:** админ-панель (Next.js App Router), альтернативный UI-слой для фронтенда.
-
-### 5.4 `apps/storefront`
+### 5.3 `apps/storefront`
 - **Роль:** публичная витрина (Leptos SSR).
 
-### 5.5 `apps/next-frontend`
+### 5.4 `apps/next-frontend`
 - **Роль:** публичная витрина (Next.js App Router), альтернативный UI-слой для фронтенда.
 
-### 5.6 `apps/mcp`
+### 5.5 `apps/mcp`
 - **Роль:** MCP-адаптер (stdio сервер), использует `rustok-mcp`.
 
 ## 6. Связанные документы

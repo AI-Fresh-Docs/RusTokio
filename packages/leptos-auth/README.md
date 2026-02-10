@@ -3,7 +3,6 @@
 Specialized internal library that standardizes authentication flows, storage keys,
 error mapping, and UX contracts across **both admin and storefront frontends**:
 - `apps/admin` (Leptos CSR)
-- `apps/next-admin` (Next.js App Router)
 - `apps/storefront` (Leptos)
 - `apps/next-frontend` (Next.js)
 
@@ -95,7 +94,7 @@ Exports:
 
 ### 2) Next.js (TypeScript)
 TypeScript helpers live in `packages/leptos-auth/next` and are meant to be used in
-`apps/next-admin` or `apps/next-frontend` (or other React-based frontends).
+`apps/next-frontend` (or other React-based frontends).
 
 Exports:
 - `AuthUser`, `AuthSession`
