@@ -218,7 +218,7 @@ modules/rustok-catalog/
 - **События** (event publish) + outbox/transport.
 - **Регистрация в ModuleRegistry** и зависимости.
 - **Настройки модуля** (settings payload + schema).
-- **API слой**: GraphQL/REST контракты для UI‑пакетов.
+- **API слой**: GraphQL-контракты для UI‑пакетов.
 - **Сквозной пример фичи**: одна сущность, которая проходит через API → UI →
   сохранение → события (чтобы быстро понять end‑to‑end поток).
 - **Готовые шаблоны** для UI‑пакетов (Leptos): формы, списки, empty‑state.
