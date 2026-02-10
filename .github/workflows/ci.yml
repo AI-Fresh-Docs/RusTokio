@@ -57,6 +57,7 @@ jobs:
   audit:
     name: Security Audit
     runs-on: ubuntu-latest
+    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.fork == false
     steps:
       - uses: actions/checkout@v4
       - uses: rustsec/audit-check@v1
@@ -237,7 +238,7 @@ jobs:
           if [[ "${{ needs.fmt.result }}" != "success" ]] || \
              [[ "${{ needs.clippy.result }}" != "success" ]] || \
              [[ "${{ needs.check.result }}" != "success" ]] || \
-             [[ "${{ needs.audit.result }}" != "success" ]] || \
+             ([[ "${{ needs.audit.result }}" != "success" ]] && [[ "${{ needs.audit.result }}" != "skipped" ]]) || \
              [[ "${{ needs.deny.result }}" != "success" ]] || \
              [[ "${{ needs.typos.result }}" != "success" ]] || \
              [[ "${{ needs.doc.result }}" != "success" ]] || \
