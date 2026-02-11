@@ -88,7 +88,6 @@ RusToK — модульный монолит: модули компилирую�
 - `apps/server` (`rustok-server`) — API-сервер, поднимает `ModuleRegistry`.
 - `apps/admin` (`rustok-admin`) — админ-панель.
 - `apps/storefront` (`rustok-storefront`) — storefront на Leptos.
-- `apps/next-frontend` (`next-frontend`) — альтернативный storefront на Next.js.
 - `apps/mcp` (`rustok-mcp-server`) — MCP stdio сервер на базе `rustok-mcp`.
 
 ## 7. Связанные документы

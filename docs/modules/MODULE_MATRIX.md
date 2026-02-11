@@ -58,7 +58,6 @@
 | `apps/server` | `rustok-server` | API-сервер, держит `ModuleRegistry` |
 | `apps/admin` | `rustok-admin` | Админ UI |
 | `apps/storefront` | `rustok-storefront` | Витрина (Leptos SSR) |
-| `apps/next-frontend` | `next-frontend` | Альтернативный фронтенд на Next.js |
 | `apps/mcp` | `rustok-mcp-server` | MCP stdio-сервер, использует `rustok-mcp` |
 
 ---
