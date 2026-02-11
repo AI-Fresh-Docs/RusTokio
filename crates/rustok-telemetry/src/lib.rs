@@ -1,5 +1,5 @@
 use once_cell::sync::OnceCell;
-use prometheus::{Counter, Histogram, IntGauge, Encoder, TextEncoder, Registry};
+use prometheus::{IntGauge, Encoder, TextEncoder, Registry};
 use std::sync::Arc;
 use tracing_subscriber::{fmt, layer::SubscriberExt, EnvFilter, Layer, Registry as TracingRegistry};
 use lazy_static::lazy_static;
@@ -67,7 +67,7 @@ pub enum TelemetryError {
     Prometheus(#[from] prometheus::Error),
 }
 
-use prometheus::{CounterVec, HistogramVec, IntGaugeVec, Opts, HistogramOpts};
+use prometheus::{CounterVec, HistogramVec, Opts, HistogramOpts};
 
 lazy_static! {
     pub static ref CONTENT_OPERATIONS_TOTAL: CounterVec = CounterVec::new(
@@ -167,7 +167,7 @@ pub fn metrics_handle() -> Option<Arc<MetricsHandle>> {
 pub fn render_metrics() -> Result<String, prometheus::Error> {
     let encoder = TextEncoder::new();
     let metric_families = REGISTRY.get()
-        .ok_or(prometheus::Error::Msg("Registry not initialized"))?
+        .ok_or(prometheus::Error::Msg("Registry not initialized".to_string()))?
         .gather();
     let mut buffer = Vec::new();
     encoder.encode(&metric_families, &mut buffer)?;
