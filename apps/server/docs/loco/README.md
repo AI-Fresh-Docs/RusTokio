@@ -49,3 +49,13 @@ cargo loco start
 
 - При изменении server-архитектуры обновлять этот файл в том же PR.
 - При крупных изменениях Loco-слоя добавлять короткие заметки в `apps/server/docs/loco/changes.md`.
+
+
+## Upstream snapshot freshness
+
+`apps/server/docs/loco/upstream/VERSION` stores snapshot metadata for upstream Loco references.
+
+- `make docs-check-loco` validates that metadata exists and enforces freshness policy:
+  - `>30` days old: CI warning;
+  - `>60` days old: CI failure.
+- `make docs-sync-loco` refreshes snapshot metadata date before opening a PR.
