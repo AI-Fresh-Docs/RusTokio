@@ -32,6 +32,8 @@ sed -n '1,220p' apps/server/Cargo.toml
 - `apps/server/docs/loco/README.md`
 - `make docs-check-loco`
 - `make docs-sync-loco`
+- `apps/server/docs/upstream-libraries/README.md`
+- `make docs-sync-server-libs` / `make docs-check-server-libs`
 
 ## Граница документа
 
