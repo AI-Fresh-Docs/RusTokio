@@ -221,15 +221,22 @@ jobs:
           --health-retries 5
     env:
       DATABASE_URL: postgres://postgres:postgres@localhost:5432/rustok_test
-      RUSTOK_ENVIRONMENT: test
-      RUST_BACKTRACE: 1
+      TEST_DATABASE_URL: postgres://postgres:postgres@localhost:5432/rustok_test
+      TEST_SERVER_URL: http://localhost:3000
+      TEST_AUTH_TOKEN: test-token
+      TEST_TENANT_ID: test-tenant
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v2
-      - run: cargo test --package rustok-server --test '*' --test-threads=1
-        env:
-          RUST_LOG: debug
+      - name: Run database migrations
+        run: |
+          cargo install sea-orm-cli --locked
+          sea-orm-cli migrate up -d apps/server/migration -u $DATABASE_URL
+      - name: Run integration tests
+        run: cargo test --package rustok-server --test integration -- --ignored
+      - name: Run test utilities tests
+        run: cargo test -p rustok-test-utils
 
   next-apps:
     name: Next.js (${{ matrix.app }})

@@ -39,9 +39,8 @@ chrono = { workspace = true }
 tracing = { workspace = true }
 tracing-subscriber = { workspace = true }
 
-# Error handling
-thiserror = { workspace = true }
-eyre = { workspace = true }
+# Utils
+lazy_static = { workspace = true }
 
 # Testing
 wiremock = "0.5"
