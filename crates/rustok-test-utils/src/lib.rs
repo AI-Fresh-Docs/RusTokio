@@ -5,9 +5,11 @@
 pub mod database;
 pub mod fixtures;
 pub mod mocks;
+pub mod proptest_strategies;
 pub mod test_app;
 
 pub use database::*;
 pub use fixtures::*;
 pub use mocks::*;
+pub use proptest_strategies::*;
 pub use test_app::*;
