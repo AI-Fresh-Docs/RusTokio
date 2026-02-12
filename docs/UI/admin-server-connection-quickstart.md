@@ -6,6 +6,8 @@
 - admin UI установлен в другой папке;
 - нужно быстро и без боли подключить админку к серверу.
 
+В документе собраны как автоматизированные методы запуска (Compose/PaaS/k8s), так и ручная установка.
+
 ---
 
 ## 0) Рекомендуемый режим для отладки: Docker Compose (one-command)
@@ -297,4 +299,53 @@ kubectl get ingress -n rustok
 2. Успешный вход под валидным пользователем.
 3. В Network есть успешные запросы к `/api/auth/*` и `/api/graphql`.
 4. Открываются основные маршруты админки.
+
+### 7.6 Ручная установка (без Docker)
+
+Если нужен полностью ручной путь:
+
+1. Установить зависимости backend и frontend.
+2. Поднять БД и применить миграции backend.
+3. Запустить backend на `:5150`.
+4. Собрать админку (`build`) и отдать статику через Nginx (или запустить SSR-режим).
+5. Настроить reverse proxy `/api/* -> backend`.
+6. Проверить login, `/api/auth/*`, `/api/graphql`.
+
+Пример минимального ручного потока (адаптируйте под ваш стек):
+
+```bash
+# backend
+cd /opt/rustok/server
+# install deps
+# run migrations
+# start server on 5150
+
+# admin
+cd /opt/rustok/admin
+# install deps
+# build
+# serve (or run SSR)
+```
+
+### 7.7 Одна команда через install-скрипт (план)
+
+Можно сделать единый bootstrap-скрипт по аналогии с one-command setup:
+
+```bash
+./scripts/install.sh --mode compose
+```
+
+Или для ручного режима:
+
+```bash
+./scripts/install.sh --mode manual
+```
+
+Что должен делать такой скрипт:
+
+1. Проверять окружение (docker, docker compose, nginx, kubectl — по выбранному режиму).
+2. Подготавливать `.env` из шаблона.
+3. Поднимать инфраструктуру и сервисы выбранным способом.
+4. Выполнять health-check (`/api/health`, `/api/graphql`).
+5. Печатать итоговые URL админки и API.
 
