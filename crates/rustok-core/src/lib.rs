@@ -12,6 +12,7 @@ pub mod rbac;
 pub mod registry;
 pub mod resilience;
 pub mod scripting;
+pub mod state_machine;
 pub mod tenant_validation;
 pub mod types;
 pub use auth::{
