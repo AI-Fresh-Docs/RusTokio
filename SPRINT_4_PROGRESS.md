@@ -269,11 +269,11 @@ crates/rustok-test-utils/src/test_app.rs (NEW - 600 LOC)
 
 #### Remaining Subtasks for Task 4.1
 
-- [ ] CI/CD integration for integration tests
+- [x] CI/CD integration for integration tests
 - [ ] Test database migrations
 - [ ] Mock external services (payment gateway, etc.)
 - [ ] Performance regression testing
-- [ ] Test documentation
+- [x] Test documentation
 
 ---
 
@@ -336,7 +336,7 @@ crates/rustok-test-utils/src/test_app.rs (NEW - 600 LOC)
 
 | Task | Status | LOC | Tests | Docs | Effort |
 |------|--------|-----|-------|------|--------|
-| 4.1: Integration Tests | 🔄 60% | 600+ | 28 | - | 5d → 6h |
+| 4.1: Integration Tests | 🔄 90% | 600+ | 28 | 5KB | 5d → 6h |
 | 4.2: Property Tests | 📋 Planned | 0 | 0 | 0 | 3d |
 | 4.3: Benchmarks | 📋 Planned | 0 | 0 | 0 | 2d |
 | 4.4: Security Audit | 📋 Planned | 0 | 0 | 15KB | 3d |
@@ -439,9 +439,8 @@ crates/rustok-test-utils/src/test_app.rs (NEW - 600 LOC)
 ### Immediate (Task 4.1 Completion)
 1. Add test database migrations
 2. Mock external services
-3. CI/CD integration
-4. Test documentation
-5. Mark Task 4.1 as complete
+3. Performance regression testing
+4. Mark Task 4.1 as complete
 
 ### Sprint 4 Continuation
 1. Task 4.2: Property-Based Tests (3 days)
@@ -456,10 +455,10 @@ crates/rustok-test-utils/src/test_app.rs (NEW - 600 LOC)
 - `SPRINT_4_START.md` - Sprint planning (22KB)
 - `SPRINT_4_PROGRESS.md` - This file (progress tracking)
 - `crates/rustok-test-utils/` - Test utilities crate
+- `docs/INTEGRATION_TESTING_GUIDE.md` - Testing guide (5KB)
 
 ### Files to Create
 - `SPRINT_4_COMPLETION.md` - Completion report (to be created)
-- `docs/INTEGRATION_TESTING_GUIDE.md` - Testing guide
 - `docs/PROPERTY_TESTING_GUIDE.md` - Proptest guide
 - `docs/PERFORMANCE_BENCHMARKS_GUIDE.md` - Criterion guide
 - `docs/SECURITY_AUDIT_REPORT.md` - Security findings
@@ -484,6 +483,6 @@ crates/rustok-test-utils/src/test_app.rs (NEW - 600 LOC)
 
 ---
 
-**Sprint 4 Status:** 🔄 In Progress (25% - 1/4 tasks)
+**Sprint 4 Status:** 🔄 In Progress (35% - 1/4 tasks)
 **Overall Progress:** 75% (12/16 tasks)
 **Next Task:** Complete Task 4.1 (Integration Tests) CI/CD integration
