@@ -12,9 +12,14 @@ tracing-subscriber.workspace = true
 thiserror.workspace = true
 prometheus = { version = "0.14", features = ["process"] }
 lazy_static = "1.5"
+serde = { workspace = true, optional = true }
 
 # OpenTelemetry
 opentelemetry.workspace = true
 opentelemetry-otlp.workspace = true
 tracing-opentelemetry.workspace = true
 opentelemetry_sdk.workspace = true
+
+[features]
+default = ["serde"]
+serde = ["dep:serde"]

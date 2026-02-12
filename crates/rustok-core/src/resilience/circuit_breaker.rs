@@ -118,6 +118,7 @@ impl CircuitBreakerState {
 pub struct CircuitBreaker {
     config: CircuitBreakerConfig,
     state: Arc<RwLock<CircuitBreakerState>>,
+    name: String,
     
     // Metrics (atomic for lock-free reads)
     total_requests: AtomicU64,
@@ -128,17 +129,36 @@ pub struct CircuitBreaker {
 }
 
 impl CircuitBreaker {
-    /// Create a new circuit breaker
-    pub fn new(config: CircuitBreakerConfig) -> Self {
+    /// Create a new circuit breaker with a name for metrics
+    pub fn new_with_name(name: impl Into<String>, config: CircuitBreakerConfig) -> Self {
+        let name = name.into();
+        
+        #[cfg(feature = "metrics")]
+        {
+            use rustok_telemetry::metrics::circuit_breaker_metrics;
+            circuit_breaker_metrics().record_state(&name, "closed");
+        }
+        
         Self {
             config,
             state: Arc::new(RwLock::new(CircuitBreakerState::new())),
+            name,
             total_requests: AtomicU64::new(0),
             total_successes: AtomicU64::new(0),
             total_failures: AtomicU64::new(0),
             total_rejected: AtomicU64::new(0),
             state_transitions: AtomicU64::new(0),
         }
+    }
+    
+    /// Create a new circuit breaker (legacy, uses "default" name)
+    pub fn new(config: CircuitBreakerConfig) -> Self {
+        Self::new_with_name("default", config)
+    }
+    
+    /// Get the circuit breaker name
+    pub fn name(&self) -> &str {
+        &self.name
     }
     
     /// Execute a fallible operation with circuit breaker protection
@@ -150,9 +170,21 @@ impl CircuitBreaker {
     {
         self.total_requests.fetch_add(1, Ordering::Relaxed);
         
+        #[cfg(feature = "metrics")]
+        {
+            use rustok_telemetry::metrics::circuit_breaker_metrics;
+            circuit_breaker_metrics().record_request(&self.name, true);
+        }
+        
         // Check if we can execute the request
         if !self.can_execute().await {
             self.total_rejected.fetch_add(1, Ordering::Relaxed);
+            
+            #[cfg(feature = "metrics")]
+            {
+                use rustok_telemetry::metrics::circuit_breaker_metrics;
+                circuit_breaker_metrics().record_rejection(&self.name);
+            }
             
             tracing::warn!(
                 state = self.get_state().await.as_str(),
@@ -173,6 +205,12 @@ impl CircuitBreaker {
                 self.record_success().await;
                 self.total_successes.fetch_add(1, Ordering::Relaxed);
                 
+                #[cfg(feature = "metrics")]
+                {
+                    use rustok_telemetry::metrics::circuit_breaker_metrics;
+                    circuit_breaker_metrics().record_request(&self.name, true);
+                }
+                
                 tracing::debug!(
                     duration_ms = duration.as_millis(),
                     state = self.get_state().await.as_str(),
@@ -184,6 +222,12 @@ impl CircuitBreaker {
             Err(err) => {
                 self.record_failure().await;
                 self.total_failures.fetch_add(1, Ordering::Relaxed);
+                
+                #[cfg(feature = "metrics")]
+                {
+                    use rustok_telemetry::metrics::circuit_breaker_metrics;
+                    circuit_breaker_metrics().record_request(&self.name, false);
+                }
                 
                 tracing::warn!(
                     duration_ms = duration.as_millis(),
@@ -208,6 +252,13 @@ impl CircuitBreaker {
                 // Check if timeout expired, transition to half-open
                 if let Some(last_failure) = state.last_failure_time {
                     if last_failure.elapsed() >= self.config.timeout {
+                        #[cfg(feature = "metrics")]
+                        {
+                            use rustok_telemetry::metrics::circuit_breaker_metrics;
+                            circuit_breaker_metrics()
+                                .record_state_change(&self.name, "open", "half_open");
+                        }
+                        
                         state.state = CircuitState::HalfOpen;
                         state.half_open_requests = 0;
                         self.state_transitions.fetch_add(1, Ordering::Relaxed);
@@ -241,6 +292,12 @@ impl CircuitBreaker {
     async fn record_success(&self) {
         let mut state = self.state.write().await;
         
+        #[cfg(feature = "metrics")]
+        {
+            use rustok_telemetry::metrics::circuit_breaker_metrics;
+            circuit_breaker_metrics().set_failure_count(&self.name, state.failure_count as f64);
+        }
+        
         match state.state {
             CircuitState::Closed => {
                 // Reset failure count on success
@@ -252,6 +309,13 @@ impl CircuitBreaker {
                 
                 // Check if we've reached success threshold
                 if state.success_count >= self.config.success_threshold {
+                    #[cfg(feature = "metrics")]
+                    {
+                        use rustok_telemetry::metrics::circuit_breaker_metrics;
+                        circuit_breaker_metrics()
+                            .record_state_change(&self.name, "half_open", "closed");
+                    }
+                    
                     state.state = CircuitState::Closed;
                     state.failure_count = 0;
                     state.success_count = 0;
@@ -273,12 +337,25 @@ impl CircuitBreaker {
     async fn record_failure(&self) {
         let mut state = self.state.write().await;
         
+        state.failure_count += 1;
+        
+        #[cfg(feature = "metrics")]
+        {
+            use rustok_telemetry::metrics::circuit_breaker_metrics;
+            circuit_breaker_metrics().set_failure_count(&self.name, state.failure_count as f64);
+        }
+        
         match state.state {
             CircuitState::Closed => {
-                state.failure_count += 1;
-                
                 // Check if we've reached failure threshold
                 if state.failure_count >= self.config.failure_threshold {
+                    #[cfg(feature = "metrics")]
+                    {
+                        use rustok_telemetry::metrics::circuit_breaker_metrics;
+                        circuit_breaker_metrics()
+                            .record_state_change(&self.name, "closed", "open");
+                    }
+                    
                     state.state = CircuitState::Open;
                     state.last_failure_time = Some(Instant::now());
                     state.success_count = 0;
@@ -293,6 +370,13 @@ impl CircuitBreaker {
             
             CircuitState::HalfOpen => {
                 // Any failure in half-open returns to open
+                #[cfg(feature = "metrics")]
+                {
+                    use rustok_telemetry::metrics::circuit_breaker_metrics;
+                    circuit_breaker_metrics()
+                        .record_state_change(&self.name, "half_open", "open");
+                }
+                
                 state.state = CircuitState::Open;
                 state.last_failure_time = Some(Instant::now());
                 state.failure_count = 0;

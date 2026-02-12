@@ -1,3 +1,4 @@
+pub mod metrics;
 pub mod otel;
 
 use once_cell::sync::OnceCell;

@@ -29,7 +29,9 @@ redis = { version = "1.0", features = ["tokio-comp", "connection-manager"], opti
 rhai = { version = "1.20", features = ["sync", "metadata"] }
 
 [features]
+default = ["metrics"]
 redis-cache = ["redis"]
+metrics = ["rustok-telemetry/serde"]
 
 [dev-dependencies]
 tokio.workspace = true

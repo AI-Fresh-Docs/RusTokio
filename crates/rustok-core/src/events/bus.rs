@@ -9,6 +9,9 @@ use uuid::Uuid;
 use super::backpressure::BackpressureController;
 use super::{DomainEvent, EventEnvelope};
 
+#[cfg(feature = "metrics")]
+use rustok_telemetry::metrics::eventbus_metrics;
+
 const DEFAULT_CHANNEL_CAPACITY: usize = 128;
 
 #[derive(Debug)]
@@ -80,6 +83,13 @@ impl EventBus {
         self.stats
             .subscribers
             .store(self.sender.receiver_count(), Ordering::Relaxed);
+        
+        #[cfg(feature = "metrics")]
+        {
+            eventbus_metrics()
+                .set_subscribers(self.sender.receiver_count() as i64);
+        }
+        
         receiver
     }
 
@@ -109,6 +119,23 @@ impl EventBus {
         let envelope = EventEnvelope::new(tenant_id, actor_id, event);
         span.record("event.id", &tracing::field::display(envelope.id));
         
+        #[cfg(feature = "metrics")]
+        {
+            let event_type = envelope.event.event_type().to_string();
+            let start = std::time::Instant::now();
+            let result = self.publish_envelope(envelope);
+            let duration = start.elapsed().as_secs_f64();
+            
+            if let Ok(_) = &result {
+                eventbus_metrics().record_publish(&event_type, true, duration);
+            } else {
+                eventbus_metrics().record_publish(&event_type, false, duration);
+            }
+            
+            return result;
+        }
+        
+        #[cfg(not(feature = "metrics"))]
         self.publish_envelope(envelope)
     }
 
@@ -148,6 +175,12 @@ impl EventBus {
         match self.sender.send(envelope) {
             Ok(_) => {
                 self.stats.events_published.fetch_add(1, Ordering::Relaxed);
+                #[cfg(feature = "metrics")]
+                {
+                    eventbus_metrics().events_published().inc();
+                    eventbus_metrics()
+                        .set_subscribers(self.sender.receiver_count() as i64);
+                }
                 tracing::debug!("Event published successfully");
             }
             Err(error) => {
@@ -156,6 +189,10 @@ impl EventBus {
                     backpressure.release();
                 }
                 self.stats.events_dropped.fetch_add(1, Ordering::Relaxed);
+                #[cfg(feature = "metrics")]
+                {
+                    eventbus_metrics().record_drop();
+                }
                 tracing::warn!(
                     ?error,
                     dropped_count = self.stats.events_dropped.load(Ordering::Relaxed),

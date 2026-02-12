@@ -1,0 +1,325 @@
+# RusToK Alert Rules
+# 
+# These rules define alerts based on SLOs and operational thresholds.
+# Alerts are grouped by severity: critical, warning, info
+
+groups:
+  - name: rustok_errors
+    interval: 30s
+    rules:
+      # High error rate - Critical
+      - alert: HighErrorRate
+        expr: |
+          (
+            sum(rate(rustok_errors_total[5m])) 
+            / 
+            sum(rate(rustok_http_requests_total[5m]))
+          ) > 0.05
+        for: 2m
+        labels:
+          severity: critical
+          team: platform
+        annotations:
+          summary: "High error rate detected"
+          description: "Error rate is {{ $value | humanizePercentage }} over the last 5 minutes"
+          runbook_url: "https://wiki.internal/rustok/runbooks/high-error-rate"
+
+      # Error rate elevated - Warning
+      - alert: ElevatedErrorRate
+        expr: |
+          (
+            sum(rate(rustok_errors_total[5m])) 
+            / 
+            sum(rate(rustok_http_requests_total[5m]))
+          ) > 0.01
+        for: 5m
+        labels:
+          severity: warning
+          team: platform
+        annotations:
+          summary: "Elevated error rate"
+          description: "Error rate is {{ $value | humanizePercentage }} over the last 5 minutes"
+
+      # Panic detected - Critical
+      - alert: PanicDetected
+        expr: increase(rustok_panics_total[1m]) > 0
+        for: 0m
+        labels:
+          severity: critical
+          team: platform
+        annotations:
+          summary: "Panic detected in application"
+          description: "{{ $value }} panic(s) detected in the last minute"
+          action: "Check logs immediately"
+
+  - name: rustok_performance
+    interval: 30s
+    rules:
+      # Slow requests - Critical
+      - alert: SlowRequestsP95
+        expr: |
+          histogram_quantile(0.95, 
+            sum(rate(rustok_http_request_duration_seconds_bucket[5m])) by (le)
+          ) > 0.5
+        for: 3m
+        labels:
+          severity: critical
+          team: platform
+        annotations:
+          summary: "Slow HTTP requests (P95 > 500ms)"
+          description: "95th percentile latency is {{ $value }}s"
+
+      # Slow requests - Warning
+      - alert: SlowRequestsP95Warning
+        expr: |
+          histogram_quantile(0.95, 
+            sum(rate(rustok_http_request_duration_seconds_bucket[5m])) by (le)
+          ) > 0.25
+        for: 5m
+        labels:
+          severity: warning
+          team: platform
+        annotations:
+          summary: "Elevated latency (P95 > 250ms)"
+          description: "95th percentile latency is {{ $value }}s"
+
+      # Database slow queries
+      - alert: SlowDatabaseQueries
+        expr: |
+          histogram_quantile(0.95, 
+            sum(rate(rustok_span_duration_seconds_bucket{operation=~"db.*"}[5m])) by (le)
+          ) > 0.1
+        for: 3m
+        labels:
+          severity: warning
+          team: platform
+        annotations:
+          summary: "Slow database queries detected"
+          description: "P95 DB query time is {{ $value }}s"
+
+  - name: rustok_eventbus
+    interval: 30s
+    rules:
+      # EventBus lag - Critical
+      - alert: EventBusHighLag
+        expr: rustok_eventbus_lag > 1000
+        for: 2m
+        labels:
+          severity: critical
+          team: platform
+        annotations:
+          summary: "EventBus lag is critically high"
+          description: "EventBus lag is {{ $value }} events (threshold: 1000)"
+          action: "Check event consumers for backpressure"
+
+      # EventBus lag - Warning
+      - alert: EventBusModerateLag
+        expr: rustok_eventbus_lag > 500
+        for: 5m
+        labels:
+          severity: warning
+          team: platform
+        annotations:
+          summary: "EventBus lag is elevated"
+          description: "EventBus lag is {{ $value }} events (threshold: 500)"
+
+      # Events being dropped - Critical
+      - alert: EventBusDroppingEvents
+        expr: increase(rustok_eventbus_events_dropped_total[1m]) > 0
+        for: 0m
+        labels:
+          severity: critical
+          team: platform
+        annotations:
+          summary: "EventBus is dropping events"
+          description: "{{ $value }} events dropped in the last minute"
+          action: "EventBus channel may be full - check subscribers"
+
+      # Low subscriber count warning
+      - alert: EventBusNoSubscribers
+        expr: rustok_eventbus_subscribers == 0
+        for: 1m
+        labels:
+          severity: warning
+          team: platform
+        annotations:
+          summary: "EventBus has no subscribers"
+          description: "Events are being published but not consumed"
+
+  - name: rustok_circuit_breakers
+    interval: 30s
+    rules:
+      # Circuit breaker opened - Warning
+      - alert: CircuitBreakerOpened
+        expr: |
+          rustok_circuit_breaker_state{state="open"} == 1
+        for: 0m
+        labels:
+          severity: warning
+          team: platform
+        annotations:
+          summary: "Circuit breaker opened"
+          description: "Circuit breaker {{ $labels.name }} is OPEN"
+          action: "Check downstream service health"
+
+      # Multiple circuit breakers open - Critical
+      - alert: MultipleCircuitBreakersOpen
+        expr: |
+          sum(rustok_circuit_breaker_state{state="open"}) > 2
+        for: 1m
+        labels:
+          severity: critical
+          team: platform
+        annotations:
+          summary: "Multiple circuit breakers are open"
+          description: "{{ $value }} circuit breakers are currently open"
+          action: "Possible cascading failure - investigate immediately"
+
+      # High rejection rate
+      - alert: CircuitBreakerHighRejection
+        expr: |
+          (
+            sum(rate(rustok_circuit_breaker_rejections_total[5m])) by (name)
+            /
+            sum(rate(rustok_circuit_breaker_requests_total[5m])) by (name)
+          ) > 0.5
+        for: 2m
+        labels:
+          severity: warning
+          team: platform
+        annotations:
+          summary: "High circuit breaker rejection rate"
+          description: "{{ $labels.name }} is rejecting {{ $value | humanizePercentage }} of requests"
+
+  - name: rustok_cache
+    interval: 30s
+    rules:
+      # Low cache hit rate
+      - alert: LowCacheHitRate
+        expr: |
+          (
+            rate(rustok_cache_hits_total[5m])
+            /
+            (rate(rustok_cache_hits_total[5m]) + rate(rustok_cache_misses_total[5m]))
+          ) < 0.5
+        for: 10m
+        labels:
+          severity: warning
+          team: platform
+        annotations:
+          summary: "Low cache hit rate"
+          description: "{{ $labels.cache_name }} hit rate is {{ $value | humanizePercentage }}"
+
+      # Cache evictions high
+      - alert: HighCacheEvictions
+        expr: rate(rustok_cache_evictions_total[5m]) > 100
+        for: 5m
+        labels:
+          severity: info
+          team: platform
+        annotations:
+          summary: "High cache eviction rate"
+          description: "{{ $labels.cache_name }} is evicting {{ $value }} items/sec"
+
+  - name: rustok_resources
+    interval: 30s
+    rules:
+      # High memory usage
+      - alert: HighMemoryUsage
+        expr: |
+          (
+            process_resident_memory_bytes{job="rustok-server"}
+            /
+            (1024 * 1024 * 1024)
+          ) > 4
+        for: 5m
+        labels:
+          severity: warning
+          team: platform
+        annotations:
+          summary: "High memory usage"
+          description: "Memory usage is {{ $value }} GB"
+
+      # Goroutine/thread leak (if applicable)
+      - alert: HighGoroutineCount
+        expr: go_goroutines{job="rustok-server"} > 10000
+        for: 5m
+        labels:
+          severity: warning
+          team: platform
+        annotations:
+          summary: "High goroutine count"
+          description: "{{ $value }} goroutines active"
+
+  - name: rustok_slo
+    interval: 60s
+    rules:
+      # Availability SLO: 99.9% uptime
+      - alert: SLOAvailabilityBreached
+        expr: |
+          (
+            sum(rate(rustok_http_requests_total{status=~"2..|3.."}[1h]))
+            /
+            sum(rate(rustok_http_requests_total[1h]))
+          ) < 0.999
+        for: 0m
+        labels:
+          severity: critical
+          team: platform
+          slo: availability
+        annotations:
+          summary: "Availability SLO breached"
+          description: "Availability is {{ $value | humanizePercentage }} (target: 99.9%)"
+
+      # Latency SLO: 99% of requests under 500ms
+      - alert: SLOLatencyBreached
+        expr: |
+          histogram_quantile(0.99,
+            sum(rate(rustok_http_request_duration_seconds_bucket[1h])) by (le)
+          ) > 0.5
+        for: 0m
+        labels:
+          severity: critical
+          team: platform
+          slo: latency
+        annotations:
+          summary: "Latency SLO breached"
+          description: "P99 latency is {{ $value }}s (target: < 0.5s)"
+
+  - name: rustok_business
+    interval: 60s
+    rules:
+      # Content operations rate anomaly (if needed)
+      - alert: UnusualContentActivity
+        expr: |
+          abs(
+            (
+              sum(rate(rustok_content_operations_total[1h]))
+              - avg_over_time(sum(rate(rustok_content_operations_total[1h]))[24h:1h])
+            )
+            /
+            stddev_over_time(sum(rate(rustok_content_operations_total[1h]))[24h:1h])
+          ) > 3
+        for: 15m
+        labels:
+          severity: info
+          team: content
+        annotations:
+          summary: "Unusual content activity"
+          description: "Content operation rate is {{ $value }} std devs from normal"
+
+      # Commerce order drop
+      - alert: OrderRateDrop
+        expr: |
+          (
+            sum(rate(rustok_commerce_operations_total{operation="create"}[1h]))
+            <
+            0.5 * avg_over_time(sum(rate(rustok_commerce_operations_total{operation="create"}[1h]))[24h:1h])
+          )
+        for: 30m
+        labels:
+          severity: warning
+          team: commerce
+        annotations:
+          summary: "Order creation rate dropped significantly"
+          description: "Order rate is 50% below 24h average"
