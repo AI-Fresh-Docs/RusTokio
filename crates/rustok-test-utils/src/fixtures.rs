@@ -1,659 +1,436 @@
-//! Test fixtures for common data types
+//! # Test Fixtures
 //!
-//! Provides builder patterns for creating test data with sensible defaults.
+//! Provides factory methods for creating test data entities.
 
-use chrono::{DateTime, Utc};
-use rustok_core::{PermissionScope, SecurityContext, UserRole};
-use serde_json::Value;
+use chrono::Utc;
+use rustok_content::entities::{node, body};
+use rustok_commerce::entities::{product, order, order_item, customer};
+use rustok_core::events::types::DomainEvent;
+use sea_orm::{EntityTrait, ActiveModelTrait, Set, ActiveValue};
 use uuid::Uuid;
+use std::sync::Arc;
 
-/// Fixture builder for creating test users.
-///
-/// # Example
-///
-/// ```rust
-/// use rustok_test_utils::fixtures::UserFixture;
-///
-/// let admin = UserFixture::admin().build();
-/// let customer = UserFixture::customer()
-///     .with_email("test@example.com")
-///     .build();
-/// ```
-pub struct UserFixture {
-    id: Uuid,
-    email: String,
-    role: UserRole,
-    status: String,
-    email_verified: bool,
-    created_at: DateTime<Utc>,
-    updated_at: DateTime<Utc>,
+// ============================================================================
+// ID Generators
+// ============================================================================
+
+/// Generate a test UUID
+pub fn test_uuid() -> Uuid {
+    Uuid::new_v4()
 }
 
-impl UserFixture {
-    /// Creates a new user fixture with default values.
-    pub fn new() -> Self {
-        Self {
-            id: Uuid::new_v4(),
-            email: format!("user-{}@test.com", Uuid::new_v4()),
-            role: UserRole::Customer,
-            status: "active".to_string(),
-            email_verified: true,
-            created_at: Utc::now(),
-            updated_at: Utc::now(),
-        }
-    }
+/// Generate a deterministic test UUID (for reproducible tests)
+pub fn test_deterministic_uuid(seed: u64) -> Uuid {
+    // Simple deterministic UUID generation
+    let bytes = seed.to_be_bytes();
+    let mut uuid_bytes = [0u8; 16];
+    uuid_bytes[0..8].copy_from_slice(&bytes);
+    uuid_bytes[8..16].copy_from_slice(&bytes);
+    Uuid::from_bytes(uuid_bytes)
+}
 
-    /// Creates an admin user fixture.
-    pub fn admin() -> Self {
-        Self {
-            id: Uuid::new_v4(),
-            email: format!("admin-{}@test.com", Uuid::new_v4()),
-            role: UserRole::Admin,
-            status: "active".to_string(),
-            email_verified: true,
-            created_at: Utc::now(),
-            updated_at: Utc::now(),
-        }
-    }
+// ============================================================================
+// Tenant Fixtures
+// ============================================================================
 
-    /// Creates a super admin user fixture.
-    pub fn super_admin() -> Self {
-        Self {
-            id: Uuid::new_v4(),
-            email: format!("superadmin-{}@test.com", Uuid::new_v4()),
-            role: UserRole::SuperAdmin,
-            status: "active".to_string(),
-            email_verified: true,
-            created_at: Utc::now(),
-            updated_at: Utc::now(),
-        }
-    }
+/// Create a test tenant identifier
+pub fn test_tenant_id() -> String {
+    "test-tenant".to_string()
+}
 
-    /// Creates a customer user fixture.
-    pub fn customer() -> Self {
-        Self {
-            id: Uuid::new_v4(),
-            email: format!("customer-{}@test.com", Uuid::new_v4()),
-            role: UserRole::Customer,
-            status: "active".to_string(),
-            email_verified: true,
-            created_at: Utc::now(),
-            updated_at: Utc::now(),
-        }
-    }
+/// Create a test tenant with a specific identifier
+pub fn test_tenant_identifier(identifier: &str) -> String {
+    identifier.to_string()
+}
 
-    /// Creates a manager user fixture.
-    pub fn manager() -> Self {
-        Self {
-            id: Uuid::new_v4(),
-            email: format!("manager-{}@test.com", Uuid::new_v4()),
-            role: UserRole::Manager,
-            status: "active".to_string(),
-            email_verified: true,
-            created_at: Utc::now(),
-            updated_at: Utc::now(),
-        }
-    }
+// ============================================================================
+// User/Actor Fixtures
+// ============================================================================
 
-    /// Sets the user ID.
-    pub fn with_id(mut self, id: Uuid) -> Self {
-        self.id = id;
-        self
-    }
+/// Create a test user ID
+pub fn test_user_id() -> Uuid {
+    Uuid::parse_str("00000000-0000-0000-0000-000000000001")
+        .unwrap_or_else(|_| Uuid::new_v4())
+}
 
-    /// Sets the email address.
-    pub fn with_email(mut self, email: impl Into<String>) -> Self {
-        self.email = email.into();
-        self
-    }
+/// Create a test admin user ID
+pub fn test_admin_id() -> Uuid {
+    Uuid::parse_str("00000000-0000-0000-0000-000000000002")
+        .unwrap_or_else(|_| Uuid::new_v4())
+}
 
-    /// Sets the user role.
-    pub fn with_role(mut self, role: UserRole) -> Self {
-        self.role = role;
-        self
-    }
+/// Create a customer ID for testing
+pub fn test_customer_id() -> Uuid {
+    Uuid::parse_str("00000000-0000-0000-0000-000000000003")
+        .unwrap_or_else(|_| Uuid::new_v4())
+}
 
-    /// Sets the user status.
-    pub fn with_status(mut self, status: impl Into<String>) -> Self {
-        self.status = status.into();
-        self
-    }
+// ============================================================================
+// Content/Node Fixtures
+// ============================================================================
 
-    /// Sets whether the email is verified.
-    pub fn with_email_verified(mut self, verified: bool) -> Self {
-        self.email_verified = verified;
-        self
-    }
+/// Default node kind for testing
+pub fn default_node_kind() -> String {
+    "article".to_string()
+}
 
-    /// Builds the user fixture.
-    pub fn build(self) -> TestUser {
-        TestUser {
-            id: self.id,
-            email: self.email,
-            role: self.role,
-            status: self.status,
-            email_verified: self.email_verified,
-            created_at: self.created_at,
-            updated_at: self.updated_at,
-        }
+/// Create a test node input
+pub fn test_node_input() -> rustok_content::dto::CreateNodeInput {
+    rustok_content::dto::CreateNodeInput {
+        kind: default_node_kind(),
+        title: "Test Article".to_string(),
+        slug: Some("test-article".to_string()),
+        status: None,
+        published_at: None,
+        body: Some(test_body_input()),
     }
 }
 
-impl Default for UserFixture {
-    fn default() -> Self {
-        Self::new()
+/// Create a test node input with custom title
+pub fn test_node_input_with_title(title: &str) -> rustok_content::dto::CreateNodeInput {
+    rustok_content::dto::CreateNodeInput {
+        kind: default_node_kind(),
+        title: title.to_string(),
+        slug: None,
+        status: None,
+        published_at: None,
+        body: Some(test_body_input()),
     }
 }
 
-/// A test user with all fields.
-#[derive(Debug, Clone)]
-pub struct TestUser {
-    pub id: Uuid,
-    pub email: String,
-    pub role: UserRole,
-    pub status: String,
-    pub email_verified: bool,
-    pub created_at: DateTime<Utc>,
-    pub updated_at: DateTime<Utc>,
-}
-
-impl TestUser {
-    /// Creates a security context for this user.
-    pub fn security_context(&self) -> SecurityContext {
-        SecurityContext::new(self.role, Some(self.id))
+/// Create a test body input
+pub fn test_body_input() -> rustok_content::dto::BodyInput {
+    rustok_content::dto::BodyInput {
+        format: rustok_content::dto::BodyFormat::Markdown,
+        content: "# Test Article\n\nThis is test content.".to_string(),
     }
 }
 
-/// Fixture builder for creating test tenants.
-///
-/// # Example
-///
-/// ```rust
-/// use rustok_test_utils::fixtures::TenantFixture;
-///
-/// let tenant = TenantFixture::new()
-///     .with_name("Test Tenant")
-///     .with_slug("test-tenant")
-///     .build();
-/// ```
-pub struct TenantFixture {
-    id: Uuid,
-    name: String,
-    slug: String,
-    status: String,
-    settings: Value,
-    created_at: DateTime<Utc>,
-    updated_at: DateTime<Utc>,
-}
-
-impl TenantFixture {
-    /// Creates a new tenant fixture with default values.
-    pub fn new() -> Self {
-        let id = Uuid::new_v4();
-        Self {
-            id,
-            name: "Test Tenant".to_string(),
-            slug: format!("tenant-{}", id.to_string().split('-').next().unwrap()),
-            status: "active".to_string(),
-            settings: serde_json::json!({}),
-            created_at: Utc::now(),
-            updated_at: Utc::now(),
-        }
-    }
-
-    /// Sets the tenant ID.
-    pub fn with_id(mut self, id: Uuid) -> Self {
-        self.id = id;
-        self
-    }
-
-    /// Sets the tenant name.
-    pub fn with_name(mut self, name: impl Into<String>) -> Self {
-        self.name = name.into();
-        self
-    }
-
-    /// Sets the tenant slug.
-    pub fn with_slug(mut self, slug: impl Into<String>) -> Self {
-        self.slug = slug.into();
-        self
-    }
-
-    /// Sets the tenant status.
-    pub fn with_status(mut self, status: impl Into<String>) -> Self {
-        self.status = status.into();
-        self
-    }
-
-    /// Sets the tenant settings.
-    pub fn with_settings(mut self, settings: Value) -> Self {
-        self.settings = settings;
-        self
-    }
-
-    /// Builds the tenant fixture.
-    pub fn build(self) -> TestTenant {
-        TestTenant {
-            id: self.id,
-            name: self.name,
-            slug: self.slug,
-            status: self.status,
-            settings: self.settings,
-            created_at: self.created_at,
-            updated_at: self.updated_at,
-        }
+/// Create a test translation input
+pub fn test_translation_input(locale: &str) -> rustok_content::dto::TranslationInput {
+    rustok_content::dto::TranslationInput {
+        title: "Test Article Translation".to_string(),
+        slug: Some(format!("test-article-{}", locale)),
+        body: "# Translated Article\n\nTranslated content.".to_string(),
     }
 }
 
-impl Default for TenantFixture {
-    fn default() -> Self {
-        Self::new()
+/// Create a test node active model
+pub async fn test_node_active_model(
+    db: &sea_orm::DatabaseConnection,
+    tenant_id: &str,
+    author_id: Uuid,
+) -> node::ActiveModel {
+    let node_id = test_uuid();
+    node::ActiveModel {
+        id: Set(node_id),
+        tenant_id: Set(tenant_id.to_string()),
+        kind: Set(default_node_kind()),
+        status: Set(rustok_content::entities::NodeStatus::Draft.to_string()),
+        title: Set("Test Article".to_string()),
+        slug: Set("test-article".to_string()),
+        author_id: Set(author_id),
+        created_at: Set(Utc::now()),
+        updated_at: Set(Utc::now()),
+        published_at: Set(None),
+        ..Default::default()
     }
 }
 
-/// A test tenant with all fields.
-#[derive(Debug, Clone)]
-pub struct TestTenant {
-    pub id: Uuid,
-    pub name: String,
-    pub slug: String,
-    pub status: String,
-    pub settings: Value,
-    pub created_at: DateTime<Utc>,
-    pub updated_at: DateTime<Utc>,
-}
-
-/// Fixture builder for creating test nodes (content).
-///
-/// # Example
-///
-/// ```rust
-/// use rustok_test_utils::fixtures::NodeFixture;
-///
-/// let post = NodeFixture::post()
-///     .with_title("Test Post")
-///     .build();
-/// ```
-pub struct NodeFixture {
-    id: Uuid,
-    kind: String,
-    status: String,
-    author_id: Option<Uuid>,
-    parent_id: Option<Uuid>,
-    category_id: Option<Uuid>,
-    position: i32,
-    depth: i32,
-    metadata: Value,
-    translations: Vec<NodeTranslationFixture>,
-}
-
-impl NodeFixture {
-    /// Creates a new node fixture with default values.
-    pub fn new() -> Self {
-        Self {
-            id: Uuid::new_v4(),
-            kind: "post".to_string(),
-            status: "draft".to_string(),
-            author_id: None,
-            parent_id: None,
-            category_id: None,
-            position: 0,
-            depth: 0,
-            metadata: serde_json::json!({}),
-            translations: vec![NodeTranslationFixture::new()],
-        }
-    }
-
-    /// Creates a post node fixture.
-    pub fn post() -> Self {
-        Self {
-            id: Uuid::new_v4(),
-            kind: "post".to_string(),
-            status: "published".to_string(),
-            author_id: Some(Uuid::new_v4()),
-            parent_id: None,
-            category_id: None,
-            position: 0,
-            depth: 0,
-            metadata: serde_json::json!({}),
-            translations: vec![NodeTranslationFixture::new().with_title("Test Post")],
-        }
-    }
-
-    /// Creates a page node fixture.
-    pub fn page() -> Self {
-        Self {
-            id: Uuid::new_v4(),
-            kind: "page".to_string(),
-            status: "published".to_string(),
-            author_id: Some(Uuid::new_v4()),
-            parent_id: None,
-            category_id: None,
-            position: 0,
-            depth: 0,
-            metadata: serde_json::json!({}),
-            translations: vec![NodeTranslationFixture::new().with_title("Test Page")],
-        }
-    }
-
-    /// Sets the node ID.
-    pub fn with_id(mut self, id: Uuid) -> Self {
-        self.id = id;
-        self
-    }
-
-    /// Sets the node kind.
-    pub fn with_kind(mut self, kind: impl Into<String>) -> Self {
-        self.kind = kind.into();
-        self
-    }
-
-    /// Sets the node status.
-    pub fn with_status(mut self, status: impl Into<String>) -> Self {
-        self.status = status.into();
-        self
-    }
-
-    /// Sets the author ID.
-    pub fn with_author(mut self, author_id: Uuid) -> Self {
-        self.author_id = Some(author_id);
-        self
-    }
-
-    /// Sets the parent ID.
-    pub fn with_parent(mut self, parent_id: Uuid) -> Self {
-        self.parent_id = Some(parent_id);
-        self
-    }
-
-    /// Sets the category ID.
-    pub fn with_category(mut self, category_id: Uuid) -> Self {
-        self.category_id = Some(category_id);
-        self
-    }
-
-    /// Sets the position.
-    pub fn with_position(mut self, position: i32) -> Self {
-        self.position = position;
-        self
-    }
-
-    /// Sets the depth.
-    pub fn with_depth(mut self, depth: i32) -> Self {
-        self.depth = depth;
-        self
-    }
-
-    /// Sets the metadata.
-    pub fn with_metadata(mut self, metadata: Value) -> Self {
-        self.metadata = metadata;
-        self
-    }
-
-    /// Adds a translation.
-    pub fn with_translation(mut self, translation: NodeTranslationFixture) -> Self {
-        self.translations.push(translation);
-        self
-    }
-
-    /// Builds the node fixture.
-    pub fn build(self) -> TestNode {
-        TestNode {
-            id: self.id,
-            kind: self.kind,
-            status: self.status,
-            author_id: self.author_id,
-            parent_id: self.parent_id,
-            category_id: self.category_id,
-            position: self.position,
-            depth: self.depth,
-            metadata: self.metadata,
-            translations: self.translations.into_iter().map(|t| t.build()).collect(),
-        }
+/// Create a test body active model
+pub async fn test_body_active_model(
+    db: &sea_orm::DatabaseConnection,
+    node_id: Uuid,
+) -> body::ActiveModel {
+    body::ActiveModel {
+        id: Set(test_uuid()),
+        node_id: Set(node_id),
+        format: Set(rustok_content::dto::BodyFormat::Markdown.to_string()),
+        content: Set("# Test Body\n\nContent".to_string()),
+        created_at: Set(Utc::now()),
+        updated_at: Set(Utc::now()),
+        ..Default::default()
     }
 }
 
-impl Default for NodeFixture {
-    fn default() -> Self {
-        Self::new()
+// ============================================================================
+// Commerce/Product Fixtures
+// ============================================================================
+
+/// Create a test product input
+pub fn test_product_input() -> rustok_commerce::dto::CreateProductInput {
+    rustok_commerce::dto::CreateProductInput {
+        sku: "TEST-001".to_string(),
+        title: "Test Product".to_string(),
+        description: Some("A test product".to_string()),
+        price: 1000, // $10.00 in cents
+        currency: "USD".to_string(),
+        inventory: 100,
+        status: None,
     }
 }
 
-/// A test node with all fields.
-#[derive(Debug, Clone)]
-pub struct TestNode {
-    pub id: Uuid,
-    pub kind: String,
-    pub status: String,
-    pub author_id: Option<Uuid>,
-    pub parent_id: Option<Uuid>,
-    pub category_id: Option<Uuid>,
-    pub position: i32,
-    pub depth: i32,
-    pub metadata: Value,
-    pub translations: Vec<TestNodeTranslation>,
-}
-
-/// Fixture builder for node translations.
-pub struct NodeTranslationFixture {
-    locale: String,
-    title: String,
-    slug: String,
-    excerpt: Option<String>,
-    body: Option<String>,
-}
-
-impl NodeTranslationFixture {
-    /// Creates a new translation fixture with default values.
-    pub fn new() -> Self {
-        Self {
-            locale: "en".to_string(),
-            title: "Test Title".to_string(),
-            slug: "test-title".to_string(),
-            excerpt: Some("Test excerpt".to_string()),
-            body: Some("Test body content".to_string()),
-        }
-    }
-
-    /// Sets the locale.
-    pub fn with_locale(mut self, locale: impl Into<String>) -> Self {
-        self.locale = locale.into();
-        self
-    }
-
-    /// Sets the title.
-    pub fn with_title(mut self, title: impl Into<String>) -> Self {
-        self.title = title.into();
-        self
-    }
-
-    /// Sets the slug.
-    pub fn with_slug(mut self, slug: impl Into<String>) -> Self {
-        self.slug = slug.into();
-        self
-    }
-
-    /// Sets the excerpt.
-    pub fn with_excerpt(mut self, excerpt: impl Into<String>) -> Self {
-        self.excerpt = Some(excerpt.into());
-        self
-    }
-
-    /// Sets the body.
-    pub fn with_body(mut self, body: impl Into<String>) -> Self {
-        self.body = Some(body.into());
-        self
-    }
-
-    /// Builds the translation fixture.
-    pub fn build(self) -> TestNodeTranslation {
-        TestNodeTranslation {
-            locale: self.locale,
-            title: self.title,
-            slug: self.slug,
-            excerpt: self.excerpt,
-            body: self.body,
-        }
+/// Create a test product input with custom SKU
+pub fn test_product_input_with_sku(sku: &str) -> rustok_commerce::dto::CreateProductInput {
+    rustok_commerce::dto::CreateProductInput {
+        sku: sku.to_string(),
+        title: "Test Product".to_string(),
+        description: Some("A test product".to_string()),
+        price: 1000,
+        currency: "USD".to_string(),
+        inventory: 100,
+        status: None,
     }
 }
 
-impl Default for NodeTranslationFixture {
-    fn default() -> Self {
-        Self::new()
+/// Create a test product active model
+pub async fn test_product_active_model(
+    db: &sea_orm::DatabaseConnection,
+    tenant_id: &str,
+) -> product::ActiveModel {
+    let product_id = test_uuid();
+    product::ActiveModel {
+        id: Set(product_id),
+        tenant_id: Set(tenant_id.to_string()),
+        sku: Set("TEST-001".to_string()),
+        title: Set("Test Product".to_string()),
+        description: Set(Some("A test product".to_string())),
+        price: Set(1000),
+        currency: Set("USD".to_string()),
+        inventory: Set(100),
+        status: Set(rustok_commerce::entities::ProductStatus::Active.to_string()),
+        created_at: Set(Utc::now()),
+        updated_at: Set(Utc::now()),
+        ..Default::default()
     }
 }
 
-/// A test node translation with all fields.
-#[derive(Debug, Clone)]
-pub struct TestNodeTranslation {
-    pub locale: String,
-    pub title: String,
-    pub slug: String,
-    pub excerpt: Option<String>,
-    pub body: Option<String>,
-}
+// ============================================================================
+// Commerce/Order Fixtures
+// ============================================================================
 
-/// Fixture builder for creating test products.
-///
-/// # Example
-///
-/// ```rust
-/// use rustok_test_utils::fixtures::ProductFixture;
-///
-/// let product = ProductFixture::new()
-///     .with_name("Test Product")
-///     .with_price(99.99)
-///     .build();
-/// ```
-pub struct ProductFixture {
-    id: Uuid,
-    sku: String,
-    name: String,
-    description: Option<String>,
-    price: f64,
-    compare_at_price: Option<f64>,
-    status: String,
-    inventory_quantity: i32,
-    track_inventory: bool,
-    metadata: Value,
-}
-
-impl ProductFixture {
-    /// Creates a new product fixture with default values.
-    pub fn new() -> Self {
-        Self {
-            id: Uuid::new_v4(),
-            sku: format!(
-                "SKU-{}",
-                Uuid::new_v4().to_string().split('-').next().unwrap()
-            ),
-            name: "Test Product".to_string(),
-            description: Some("A test product description".to_string()),
-            price: 99.99,
-            compare_at_price: None,
-            status: "active".to_string(),
-            inventory_quantity: 100,
-            track_inventory: true,
-            metadata: serde_json::json!({}),
-        }
-    }
-
-    /// Sets the product ID.
-    pub fn with_id(mut self, id: Uuid) -> Self {
-        self.id = id;
-        self
-    }
-
-    /// Sets the SKU.
-    pub fn with_sku(mut self, sku: impl Into<String>) -> Self {
-        self.sku = sku.into();
-        self
-    }
-
-    /// Sets the name.
-    pub fn with_name(mut self, name: impl Into<String>) -> Self {
-        self.name = name.into();
-        self
-    }
-
-    /// Sets the description.
-    pub fn with_description(mut self, description: impl Into<String>) -> Self {
-        self.description = Some(description.into());
-        self
-    }
-
-    /// Sets the price.
-    pub fn with_price(mut self, price: f64) -> Self {
-        self.price = price;
-        self
-    }
-
-    /// Sets the compare at price.
-    pub fn with_compare_at_price(mut self, price: f64) -> Self {
-        self.compare_at_price = Some(price);
-        self
-    }
-
-    /// Sets the status.
-    pub fn with_status(mut self, status: impl Into<String>) -> Self {
-        self.status = status.into();
-        self
-    }
-
-    /// Sets the inventory quantity.
-    pub fn with_inventory(mut self, quantity: i32) -> Self {
-        self.inventory_quantity = quantity;
-        self
-    }
-
-    /// Sets whether to track inventory.
-    pub fn with_track_inventory(mut self, track: bool) -> Self {
-        self.track_inventory = track;
-        self
-    }
-
-    /// Sets the metadata.
-    pub fn with_metadata(mut self, metadata: Value) -> Self {
-        self.metadata = metadata;
-        self
-    }
-
-    /// Builds the product fixture.
-    pub fn build(self) -> TestProduct {
-        TestProduct {
-            id: self.id,
-            sku: self.sku,
-            name: self.name,
-            description: self.description,
-            price: self.price,
-            compare_at_price: self.compare_at_price,
-            status: self.status,
-            inventory_quantity: self.inventory_quantity,
-            track_inventory: self.track_inventory,
-            metadata: self.metadata,
-        }
+/// Create a test order input
+pub fn test_order_input(customer_id: Uuid) -> rustok_commerce::dto::CreateOrderInput {
+    rustok_commerce::dto::CreateOrderInput {
+        customer_id,
+        items: vec![test_order_item_input()],
     }
 }
 
-impl Default for ProductFixture {
-    fn default() -> Self {
-        Self::new()
+/// Create a test order input with custom items
+pub fn test_order_input_with_items(
+    customer_id: Uuid,
+    items: Vec<rustok_commerce::dto::OrderItemInput>,
+) -> rustok_commerce::dto::CreateOrderInput {
+    rustok_commerce::dto::CreateOrderInput {
+        customer_id,
+        items,
     }
 }
 
-/// A test product with all fields.
-#[derive(Debug, Clone)]
-pub struct TestProduct {
-    pub id: Uuid,
-    pub sku: String,
-    pub name: String,
-    pub description: Option<String>,
-    pub price: f64,
-    pub compare_at_price: Option<f64>,
-    pub status: String,
-    pub inventory_quantity: i32,
-    pub track_inventory: bool,
-    pub metadata: Value,
+/// Create a test order item input
+pub fn test_order_item_input() -> rustok_commerce::dto::OrderItemInput {
+    rustok_commerce::dto::OrderItemInput {
+        product_id: test_uuid(),
+        quantity: 2,
+        price: Some(1000),
+    }
+}
+
+/// Create a test order item input with custom product
+pub fn test_order_item_input_with_product(product_id: Uuid, quantity: i32) -> rustok_commerce::dto::OrderItemInput {
+    rustok_commerce::dto::OrderItemInput {
+        product_id,
+        quantity,
+        price: Some(1000),
+    }
+}
+
+/// Create a test payment input
+pub fn test_payment_input() -> rustok_commerce::dto::ProcessPaymentInput {
+    rustok_commerce::dto::ProcessPaymentInput {
+        method: rustok_commerce::dto::PaymentMethod::Card,
+        amount: 2000,
+        currency: "USD".to_string(),
+        card_token: "tok_test_visa".to_string(),
+        metadata: None,
+    }
+}
+
+/// Create a test order active model
+pub async fn test_order_active_model(
+    db: &sea_orm::DatabaseConnection,
+    tenant_id: &str,
+    customer_id: Uuid,
+) -> order::ActiveModel {
+    let order_id = test_uuid();
+    order::ActiveModel {
+        id: Set(order_id),
+        tenant_id: Set(tenant_id.to_string()),
+        customer_id: Set(customer_id),
+        status: Set(rustok_commerce::entities::OrderStatus::Draft.to_string()),
+        total: Set(2000),
+        currency: Set("USD".to_string()),
+        created_at: Set(Utc::now()),
+        updated_at: Set(Utc::now()),
+        ..Default::default()
+    }
+}
+
+// ============================================================================
+// Event Fixtures
+// ============================================================================
+
+/// Create a test NodeCreated event
+pub fn test_node_created_event() -> DomainEvent {
+    DomainEvent::NodeCreated {
+        node_id: test_uuid(),
+        kind: "article".to_string(),
+        author_id: Some(test_user_id()),
+        tenant_id: test_tenant_id(),
+    }
+}
+
+/// Create a test NodePublished event
+pub fn test_node_published_event(node_id: Uuid) -> DomainEvent {
+    DomainEvent::NodePublished {
+        node_id,
+        kind: "article".to_string(),
+        author_id: Some(test_user_id()),
+        tenant_id: test_tenant_id(),
+        published_at: Utc::now(),
+    }
+}
+
+/// Create a test ProductCreated event
+pub fn test_product_created_event() -> DomainEvent {
+    DomainEvent::ProductCreated {
+        product_id: test_uuid(),
+        sku: "TEST-001".to_string(),
+        title: "Test Product".to_string(),
+        price: 1000,
+        currency: "USD".to_string(),
+        tenant_id: test_tenant_id(),
+    }
+}
+
+/// Create a test OrderCreated event
+pub fn test_order_created_event() -> DomainEvent {
+    DomainEvent::OrderCreated {
+        order_id: test_uuid(),
+        customer_id: test_customer_id(),
+        total: 2000,
+        currency: "USD".to_string(),
+        tenant_id: test_tenant_id(),
+    }
+}
+
+/// Create a test OrderPaid event
+pub fn test_order_paid_event(order_id: Uuid) -> DomainEvent {
+    DomainEvent::OrderPaid {
+        order_id,
+        payment_id: test_uuid(),
+        amount: 2000,
+        currency: "USD".to_string(),
+        tenant_id: test_tenant_id(),
+    }
+}
+
+// ============================================================================
+// Database Fixtures
+// ============================================================================
+
+/// Create an in-memory test database connection
+#[cfg(feature = "test-in-memory")]
+pub async fn create_test_db() -> sea_orm::DatabaseConnection {
+    use sea_orm::{Database, ConnectOptions};
+    use std::time::Duration;
+    
+    let mut opt = ConnectOptions::new("sqlite::memory:".to_string());
+    opt.max_connections(1)
+        .min_connections(1)
+        .connect_timeout(Duration::from_secs(5))
+        .idle_timeout(Duration::from_secs(300))
+        .max_lifetime(Duration::from_secs(1800))
+        .sqlx_logging(true)
+        .sqlx_logging_level(log::LevelFilter::Info);
+    
+    Database::connect(opt).await.expect("Failed to create test database")
+}
+
+/// Create a PostgreSQL test database connection
+pub async fn create_test_postgres_db() -> Result<sea_orm::DatabaseConnection, sea_orm::DbErr> {
+    use sea_orm::{Database, ConnectOptions};
+    use std::time::Duration;
+    
+    let database_url = std::env::var("TEST_DATABASE_URL")
+        .unwrap_or_else(|_| "postgres://postgres:password@localhost:5432/rustok_test".to_string());
+    
+    let mut opt = ConnectOptions::new(database_url);
+    opt.max_connections(1)
+        .min_connections(1)
+        .connect_timeout(Duration::from_secs(5))
+        .idle_timeout(Duration::from_secs(300))
+        .max_lifetime(Duration::from_secs(1800))
+        .sqlx_logging(true)
+        .sqlx_logging_level(log::LevelFilter::Info);
+    
+    Database::connect(opt).await
+}
+
+// ============================================================================
+// HTTP Fixtures
+// ============================================================================
+
+/// Create a test HTTP client
+pub fn create_test_client() -> reqwest::Client {
+    reqwest::Client::builder()
+        .timeout(std::time::Duration::from_secs(30))
+        .build()
+        .expect("Failed to create test client")
+}
+
+/// Create a test authorization header
+pub fn test_auth_header(token: &str) -> String {
+    format!("Bearer {}", token)
+}
+
+/// Create a test JWT token (placeholder - use real implementation)
+pub fn test_jwt_token(user_id: Uuid, tenant_id: &str) -> String {
+    // In a real implementation, this would create a signed JWT
+    format!("test_token_{}_{}", user_id, tenant_id)
+}
+
+// ============================================================================
+// Test Assertions
+// ============================================================================
+
+/// Assert that an event exists in a list
+pub fn assert_event_exists(events: &[DomainEvent], expected_event: &DomainEvent) {
+    assert!(
+        events.iter().any(|e| std::mem::discriminant(e) == std::mem::discriminant(expected_event)),
+        "Expected event {:?} not found in events: {:?}",
+        expected_event,
+        events
+    );
+}
+
+/// Assert that an event with a specific ID exists
+pub fn assert_event_with_id_exists(events: &[DomainEvent], event_id: Uuid) {
+    assert!(
+        events.iter().any(|e| {
+            if let DomainEvent::NodeCreated { node_id, .. } = e {
+                *node_id == event_id
+            } else if let DomainEvent::OrderCreated { order_id, .. } = e {
+                *order_id == event_id
+            } else {
+                false
+            }
+        }),
+        "Event with ID {} not found in events: {:?}",
+        event_id,
+        events
+    );
 }
 
 #[cfg(test)]
@@ -661,40 +438,29 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_user_fixture() {
-        let user = UserFixture::admin().with_email("admin@test.com").build();
-
-        assert_eq!(user.email, "admin@test.com");
-        assert!(matches!(user.role, UserRole::Admin));
+    fn test_uuid_generators() {
+        let uuid1 = test_uuid();
+        let uuid2 = test_uuid();
+        
+        assert_ne!(uuid1, uuid2);
     }
 
     #[test]
-    fn test_tenant_fixture() {
-        let tenant = TenantFixture::new()
-            .with_name("My Tenant")
-            .with_slug("my-tenant")
-            .build();
-
-        assert_eq!(tenant.name, "My Tenant");
-        assert_eq!(tenant.slug, "my-tenant");
+    fn test_deterministic_uuid() {
+        let uuid1 = test_deterministic_uuid(42);
+        let uuid2 = test_deterministic_uuid(42);
+        
+        assert_eq!(uuid1, uuid2);
     }
 
     #[test]
-    fn test_node_fixture() {
-        let node = NodeFixture::post().with_title("My Post").build();
-
-        assert_eq!(node.kind, "post");
-        assert_eq!(node.translations[0].title, "My Post");
-    }
-
-    #[test]
-    fn test_product_fixture() {
-        let product = ProductFixture::new()
-            .with_name("My Product")
-            .with_price(49.99)
-            .build();
-
-        assert_eq!(product.name, "My Product");
-        assert_eq!(product.price, 49.99);
+    fn test_fixtures_create_valid_inputs() {
+        let node_input = test_node_input();
+        assert_eq!(node_input.kind, "article");
+        assert_eq!(node_input.title, "Test Article");
+        
+        let product_input = test_product_input();
+        assert_eq!(product_input.sku, "TEST-001");
+        assert_eq!(product_input.price, 1000);
     }
 }
