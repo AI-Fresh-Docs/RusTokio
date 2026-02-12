@@ -59,6 +59,11 @@ sea-orm-migration.workspace = true
 loco-rs = { workspace = true, features = ["testing"] }
 serial_test = "3.1"
 rustok-test-utils.workspace = true
+criterion = "0.5"
+
+[[bench]]
+name = "integration_benchmarks"
+harness = false
 
 [package.metadata.cargo-udeps.ignore]
 development = ["serial_test"]

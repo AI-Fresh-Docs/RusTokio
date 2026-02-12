@@ -4,6 +4,10 @@
 
 pub mod fixtures;
 pub mod test_app;
+pub mod database;
+pub mod mocks;
 
 pub use fixtures::*;
 pub use test_app::*;
+pub use database::*;
+pub use mocks::*;
