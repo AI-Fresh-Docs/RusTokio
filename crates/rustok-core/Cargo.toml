@@ -30,6 +30,10 @@ rhai = { version = "1.20", features = ["sync", "metadata"] }
 url = "2.5"
 futures = "0.3"
 rand = "0.8"
+serde_yaml = "0.9"
+toml = "0.8"
+hex = "0.4"
+base64 = "0.22"
 
 [features]
 redis-cache = ["redis"]
