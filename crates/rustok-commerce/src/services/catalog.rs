@@ -118,7 +118,10 @@ impl CatalogService {
             };
             translation.insert(&txn).await?;
         }
-        debug!(translations_count = input.translations.len(), "Product translations inserted");
+        debug!(
+            translations_count = input.translations.len(),
+            "Product translations inserted"
+        );
 
         for (position, opt_input) in input.options.iter().enumerate() {
             let option = entities::product_option::ActiveModel {
@@ -131,7 +134,10 @@ impl CatalogService {
             };
             option.insert(&txn).await?;
         }
-        debug!(options_count = input.options.len(), "Product options inserted");
+        debug!(
+            options_count = input.options.len(),
+            "Product options inserted"
+        );
 
         for (position, var_input) in input.variants.iter().enumerate() {
             let variant_id = generate_id();
@@ -181,7 +187,10 @@ impl CatalogService {
                 price.insert(&txn).await?;
             }
         }
-        debug!(variants_count = input.variants.len(), "Product variants and prices inserted");
+        debug!(
+            variants_count = input.variants.len(),
+            "Product variants and prices inserted"
+        );
 
         self.event_bus
             .publish_in_tx(

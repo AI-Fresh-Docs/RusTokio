@@ -40,7 +40,7 @@ pub enum CommerceError {
 
     #[error("Cannot delete published product")]
     CannotDeletePublished,
-    
+
     #[error("Rich error: {0}")]
     Rich(#[from] RichError),
 }
@@ -105,17 +105,19 @@ impl From<CommerceError> for RichError {
                     .with_error_code("INVALID_OPTIONS")
             }
             CommerceError::Validation(msg) => {
-                RichError::new(ErrorKind::Validation, msg)
-                    .with_user_message("Invalid input data")
+                RichError::new(ErrorKind::Validation, msg).with_user_message("Invalid input data")
             }
-            CommerceError::NoVariants => {
-                RichError::new(ErrorKind::Validation, "Product must have at least one variant")
-                    .with_user_message("Product must have at least one variant")
-                    .with_error_code("NO_VARIANTS")
-            }
+            CommerceError::NoVariants => RichError::new(
+                ErrorKind::Validation,
+                "Product must have at least one variant",
+            )
+            .with_user_message("Product must have at least one variant")
+            .with_error_code("NO_VARIANTS"),
             CommerceError::CannotDeletePublished => {
                 RichError::new(ErrorKind::BusinessLogic, "Cannot delete published product")
-                    .with_user_message("Published products cannot be deleted. Archive them instead.")
+                    .with_user_message(
+                        "Published products cannot be deleted. Archive them instead.",
+                    )
                     .with_error_code("CANNOT_DELETE_PUBLISHED")
             }
             CommerceError::Rich(rich) => rich,
@@ -129,12 +131,12 @@ impl CommerceError {
     pub fn product_not_found(product_id: Uuid) -> Self {
         CommerceError::ProductNotFound(product_id)
     }
-    
+
     /// Create a variant not found error
     pub fn variant_not_found(variant_id: Uuid) -> Self {
         CommerceError::VariantNotFound(variant_id)
     }
-    
+
     /// Create a duplicate handle error
     pub fn duplicate_handle(handle: impl Into<String>, locale: impl Into<String>) -> Self {
         CommerceError::DuplicateHandle {
@@ -142,17 +144,20 @@ impl CommerceError {
             locale: locale.into(),
         }
     }
-    
+
     /// Create a duplicate SKU error
     pub fn duplicate_sku(sku: impl Into<String>) -> Self {
         CommerceError::DuplicateSku(sku.into())
     }
-    
+
     /// Create an insufficient inventory error
     pub fn insufficient_inventory(requested: i32, available: i32) -> Self {
-        CommerceError::InsufficientInventory { requested, available }
+        CommerceError::InsufficientInventory {
+            requested,
+            available,
+        }
     }
-    
+
     /// Create a validation error
     pub fn validation(message: impl Into<String>) -> Self {
         CommerceError::Validation(message.into())
@@ -162,33 +167,33 @@ impl CommerceError {
 #[cfg(test)]
 mod tests {
     use super::*;
-    
+
     #[test]
     fn test_product_not_found_conversion() {
         let id = Uuid::new_v4();
         let err = CommerceError::product_not_found(id);
         let rich: RichError = err.into();
-        
+    
         assert_eq!(rich.kind, ErrorKind::NotFound);
         assert_eq!(rich.status_code, 404);
         assert!(rich.fields.contains_key("product_id"));
     }
-    
+
     #[test]
     fn test_duplicate_handle_conversion() {
         let err = CommerceError::duplicate_handle("my-product", "en");
         let rich: RichError = err.into();
-        
+    
         assert_eq!(rich.kind, ErrorKind::Conflict);
         assert_eq!(rich.status_code, 409);
         assert_eq!(rich.fields.get("handle"), Some(&"my-product".to_string()));
     }
-    
+
     #[test]
     fn test_insufficient_inventory_conversion() {
         let err = CommerceError::insufficient_inventory(10, 5);
         let rich: RichError = err.into();
-        
+    
         assert_eq!(rich.kind, ErrorKind::BusinessLogic);
         assert_eq!(rich.fields.get("requested"), Some(&"10".to_string()));
         assert_eq!(rich.fields.get("available"), Some(&"5".to_string()));
