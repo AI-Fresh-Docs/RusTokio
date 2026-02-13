@@ -112,7 +112,9 @@ impl TenantCacheV3 {
         // Try to get from cache with circuit breaker protection
         let cached = self
             .cache
-            .try_get_with(cache_key, async { self.load_from_db_protected(identifier).await })
+            .try_get_with(cache_key, async {
+                self.load_from_db_protected(identifier).await
+            })
             .await
             .map_err(|e| {
                 tracing::error!(

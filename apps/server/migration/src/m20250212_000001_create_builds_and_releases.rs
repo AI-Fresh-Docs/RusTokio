@@ -12,12 +12,7 @@ impl MigrationTrait for Migration {
                 Table::create()
                     .table(Builds::Table)
                     .if_not_exists()
-                    .col(
-                        ColumnDef::new(Builds::Id)
-                            .uuid()
-                            .not_null()
-                            .primary_key(),
-                    )
+                    .col(ColumnDef::new(Builds::Id).uuid().not_null().primary_key())
                     .col(
                         ColumnDef::new(Builds::Status)
                             .string_len(32)
@@ -120,11 +115,7 @@ impl MigrationTrait for Migration {
                             .not_null()
                             .default("pending"),
                     )
-                    .col(
-                        ColumnDef::new(Releases::BuildId)
-                            .uuid()
-                            .not_null(),
-                    )
+                    .col(ColumnDef::new(Releases::BuildId).uuid().not_null())
                     .col(
                         ColumnDef::new(Releases::Environment)
                             .string_len(64)
@@ -139,11 +130,7 @@ impl MigrationTrait for Migration {
                             .string_len(64)
                             .not_null(),
                     )
-                    .col(
-                        ColumnDef::new(Releases::Modules)
-                            .json_binary()
-                            .not_null(),
-                    )
+                    .col(ColumnDef::new(Releases::Modules).json_binary().not_null())
                     .col(ColumnDef::new(Releases::PreviousReleaseId).string_len(64))
                     .col(ColumnDef::new(Releases::DeployedAt).timestamp_with_time_zone())
                     .col(ColumnDef::new(Releases::RolledBackAt).timestamp_with_time_zone())
@@ -190,7 +177,7 @@ impl MigrationTrait for Migration {
         manager
             .drop_table(Table::drop().table(Releases::Table).to_owned())
             .await?;
-        
+
         manager
             .drop_table(Table::drop().table(Builds::Table).to_owned())
             .await

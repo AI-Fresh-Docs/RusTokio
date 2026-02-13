@@ -11,9 +11,9 @@ use axum::{
 use loco_rs::app::AppContext;
 #[cfg(feature = "redis-cache")]
 use redis::AsyncCommands;
+use rustok_core::tenant_validation::TenantIdentifierValidator;
 #[cfg(feature = "redis-cache")]
 use rustok_core::RedisCacheBackend;
-use rustok_core::tenant_validation::TenantIdentifierValidator;
 use rustok_core::{CacheBackend, InMemoryCacheBackend};
 use std::collections::HashMap;
 use std::sync::atomic::{AtomicU64, Ordering};
@@ -562,22 +562,21 @@ pub fn resolve_identifier(
                 .map(|value| value.trim().to_string())
                 .filter(|value| !value.is_empty())
                 .unwrap_or_else(|| settings.tenant.default_id.to_string());
-            
+
             // Validate and classify the identifier
-            classify_and_validate_identifier(&identifier)
-                .map_err(|e| {
-                    tracing::warn!(
-                        identifier = %identifier,
-                        error = %e,
-                        "Invalid tenant identifier from header"
-                    );
-                    StatusCode::BAD_REQUEST
-                })
+            classify_and_validate_identifier(&identifier).map_err(|e| {
+                tracing::warn!(
+                    identifier = %identifier,
+                    error = %e,
+                    "Invalid tenant identifier from header"
+                );
+                StatusCode::BAD_REQUEST
+            })
         }
         "host" | "domain" | "subdomain" => {
             let host = extract_host(req.headers()).ok_or(StatusCode::BAD_REQUEST)?;
             let host_without_port = host.split(':').next().unwrap_or(host);
-            
+
             // Validate hostname
             let validated_host = TenantIdentifierValidator::validate_host(host_without_port)
                 .map_err(|e| {
@@ -588,7 +587,7 @@ pub fn resolve_identifier(
                     );
                     StatusCode::BAD_REQUEST
                 })?;
-            
+
             Ok(ResolvedTenantIdentifier {
                 value: validated_host,
                 kind: TenantIdentifierKind::Host,
@@ -649,7 +648,7 @@ fn classify_and_validate_identifier(
 
     // Try slug (with security validation)
     let validated_slug = TenantIdentifierValidator::validate_slug(value)?;
-    
+
     Ok(ResolvedTenantIdentifier {
         value: validated_slug,
         kind: TenantIdentifierKind::Slug,

@@ -5,7 +5,9 @@ use sea_orm::{ColumnTrait, DatabaseConnection, EntityTrait, QueryFilter};
 use uuid::Uuid;
 
 use crate::models::_entities::tenants;
-use rustok_content::{entities::prelude::*, entities::node, entities::node_translation, entities::node_body};
+use rustok_content::{
+    entities::node, entities::node_body, entities::node_translation, entities::prelude::*,
+};
 
 /// Loader for Tenant names
 #[derive(Clone)]

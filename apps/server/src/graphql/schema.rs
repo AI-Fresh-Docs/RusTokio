@@ -10,7 +10,7 @@ use super::blog::{BlogMutation, BlogQuery};
 use super::commerce::{CommerceMutation, CommerceQuery};
 use super::content::{ContentMutation, ContentQuery};
 use super::forum::{ForumMutation, ForumQuery};
-use super::loaders::{TenantNameLoader, NodeLoader, NodeTranslationLoader, NodeBodyLoader};
+use super::loaders::{NodeBodyLoader, NodeLoader, NodeTranslationLoader, TenantNameLoader};
 use super::mutations::RootMutation;
 use super::observability::GraphqlObservability;
 use super::queries::RootQuery;
@@ -53,10 +53,7 @@ pub fn build_schema(
             TenantNameLoader::new(db.clone()),
             tokio::spawn,
         ))
-        .data(DataLoader::new(
-            NodeLoader::new(db.clone()),
-            tokio::spawn,
-        ))
+        .data(DataLoader::new(NodeLoader::new(db.clone()), tokio::spawn))
         .data(DataLoader::new(
             NodeTranslationLoader::new(db.clone()),
             tokio::spawn,
