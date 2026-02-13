@@ -18,7 +18,7 @@
 
 - `apps/admin` — использует для аутентификации
 - `apps/storefront` — использует для аутентификации
-- `leptos-graphql` — низкоуровневый transport layer
+- `crates/leptos-graphql` — использует как transport layer (GraphQL HTTP client)
 - `apps/server` — GraphQL mutations/queries на backend
 
 ## Структура
@@ -360,12 +360,14 @@ Backend должен реализовать GraphQL mutations/queries в `apps/s
 [dependencies]
 leptos = { workspace = true }
 leptos_router = { workspace = true }
+leptos-graphql = { path = "../leptos-graphql" }  # ← GraphQL transport layer
 serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true }
 gloo-storage = { workspace = true }
 thiserror = { workspace = true }
-reqwest = { version = "0.13", default-features = false, features = ["json"] }
 ```
+
+**Note:** Использует `leptos-graphql` для всех GraphQL запросов вместо прямого `reqwest`.
 
 ## Best Practices
 
