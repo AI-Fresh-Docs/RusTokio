@@ -172,7 +172,7 @@ async fn test_tenant_isolation_for_node_access() {
     // But in a real multi-tenant system, we would verify tenant isolation
     // through the tenant context
     assert!(result.is_ok(), "Node should exist and be accessible by ID");
-    
+
     println!("✅ Basic tenant isolation verified");
 }
 
@@ -182,13 +182,13 @@ async fn test_tenant_isolation_for_slug_access() {
     let db = setup_test_db().await;
     let event_bus = mock_event_bus();
     let service = NodeService::new(db.clone(), event_bus);
-    
+
     // Create nodes for two different tenants with different slugs
     let tenant1_id = Uuid::new_v4();
     let tenant2_id = Uuid::new_v4();
     let user_id = Uuid::new_v4();
     let security = SecurityContext::new(rustok_core::UserRole::Admin, Some(user_id));
-    
+
     // Create node for tenant 1
     let input1 = CreateNodeInput {
         kind: "post".to_string(),
@@ -212,12 +212,12 @@ async fn test_tenant_isolation_for_slug_access() {
         reply_count: None,
         metadata: serde_json::json!({}),
     };
-    
+
     let node1 = service
         .create_node(tenant1_id, security.clone(), input1)
         .await
         .unwrap();
-    
+
     // Create node for tenant 2 with a different slug
     let input2 = CreateNodeInput {
         kind: "post".to_string(),
@@ -241,31 +241,31 @@ async fn test_tenant_isolation_for_slug_access() {
         reply_count: None,
         metadata: serde_json::json!({}),
     };
-    
+
     let node2 = service
         .create_node(tenant2_id, security, input2)
         .await
         .unwrap();
-    
+
     // Verify that each tenant can access their own content by slug
     let node1_by_slug = service
         .get_by_slug(tenant1_id, "unique-slug-tenant1", "en")
         .await
         .unwrap();
-    
+
     let node2_by_slug = service
         .get_by_slug(tenant2_id, "unique-slug-tenant2", "en")
         .await
         .unwrap();
-    
+
     assert_eq!(node1_by_slug.id, node1.id);
     assert_eq!(node2_by_slug.id, node2.id);
-    
+
     // Verify that the content is different
     assert_ne!(
         node1_by_slug.translations[0].title,
         node2_by_slug.translations[0].title
     );
-    
+
     println!("✅ Tenant isolation for slug access verified");
 }

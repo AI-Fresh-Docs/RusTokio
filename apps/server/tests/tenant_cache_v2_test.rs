@@ -1,5 +1,5 @@
 /// Unit tests for SimplifiedTenantCache
-/// 
+///
 /// Tests cover:
 /// - Cache key generation
 /// - Positive and negative caching
@@ -13,27 +13,27 @@ mod tests {
     use std::sync::Arc;
     use std::time::Duration;
     use tokio::time::sleep;
-    
+
     // Note: These tests would require a full database setup
     // For now, they're commented out but serve as a template
-    
+
     #[tokio::test]
     #[ignore] // Requires DB setup
     async fn test_cache_hit_after_miss() {
         // Setup:
         // let db = setup_test_db().await;
         // let cache = SimplifiedTenantCache::new(db);
-        
+
         // First call: miss (loads from DB)
         // let tenant1 = cache.get_or_load(&uuid_identifier).await.unwrap();
-        
+
         // Second call: hit (from cache)
         // let tenant2 = cache.get_or_load(&uuid_identifier).await.unwrap();
-        
+
         // assert_eq!(tenant1.id, tenant2.id);
         // Verify DB was only called once
     }
-    
+
     #[tokio::test]
     #[ignore]
     async fn test_negative_caching() {
