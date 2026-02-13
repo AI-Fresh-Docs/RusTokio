@@ -181,7 +181,7 @@ impl CacheBackend for RedisCacheBackend {
                     .query_async::<()>(&mut conn)
                     .await
                     .map_err(|err| crate::Error::Cache(err.to_string()))?;
-                Ok(())
+                Ok::<(), crate::Error>(())
             })
             .await
             .map_err(|e| match e {
@@ -208,7 +208,7 @@ impl CacheBackend for RedisCacheBackend {
                     .query_async::<()>(&mut conn)
                     .await
                     .map_err(|err| crate::Error::Cache(err.to_string()))?;
-                Ok(())
+                Ok::<(), crate::Error>(())
             })
             .await
             .map_err(|e| match e {
