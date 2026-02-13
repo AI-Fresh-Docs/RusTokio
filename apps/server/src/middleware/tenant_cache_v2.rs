@@ -13,7 +13,6 @@
 /// - Automatic TTL management
 /// - Less granular metrics (moka provides basic stats)
 /// - Local cache only (no Redis layer in v1)
-
 use axum::{
     body::Body,
     extract::State,
