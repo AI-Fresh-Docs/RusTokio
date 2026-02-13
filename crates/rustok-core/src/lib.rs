@@ -1,3 +1,4 @@
+pub mod async_utils;
 pub mod auth;
 pub mod cache;
 pub mod context;
@@ -6,6 +7,7 @@ pub mod events;
 pub mod health;
 pub mod i18n;
 pub mod id;
+pub mod metrics;
 pub mod migrations;
 pub mod module;
 pub mod permissions;
@@ -19,6 +21,10 @@ pub mod tenant_validation;
 pub mod tracing;
 pub mod typed_error;
 pub mod types;
+pub use async_utils::{
+    batch, parallel, retry, timeout, BackoffConfig, Coalescer, Debouncer, RetryError, Throttler,
+    TimeoutError,
+};
 pub use auth::{
     AuthError, AuthService, AuthTokens, RegisterInput, User, UserRepository, UsersMigration,
 };
@@ -41,6 +47,7 @@ pub use health::{
 };
 pub use i18n::{extract_locale_from_header, translate, Locale};
 pub use id::generate_id;
+pub use metrics::{Counter, Gauge, Histogram, MetricSnapshot, MetricValue, MetricsRegistry, Timer};
 pub use migrations::ModuleMigration;
 pub use module::{EventListener, MigrationSource};
 pub use module::{HealthStatus, ModuleContext, RusToKModule};
@@ -65,6 +72,9 @@ pub use typed_error::{
 pub use types::{UserRole, UserStatus};
 
 pub mod prelude {
+    pub use crate::async_utils::{
+        batch, parallel, retry, BackoffConfig, RetryError, Throttler,
+    };
     pub use crate::error::{Error, Result};
     pub use crate::events::{
         event_schema, DispatcherConfig, DomainEvent, EventBus, EventBusStats, EventDispatcher,
@@ -75,6 +85,7 @@ pub mod prelude {
         HealthCheck, HealthRegistry, HealthResult, HealthStatus, OverallHealth,
     };
     pub use crate::id::generate_id;
+    pub use crate::metrics::{Counter, Gauge, Histogram, MetricsRegistry, Timer};
     pub use crate::module::HealthStatus;
     pub use crate::permissions::{Action, Permission, Resource};
     pub use crate::rbac::{PermissionScope, Rbac, SecurityContext};
