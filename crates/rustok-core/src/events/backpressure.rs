@@ -117,7 +117,7 @@ pub struct BackpressureMetrics {
 }
 
 /// Controller for managing backpressure based on queue depth
-#[derive(Clone)]
+#[derive(Debug, Clone)]
 pub struct BackpressureController {
     config: BackpressureConfig,
     current_depth: Arc<AtomicUsize>,
