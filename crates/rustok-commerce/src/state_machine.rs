@@ -498,7 +498,7 @@ mod tests {
         assert_eq!(order.state.reason, "Customer request");
         assert!(!order.state.refunded);
     }
-    
+
     #[test]
     fn test_paid_to_cancelled_with_refund() {
         let order = create_test_order()
@@ -506,37 +506,32 @@ mod tests {
             .unwrap()
             .pay("pay_123".to_string(), "credit_card".to_string())
             .unwrap();
-        
-        let order = order.cancel_with_refund(
-            "Out of stock".to_string(),
-            "ref_456".to_string(),
-        );
-        
+
+        let order = order.cancel_with_refund("Out of stock".to_string(), "ref_456".to_string());
+
         assert_eq!(order.state.reason, "Out of stock");
         assert!(order.state.refunded);
     }
-    
+
     #[test]
     fn test_empty_payment_id_error() {
-        let order = create_test_order()
-            .confirm()
-            .unwrap();
-        
+        let order = create_test_order().confirm().unwrap();
+
         let result = order.pay("".to_string(), "credit_card".to_string());
-        
+
         assert!(result.is_err());
         assert!(matches!(result.unwrap_err(), OrderError::PaymentFailed(_)));
     }
-    
+
     // Compile-time safety tests (these should NOT compile)
-    
+
     // #[test]
     // fn test_invalid_pending_to_shipped() {
     //     let order = create_test_order();
     //     // ❌ Compile error: no method `ship` on `Order<Pending>`
     //     let order = order.ship("TRACK123".to_string(), "FedEx".to_string());
     // }
-    
+
     // #[test]
     // fn test_invalid_confirmed_to_delivered() {
     //     let order = create_test_order().confirm().unwrap();
