@@ -12,6 +12,7 @@ pub mod rbac;
 pub mod registry;
 pub mod resilience;
 pub mod scripting;
+pub mod security;
 pub mod state_machine;
 pub mod tenant_validation;
 pub mod tracing;
@@ -45,6 +46,12 @@ pub use resilience::{
     RetryStrategy,
 };
 pub use scripting::ScriptingContext;
+pub use security::{
+    run_security_audit, AuditEvent, AuditEventType, AuditLogger, FrameOptions, InputValidator,
+    RateLimitConfig, RateLimiter, RateLimitResult, SecurityAudit, SecurityAuditResult,
+    SecurityCategory, SecurityConfig, SecurityFinding, SecurityHeaders, SecurityHeadersConfig,
+    Severity, SsrfProtection, ValidationResult,
+};
 pub use types::{UserRole, UserStatus};
 
 pub mod prelude {
