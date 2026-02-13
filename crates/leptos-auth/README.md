@@ -2,31 +2,41 @@
 
 ## Назначение
 
-`crates/leptos-auth` — Leptos authentication library для RusToK, использующая **GraphQL** для всех операций.
+`crates/leptos-auth` — Leptos authentication library для RusToK, использующая **REST API** для auth operations.
 
 ## Архитектура
 
-**Главное правило:** ✅ **Только GraphQL, никакого REST API!**
+**Главное правило:** ✅ **Auth через REST API (`/api/auth/*`), Data через GraphQL (`/api/graphql`)**
 
 Эта библиотека предоставляет:
 - Компоненты для защищённых маршрутов (`ProtectedRoute`, `GuestRoute`)
 - Hooks для работы с аутентификацией (`use_auth`, `use_token`, `use_tenant`)
-- GraphQL API для auth operations (`sign_in`, `sign_up`, `sign_out`)
+- REST API client для auth operations (`sign_in`, `sign_up`, `sign_out`)
 - LocalStorage helpers для сохранения сессии
 
 ## Взаимодействие
 
 - `apps/admin` — использует для аутентификации
 - `apps/storefront` — использует для аутентификации
-- `crates/leptos-graphql` — использует как transport layer (GraphQL HTTP client)
-- `apps/server` — GraphQL mutations/queries на backend
+- `apps/server` — REST endpoints (`/api/auth/*`) на backend
+- `crates/leptos-graphql` — используется ТОЛЬКО для `me` query (fetch current user)
+
+### Почему REST для auth?
+
+**Best practice:** Auth operations (login, register, logout) через REST, а data queries через GraphQL.
+
+**Причины:**
+1. ✅ Industry standard (OAuth, JWT обычно через REST)
+2. ✅ Проще отладка (curl, Postman)
+3. ✅ Backend auth уже реализован через REST
+4. ✅ Меньше дублирования кода
 
 ## Структура
 
 ```
 src/
 ├── lib.rs          ← Public API, типы (AuthUser, AuthSession, AuthError)
-├── api.rs          ← GraphQL mutations (sign_in, sign_up, sign_out)
+├── api.rs          ← REST API client (sign_in, sign_up, sign_out via fetch())
 ├── context.rs      ← AuthProvider component, AuthContext
 ├── hooks.rs        ← use_auth(), use_token(), use_tenant(), etc.
 ├── storage.rs      ← LocalStorage helpers
@@ -57,37 +67,61 @@ pub fn App() -> impl IntoView {
 
 ```rust
 use leptos::*;
-use leptos_auth::api;
+use leptos_auth::{api, use_auth};
 
 #[component]
 pub fn Login() -> impl IntoView {
+    let auth = use_auth();
     let (email, set_email) = create_signal(String::new());
     let (password, set_password) = create_signal(String::new());
+    let (error, set_error) = create_signal(None::<String>);
     
-    let login_action = create_action(|_| async move {
-        match api::sign_in(
-            email.get(),
-            password.get(),
-            "demo".to_string(), // tenant
-        ).await {
-            Ok((user, session)) => {
-                // Success - AuthContext updated automatically
-                navigate("/dashboard");
-            }
-            Err(e) => {
-                // Handle error
+    let login_action = create_action(|(email, password, tenant): &(String, String, String)| {
+        let email = email.clone();
+        let password = password.clone();
+        let tenant = tenant.clone();
+        
+        async move {
+            match auth.sign_in(email, password, tenant).await {
+                Ok(_) => {
+                    // Success - AuthContext updated automatically
+                    use leptos_router::use_navigate;
+                    let navigate = use_navigate();
+                    navigate("/dashboard", Default::default());
+                }
+                Err(e) => {
+                    set_error.set(Some(format!("Login failed: {:?}", e)));
+                }
             }
         }
     });
     
     view! {
-        <form on:submit=|ev| {
+        <form on:submit=move |ev| {
             ev.prevent_default();
-            login_action.dispatch(());
+            login_action.dispatch((
+                email.get(),
+                password.get(),
+                "demo".to_string(), // tenant slug
+            ));
         }>
-            <input type="email" value=email />
-            <input type="password" value=password />
-            <button type="submit">"Login"</button>
+            <input
+                type="email"
+                placeholder="Email"
+                prop:value=email
+                on:input=move |ev| set_email.set(event_target_value(&ev))
+            />
+            <input
+                type="password"
+                placeholder="Password"
+                prop:value=password
+                on:input=move |ev| set_password.set(event_target_value(&ev))
+            />
+            <button type="submit" disabled=move || login_action.pending().get()>
+                {move || if login_action.pending().get() { "Logging in..." } else { "Login" }}
+            </button>
+            
+            {move || error.get().map(|e| view! { <p class="error">{e}</p> })}
         </form>
     }
 }
@@ -103,16 +137,20 @@ use leptos_auth::ProtectedRoute;
 #[component]
 pub fn App() -> impl IntoView {
     view! {
-        <Router>
-            <Routes>
-                <Route path="/login" view=Login />
-                
-                <ParentRoute path="" view=ProtectedRoute>
-                    <Route path="/dashboard" view=Dashboard />
-                    <Route path="/profile" view=Profile />
-                </ParentRoute>
-            </Routes>
-        </Router>
+        <AuthProvider>
+            <Router>
+                <Routes>
+                    <Route path="/login" view=Login />
+                    <Route path="/register" view=Register />
+                    
+                    {/* Protected routes */}
+                    <ParentRoute path="" view=ProtectedRoute>
+                        <Route path="/dashboard" view=Dashboard />
+                        <Route path="/profile" view=Profile />
+                    </ParentRoute>
+                </Routes>
+            </Router>
+        </AuthProvider>
     }
 }
 ```
@@ -121,199 +159,248 @@ pub fn App() -> impl IntoView {
 
 ```rust
 use leptos::*;
-use leptos_auth::{use_auth, use_token, use_tenant, use_current_user};
+use leptos_auth::{use_auth, use_current_user, use_is_authenticated};
 
 #[component]
 pub fn Dashboard() -> impl IntoView {
-    let auth = use_auth();
-    let user = use_current_user();
-    let token = use_token();
-    let tenant = use_tenant();
+    let is_authenticated = use_is_authenticated();
+    let current_user = use_current_user();
     
     view! {
         <div>
-            <p>"Welcome, " {move || user.get().map(|u| u.email)}</p>
-            
-            <button on:click=move |_| {
-                spawn_local(async move {
-                    let _ = auth.sign_out().await;
-                });
-            }>
-                "Logout"
-            </button>
+            <h1>"Dashboard"</h1>
+            {move || {
+                if is_authenticated.get() {
+                    if let Some(user) = current_user.get() {
+                        view! { <p>"Welcome, " {user.email} "!"</p> }.into_view()
+                    } else {
+                        view! { <p>"Loading user..."</p> }.into_view()
+                    }
+                } else {
+                    view! { <p>"Not authenticated"</p> }.into_view()
+                }
+            }}
         </div>
     }
 }
 ```
 
-### 5. Domain operations (using token)
+### 5. Logout
 
 ```rust
 use leptos::*;
-use leptos_graphql::{execute, GraphqlRequest, GRAPHQL_ENDPOINT};
-use leptos_auth::{use_token, use_tenant};
-
-const GET_USERS_QUERY: &str = r#"
-query GetUsers {
-    users {
-        items { id email name }
-    }
-}
-"#;
+use leptos_auth::use_auth;
 
 #[component]
-pub fn Users() -> impl IntoView {
-    let token = use_token();
-    let tenant = use_tenant();
+pub fn LogoutButton() -> impl IntoView {
+    let auth = use_auth();
     
-    let users = create_resource(
-        move || (token.get(), tenant.get()),
-        |(token, tenant)| async move {
-            let request = GraphqlRequest::new(GET_USERS_QUERY, None);
-            execute(GRAPHQL_ENDPOINT, request, token, tenant).await
-        },
-    );
+    let logout_action = create_action(|_| async move {
+        match auth.sign_out().await {
+            Ok(_) => {
+                use leptos_router::use_navigate;
+                let navigate = use_navigate();
+                navigate("/login", Default::default());
+            }
+            Err(e) => {
+                log::error!("Logout failed: {:?}", e);
+            }
+        }
+    });
     
     view! {
-        <Suspense fallback=|| view! { <p>"Loading..."</p> }>
-            {move || users.get().map(|data| /* render */)}
-        </Suspense>
+        <button on:click=move |_| logout_action.dispatch(())>
+            "Logout"
+        </button>
     }
 }
 ```
 
-## GraphQL Mutations/Queries
+## API Reference
 
-### Authentication
+### `api` module
 
-```graphql
-# Login
-mutation SignIn($email: String!, $password: String!) {
-    signIn(email: $email, password: $password) {
-        token
-        user { id email name }
-    }
-}
+#### `sign_in(email, password, tenant) -> Result<(AuthUser, AuthSession), AuthError>`
 
-# Register
-mutation SignUp($email: String!, $password: String!, $name: String) {
-    signUp(email: $email, password: $password, name: $name) {
-        token
-        user { id email name }
-    }
-}
+Login with email and password.
 
-# Logout
-mutation SignOut {
-    signOut
-}
+**Endpoint:** `POST /api/auth/login`
 
-# Current user
-query CurrentUser {
-    currentUser { id email name }
-}
+**Example:**
+```rust
+use leptos_auth::api;
 
-# Refresh token
-mutation RefreshToken {
-    refreshToken { token }
-}
-
-# Password reset
-mutation ForgotPassword($email: String!) {
-    forgotPassword(email: $email)
-}
-
-mutation ResetPassword($token: String!, $newPassword: String!) {
-    resetPassword(token: $token, newPassword: $newPassword)
-}
+let (user, session) = api::sign_in(
+    "admin@local".to_string(),
+    "admin12345".to_string(),
+    "demo".to_string(),
+).await?;
 ```
 
-## API Functions
+---
 
-### `api::sign_in(email, password, tenant)`
-Login через GraphQL mutation `signIn`.
+#### `sign_up(email, password, name, tenant) -> Result<(AuthUser, AuthSession), AuthError>`
 
-**Returns:** `(AuthUser, AuthSession)`
+Register new user.
 
-### `api::sign_up(email, password, name, tenant)`
-Register через GraphQL mutation `signUp`.
+**Endpoint:** `POST /api/auth/register`
 
-**Returns:** `(AuthUser, AuthSession)`
-
-### `api::sign_out(token, tenant)`
-Logout через GraphQL mutation `signOut`.
-
-### `api::get_current_user(token, tenant)`
-Get current user через GraphQL query `currentUser`.
-
-**Returns:** `AuthUser`
-
-### `api::refresh_token(token, tenant)`
-Refresh JWT token через GraphQL mutation `refreshToken`.
-
-**Returns:** `String` (new token)
-
-### `api::forgot_password(email, tenant)`
-Send password reset email.
-
-### `api::reset_password(token, new_password, tenant)`
-Reset password with token.
-
-## Hooks
-
-### `use_auth() -> AuthContext`
-Get full auth context with methods.
-
-### `use_current_user() -> Signal<Option<AuthUser>>`
-Get current user (reactive).
-
-### `use_token() -> Signal<Option<String>>`
-Get JWT token (reactive).
-
-### `use_tenant() -> Signal<Option<String>>`
-Get tenant slug (reactive).
-
-### `use_is_authenticated() -> Signal<bool>`
-Check if user is authenticated (reactive).
-
-### `use_is_loading() -> Signal<bool>`
-Check if auth is loading (reactive).
-
-### `use_session() -> Signal<Option<AuthSession>>`
-Get full session (token + tenant).
-
-## Components
-
-### `<ProtectedRoute>`
-Redirect to `/login` if not authenticated.
-
+**Example:**
 ```rust
-<ParentRoute path="" view=ProtectedRoute>
-    <Route path="/dashboard" view=Dashboard />
-</ParentRoute>
+use leptos_auth::api;
+
+let (user, session) = api::sign_up(
+    "user@example.com".to_string(),
+    "password123".to_string(),
+    Some("John Doe".to_string()),
+    "demo".to_string(),
+).await?;
 ```
 
-### `<GuestRoute>`
-Redirect to `/dashboard` if already authenticated.
+---
 
+#### `sign_out(token, tenant) -> Result<(), AuthError>`
+
+Logout (invalidate session).
+
+**Endpoint:** `POST /api/auth/logout`
+
+**Example:**
 ```rust
-<Route path="/login" view=GuestRoute>
-    <Login />
-</Route>
+use leptos_auth::api;
+
+api::sign_out(
+    session.token.clone(),
+    "demo".to_string(),
+).await?;
 ```
 
-### `<RequireAuth>`
-Show fallback if not authenticated (inline).
+---
 
+#### `refresh_token(refresh_token, tenant) -> Result<AuthSession, AuthError>`
+
+Refresh access token.
+
+**Endpoint:** `POST /api/auth/refresh`
+
+**Example:**
 ```rust
-<RequireAuth fallback=|| view! { <p>"Please login"</p> }>
-    <SecretContent />
+use leptos_auth::api;
+
+let new_session = api::refresh_token(
+    old_refresh_token,
+    "demo".to_string(),
+).await?;
+```
+
+---
+
+#### `fetch_current_user(token, tenant) -> Result<Option<AuthUser>, AuthError>`
+
+Fetch current user (uses GraphQL `me` query).
+
+**Endpoint:** `POST /api/graphql` (query `me`)
+
+**Example:**
+```rust
+use leptos_auth::api;
+
+let user = api::fetch_current_user(
+    session.token.clone(),
+    "demo".to_string(),
+).await?;
+```
+
+---
+
+### Hooks
+
+#### `use_auth() -> AuthContext`
+
+Get auth context (includes all methods and signals).
+
+**Example:**
+```rust
+let auth = use_auth();
+auth.sign_in(email, password, tenant).await?;
+auth.sign_out().await?;
+```
+
+---
+
+#### `use_current_user() -> Signal<Option<AuthUser>>`
+
+Get current user signal.
+
+---
+
+#### `use_is_authenticated() -> Signal<bool>`
+
+Check if user is authenticated.
+
+---
+
+#### `use_is_loading() -> Signal<bool>`
+
+Check if auth is loading (initial check).
+
+---
+
+#### `use_token() -> Signal<Option<String>>`
+
+Get current access token.
+
+---
+
+#### `use_tenant() -> Signal<Option<String>>`
+
+Get current tenant slug.
+
+---
+
+### Components
+
+#### `<ProtectedRoute />`
+
+Wraps routes that require authentication. Redirects to `/login` if not authenticated.
+
+**Props:**
+- `children: Children` — child routes/components
+- `redirect_path: Option<String>` — redirect path if not authenticated (default: `/login`)
+
+---
+
+#### `<GuestRoute />`
+
+Wraps routes for guests only (e.g., login, register). Redirects to `/dashboard` if authenticated.
+
+**Props:**
+- `children: Children` — child routes/components
+- `redirect_path: Option<String>` — redirect path if authenticated (default: `/dashboard`)
+
+---
+
+#### `<RequireAuth />`
+
+Conditionally render content if authenticated.
+
+**Props:**
+- `children: Children` — content to show if authenticated
+- `fallback: Option<View>` — fallback content if not authenticated
+
+**Example:**
+```rust
+<RequireAuth fallback=move || view! { <p>"Please sign in"</p> }>
+    <p>"Secret content"</p>
 </RequireAuth>
 ```
+
+---
 
 ## Types
 
 ### `AuthUser`
+
 ```rust
 pub struct AuthUser {
     pub id: String,
@@ -323,6 +410,7 @@ pub struct AuthUser {
 ```
 
 ### `AuthSession`
+
 ```rust
 pub struct AuthSession {
     pub token: String,
@@ -331,6 +419,7 @@ pub struct AuthSession {
 ```
 
 ### `AuthError`
+
 ```rust
 pub enum AuthError {
     Unauthorized,
@@ -340,90 +429,131 @@ pub enum AuthError {
 }
 ```
 
-## Backend Requirements
+---
 
-Backend должен реализовать GraphQL mutations/queries в `apps/server/src/graphql/`:
+## Environment Variables
 
-- `mutation signIn(email, password) -> SignInPayload`
-- `mutation signUp(email, password, name) -> SignUpPayload`
-- `mutation signOut -> Boolean`
-- `query currentUser -> User`
-- `mutation refreshToken -> RefreshTokenPayload`
-- `mutation forgotPassword(email) -> Boolean`
-- `mutation resetPassword(token, newPassword) -> Boolean`
+### WASM (Browser)
 
-См. полную документацию: `/docs/UI/GRAPHQL_ARCHITECTURE.md`
+**`window.location.origin`** — используется как API base URL (auto-detected)
+
+### SSR (Server)
+
+**`RUSTOK_API_URL`** — API base URL (default: `http://localhost:5150`)
+
+**Example:**
+```bash
+RUSTOK_API_URL=http://localhost:5150
+```
+
+---
+
+## Testing
+
+Run tests:
+```bash
+cargo test -p leptos-auth
+```
+
+---
 
 ## Dependencies
 
-```toml
-[dependencies]
-leptos = { workspace = true }
-leptos_router = { workspace = true }
-leptos-graphql = { path = "../leptos-graphql" }  # ← GraphQL transport layer
-serde = { workspace = true, features = ["derive"] }
-serde_json = { workspace = true }
-gloo-storage = { workspace = true }
-thiserror = { workspace = true }
+- `leptos` — reactive framework
+- `leptos_router` — routing
+- `leptos-graphql` — GraphQL transport (for `me` query only)
+- `serde`, `serde_json` — serialization
+- `gloo-storage` — LocalStorage wrapper
+- `web-sys` — WASM fetch API
+- `wasm-bindgen`, `wasm-bindgen-futures` — WASM bindings
+
+---
+
+## Implementation Notes
+
+### Why REST + GraphQL?
+
+**REST API** (`/api/auth/*`):
+- ✅ Login, Register, Logout, Refresh token
+- ✅ JWT auth flow
+- ✅ Industry standard
+
+**GraphQL API** (`/api/graphql`):
+- ✅ Data queries (`me`, `users`, `posts`, etc.)
+- ✅ Mutations (CRUD operations)
+- ✅ Efficient data fetching
+
+**This is a common pattern:**
+- Auth operations → REST (OAuth, JWT standards)
+- Data operations → GraphQL (flexibility, efficiency)
+
+---
+
+## Migration from GraphQL Auth
+
+**Old approach (deprecated):**
+```rust
+// ❌ GraphQL mutations (not implemented on server)
+signIn(email, password) -> SignInPayload
+signUp(email, password, name) -> SignUpPayload
+signOut -> Boolean
 ```
 
-**Note:** Использует `leptos-graphql` для всех GraphQL запросов вместо прямого `reqwest`.
+**New approach (current):**
+```rust
+// ✅ REST endpoints (working)
+POST /api/auth/login
+POST /api/auth/register
+POST /api/auth/logout
+POST /api/auth/refresh
+```
 
-## Best Practices
+**If you see GraphQL mutation errors**, update to latest `leptos-auth` which uses REST API.
 
-1. **Всегда используйте константы для GraphQL queries**
-   ```rust
-   const SIGN_IN_MUTATION: &str = r#"..."#;
-   ```
+---
 
-2. **Типизируйте ответы**
-   ```rust
-   #[derive(Deserialize)]
-   struct SignInData { sign_in: SignInPayload }
-   ```
+## Troubleshooting
 
-3. **Обрабатывайте ошибки**
-   ```rust
-   match api::sign_in(...).await {
-       Ok(_) => { /* success */ },
-       Err(AuthError::InvalidCredentials) => { /* show error */ },
-       Err(_) => { /* network error */ },
-   }
-   ```
+### "Network error" on login
 
-4. **Используйте hooks для реактивности**
-   ```rust
-   let user = use_current_user();
-   view! { <p>{move || user.get().map(|u| u.email)}</p> }
-   ```
+**Check:**
+1. API is running: `curl http://localhost:5150/api/health`
+2. CORS headers are set
+3. Tenant header is correct: `X-Tenant-Slug: demo`
 
-## Documentation
+### "Unauthorized" error
 
-- Локальная: `./docs/` (пока нет)
-- Общая: `/docs/UI/GRAPHQL_ARCHITECTURE.md`
-- Backend GraphQL schema: `/apps/server/src/graphql/`
+**Check:**
+1. Credentials are correct
+2. Token is not expired
+3. Token is in `Authorization: Bearer <token>` header
 
-## Паспорт компонента
+### "User not found" after login
 
-- **Роль:** Authentication library для Leptos apps (GraphQL-only)
-- **Ответственность:** Auth state management, GraphQL auth operations, LocalStorage
-- **Взаимодействует с:**
-  - `leptos-graphql` (transport)
-  - `apps/server` (GraphQL backend)
-  - `apps/admin` (consumer)
-  - `apps/storefront` (consumer)
-- **Точки входа:** `src/lib.rs`
-- **Документация:** `/docs/UI/GRAPHQL_ARCHITECTURE.md`
+**Check:**
+1. Seed data created: `admin@local` / `admin12345`
+2. Tenant exists: `demo`
+3. GraphQL `me` query works: `curl -X POST http://localhost:5150/api/graphql -H "Authorization: Bearer <token>" -d '{"query":"query{me{id email}}"}'`
+
+---
+
+## Roadmap
+
+- [x] REST API client (`sign_in`, `sign_up`, `sign_out`)
+- [x] Auth context & hooks
+- [x] Protected routes
+- [x] LocalStorage persistence
+- [ ] Token refresh on expiry (auto-retry)
+- [ ] Password reset flow
+- [ ] Email verification flow
+- [ ] 2FA support
+- [ ] SSR support (server-side auth)
+
+---
 
 ## Status
 
-✅ **Реализовано** (GraphQL-only)
+✅ **Ready to use**
 
-**Требуется на backend:**
-- ⬜ Implement `mutation signIn`
-- ⬜ Implement `mutation signUp`
-- ⬜ Implement `mutation signOut`
-- ⬜ Implement `query currentUser`
-- ⬜ Implement `mutation refreshToken`
-- ⬜ Implement `mutation forgotPassword`
-- ⬜ Implement `mutation resetPassword`
+**Last updated:** 2026-02-13  
+**Version:** 0.1.0
