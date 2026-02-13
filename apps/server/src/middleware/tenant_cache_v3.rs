@@ -309,7 +309,12 @@ pub async fn resolve_v3(
 }
 
 /// Get cache statistics endpoint helper
-pub async fn tenant_cache_v3_stats(ctx: &AppContext) -> Option<(TenantCacheV3Stats, rustok_core::resilience::CircuitBreakerStats)> {
+pub async fn tenant_cache_v3_stats(
+    ctx: &AppContext,
+) -> Option<(
+    TenantCacheV3Stats,
+    rustok_core::resilience::CircuitBreakerStats,
+)> {
     let cache = tenant_cache_v3(ctx)?;
     let cache_stats = cache.cache_stats();
     let circuit_stats = cache.circuit_stats().await;
@@ -319,10 +324,10 @@ pub async fn tenant_cache_v3_stats(ctx: &AppContext) -> Option<(TenantCacheV3Sta
 #[cfg(test)]
 mod tests {
     use super::*;
-    
+
     // Note: Tests require database setup
     // These are templates for integration tests
-    
+
     #[tokio::test]
     #[ignore]
     async fn test_circuit_breaker_opens_on_db_failures() {
@@ -330,7 +335,7 @@ mod tests {
         // Simulate database failures
         // Assert circuit opens
     }
-    
+
     #[tokio::test]
     #[ignore]
     async fn test_circuit_breaker_fail_fast() {

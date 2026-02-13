@@ -29,46 +29,46 @@ pub enum ReleaseStatus {
 pub struct Model {
     #[sea_orm(primary_key)]
     pub id: String,
-    
+
     /// Release status
     pub status: ReleaseStatus,
-    
+
     /// Associated build ID
     pub build_id: Uuid,
-    
+
     /// Environment (prod, staging, etc.)
     pub environment: String,
-    
+
     /// Container image URL
     pub container_image: Option<String>,
-    
+
     /// Server binary artifact URL
     pub server_artifact_url: Option<String>,
-    
+
     /// Admin UI artifact URL
     pub admin_artifact_url: Option<String>,
-    
+
     /// Storefront artifact URL
     pub storefront_artifact_url: Option<String>,
-    
+
     /// Manifest hash (for verification)
     pub manifest_hash: String,
-    
+
     /// List of modules in this release
     pub modules: Json,
-    
+
     /// Previous release ID (for rollback chain)
     pub previous_release_id: Option<String>,
-    
+
     /// Deployed at
     pub deployed_at: Option<DateTime<Utc>>,
-    
+
     /// Rolled back at
     pub rolled_back_at: Option<DateTime<Utc>>,
-    
+
     /// Created at
     pub created_at: DateTime<Utc>,
-    
+
     /// Updated at
     pub updated_at: DateTime<Utc>,
 }
@@ -94,7 +94,7 @@ impl Model {
             now.second()
         )
     }
-    
+
     /// Create a new release
     pub fn new(
         build_id: Uuid,
@@ -120,14 +120,14 @@ impl Model {
             updated_at: Utc::now(),
         }
     }
-    
+
     /// Mark as deployed
     pub fn mark_deployed(&mut self) {
         self.status = ReleaseStatus::Active;
         self.deployed_at = Some(Utc::now());
         self.updated_at = Utc::now();
     }
-    
+
     /// Mark as rolled back
     pub fn mark_rolled_back(&mut self) {
         self.status = ReleaseStatus::RolledBack;

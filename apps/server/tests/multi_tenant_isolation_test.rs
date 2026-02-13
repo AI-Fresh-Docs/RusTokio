@@ -14,13 +14,13 @@ async fn test_tenant_isolation_for_content() {
     let db = setup_test_db().await;
     let event_bus = mock_event_bus();
     let service = NodeService::new(db.clone(), event_bus);
-    
+
     // Create nodes for two different tenants
     let tenant1_id = Uuid::new_v4();
     let tenant2_id = Uuid::new_v4();
     let user_id = Uuid::new_v4();
     let security = SecurityContext::new(rustok_core::UserRole::Admin, Some(user_id));
-    
+
     // Create node for tenant 1
     let input1 = CreateNodeInput {
         kind: "post".to_string(),
@@ -44,12 +44,12 @@ async fn test_tenant_isolation_for_content() {
         reply_count: None,
         metadata: serde_json::json!({}),
     };
-    
+
     let node1 = service
         .create_node(tenant1_id, security.clone(), input1)
         .await
         .unwrap();
-    
+
     // Create node for tenant 2
     let input2 = CreateNodeInput {
         kind: "post".to_string(),
@@ -73,15 +73,15 @@ async fn test_tenant_isolation_for_content() {
         reply_count: None,
         metadata: serde_json::json!({}),
     };
-    
+
     let node2 = service
         .create_node(tenant2_id, security, input2)
         .await
         .unwrap();
-    
+
     // Verify that tenant 1 cannot access tenant 2's content
     use rustok_content::dto::ListNodesFilter;
-    
+
     let filter = ListNodesFilter {
         kind: None,
         status: None,
@@ -92,33 +92,33 @@ async fn test_tenant_isolation_for_content() {
         page: Some(1),
         per_page: Some(10),
     };
-    
+
     let (nodes_for_tenant1, total1) = service
         .list_nodes(tenant1_id, security.clone(), filter.clone())
         .await
         .unwrap();
-    
+
     let (nodes_for_tenant2, total2) = service
         .list_nodes(tenant2_id, security, filter)
         .await
         .unwrap();
-    
+
     // Each tenant should only see their own content
     assert_eq!(total1, 1, "Tenant 1 should only see 1 node");
     assert_eq!(total2, 1, "Tenant 2 should only see 1 node");
-    
+
     assert_eq!(nodes_for_tenant1.len(), 1);
     assert_eq!(nodes_for_tenant2.len(), 1);
-    
+
     assert_eq!(nodes_for_tenant1[0].id, node1.id);
     assert_eq!(nodes_for_tenant2[0].id, node2.id);
-    
+
     // Verify that the content is different
     assert_ne!(
         nodes_for_tenant1[0].translations[0].title,
         nodes_for_tenant2[0].translations[0].title
     );
-    
+
     println!("✅ Tenant isolation for content verified");
 }
 
@@ -128,13 +128,13 @@ async fn test_tenant_isolation_for_node_access() {
     let db = setup_test_db().await;
     let event_bus = mock_event_bus();
     let service = NodeService::new(db.clone(), event_bus);
-    
+
     // Create nodes for two different tenants
     let tenant1_id = Uuid::new_v4();
     let tenant2_id = Uuid::new_v4();
     let user_id = Uuid::new_v4();
     let security = SecurityContext::new(rustok_core::UserRole::Admin, Some(user_id));
-    
+
     // Create node for tenant 1
     let input1 = CreateNodeInput {
         kind: "post".to_string(),
@@ -158,16 +158,16 @@ async fn test_tenant_isolation_for_node_access() {
         reply_count: None,
         metadata: serde_json::json!({}),
     };
-    
+
     let node1 = service
         .create_node(tenant1_id, security.clone(), input1)
         .await
         .unwrap();
-    
+
     // Try to access tenant 1's node using tenant 2's context
     // This should fail or return not found
     let result = service.get_node(node1.id).await;
-    
+
     // The node should exist (we can access it directly by ID)
     // But in a real multi-tenant system, we would verify tenant isolation
     // through the tenant context
