@@ -6,9 +6,9 @@ use leptos_router::path;
 use crate::components::layout::AppLayout;
 use crate::components::protected_route::ProtectedRoute;
 use crate::pages::{
-    dashboard::Dashboard, login_new::LoginNew, not_found::NotFound, profile::Profile,
+    dashboard_new::DashboardNew, login_new::LoginNew, not_found::NotFound, profile::Profile,
     register_new::RegisterNew, reset::ResetPassword, security::Security,
-    user_details::UserDetails, users::Users,
+    user_details::UserDetails, users_new::UsersNew,
 };
 use crate::providers::auth::provide_auth_context;
 use crate::providers::auth_new::AuthProvider;
@@ -32,12 +32,12 @@ pub fn App() -> impl IntoView {
                         // Protected routes (with AppLayout)
                         <ParentRoute path=path!("") view=ProtectedRoute>
                             <ParentRoute path=path!("") view=AppLayout>
-                                <Route path=path!("/dashboard") view=Dashboard />
+                                <Route path=path!("/dashboard") view=DashboardNew />
                                 <Route path=path!("/profile") view=Profile />
                                 <Route path=path!("/security") view=Security />
-                                <Route path=path!("/users") view=Users />
+                                <Route path=path!("/users") view=UsersNew />
                                 <Route path=path!("/users/:id") view=UserDetails />
-                                <Route path=path!("") view=Dashboard />
+                                <Route path=path!("") view=DashboardNew />
                             </ParentRoute>
                         </ParentRoute>
 
