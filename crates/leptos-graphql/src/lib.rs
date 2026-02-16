@@ -1,5 +1,9 @@
+pub mod hooks;
+
 use serde::{de::DeserializeOwned, Deserialize, Serialize};
 use serde_json::Value;
+
+pub use hooks::{use_lazy_query, use_mutation, use_query, MutationResult, QueryResult};
 
 pub const GRAPHQL_ENDPOINT: &str = "/api/graphql";
 pub const TENANT_HEADER: &str = "X-Tenant-Slug";
