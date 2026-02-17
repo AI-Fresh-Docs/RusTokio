@@ -160,10 +160,10 @@ pub fn random_string(len: usize) -> String {
     use rand::Rng;
     const CHARSET: &[u8] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
 
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
     (0..len)
         .map(|_| {
-            let idx = rng.gen_range(0..CHARSET.len());
+            let idx = rng.random_range(0..CHARSET.len());
             CHARSET[idx] as char
         })
         .collect()
@@ -222,7 +222,7 @@ pub fn now_seconds() -> u64 {
 }
 
 /// Chunk a vector into smaller vectors of specified size
-pub fn chunk<T>(input: Vec<T>, size: usize) -> Vec<Vec<T>> {
+pub fn chunk<T: Clone>(input: Vec<T>, size: usize) -> Vec<Vec<T>> {
     input
         .chunks(size.max(1))
         .map(|chunk| chunk.to_vec())
@@ -352,7 +352,9 @@ pub fn capitalize(input: &str) -> String {
     let mut chars = input.chars();
     match chars.next() {
         None => String::new(),
-        Some(first) => first.to_uppercase().collect::<String>() + &chars.as_str().to_lowercase(),
+        Some(first) => {
+            first.to_uppercase().collect::<String>() + chars.as_str().to_lowercase().as_str()
+        }
     }
 }
 
