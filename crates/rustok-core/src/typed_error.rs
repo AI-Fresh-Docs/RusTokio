@@ -230,6 +230,16 @@ impl ErrorCode {
     }
 }
 
+impl fmt::Display for ErrorCode {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let code = serde_json::to_value(self)
+            .ok()
+            .and_then(|v| v.as_str().map(ToOwned::to_owned))
+            .unwrap_or_else(|| format!("{:?}", self));
+        write!(f, "{code}")
+    }
+}
+
 /// Error category for grouping
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ErrorCategory {
@@ -255,7 +265,7 @@ impl fmt::Display for ErrorCategory {
 }
 
 /// Structured error with context
-#[derive(Debug, Clone, Error)]
+#[derive(Debug, Error)]
 #[error("{code}: {message}")]
 pub struct DomainError {
     /// Error code

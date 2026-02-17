@@ -1,3 +1,4 @@
+use std::sync::Arc;
 use std::time::Duration;
 
 use async_trait::async_trait;
@@ -126,7 +127,7 @@ impl CacheBackend for RedisCacheBackend {
                     .await
                     .map_err(|err| crate::Error::Cache(err.to_string()))?;
                 if pong == "PONG" {
-                    Ok(())
+                    Ok::<(), crate::Error>(())
                 } else {
                     Err(crate::Error::Cache(format!(
                         "unexpected Redis PING response: {pong}"
@@ -154,7 +155,7 @@ impl CacheBackend for RedisCacheBackend {
                     .query_async(&mut manager)
                     .await
                     .map_err(|err| crate::Error::Cache(err.to_string()))?;
-                Ok(value)
+                Ok::<Option<Vec<u8>>, crate::Error>(value)
             })
             .await
             .map_err(|e| match e {
@@ -182,7 +183,7 @@ impl CacheBackend for RedisCacheBackend {
                     .arg(value)
                     .arg("EX")
                     .arg(ttl_secs)
-                    .query_async::<()>(&mut manager)
+                    .query_async::<_, ()>(&mut manager)
                     .await
                     .map_err(|err| crate::Error::Cache(err.to_string()))?;
                 Ok::<(), crate::Error>(())
@@ -205,7 +206,7 @@ impl CacheBackend for RedisCacheBackend {
             .call(async move {
                 redis::cmd("DEL")
                     .arg(redis_key)
-                    .query_async::<()>(&mut manager)
+                    .query_async::<_, ()>(&mut manager)
                     .await
                     .map_err(|err| crate::Error::Cache(err.to_string()))?;
                 Ok::<(), crate::Error>(())

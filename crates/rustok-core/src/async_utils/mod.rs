@@ -33,11 +33,9 @@
 //! ```
 
 use std::future::Future;
-use std::pin::Pin;
 use std::time::Duration;
 
 use futures::stream::{FuturesUnordered, StreamExt};
-use rand::Rng;
 
 /// Run futures in parallel with a limit on concurrent execution
 pub async fn parallel<T, F, Fut, E>(
@@ -71,6 +69,7 @@ where
 /// Process items in batches with rate limiting
 pub async fn batch<T, R, F, Fut>(items: Vec<T>, batch_size: usize, delay: Duration, f: F) -> Vec<R>
 where
+    T: Clone,
     F: Fn(Vec<T>) -> Fut,
     Fut: Future<Output = Vec<R>>,
 {

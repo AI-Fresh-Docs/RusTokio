@@ -24,7 +24,6 @@
 use std::collections::HashMap;
 use std::env;
 use std::fmt;
-use std::path::Path;
 
 /// Configuration source
 #[derive(Debug, Clone)]
@@ -295,11 +294,14 @@ fn parse_yaml(content: &str) -> Result<HashMap<String, String>, ConfigError> {
 
 /// Parse TOML content
 fn parse_toml(content: &str) -> Result<HashMap<String, String>, ConfigError> {
-    let value: toml::Value = content.parse().map_err(|e| ConfigError::ParseError {
-        source: "TOML".to_string(),
-        format: ConfigFormat::Toml,
-        message: e.to_string(),
-    })?;
+    let value: toml::Value =
+        content
+            .parse()
+            .map_err(|e: toml::de::Error| ConfigError::ParseError {
+                source: "TOML".to_string(),
+                format: ConfigFormat::Toml,
+                message: e.to_string(),
+            })?;
 
     flatten_toml(&value, "")
 }
@@ -471,9 +473,10 @@ impl ConfigValue {
 
     /// Get the value as an integer
     pub fn as_i64(self) -> Result<i64, ConfigError> {
+        let key = self.key.clone();
         let s = self.as_string()?;
         s.parse::<i64>().map_err(|e| ConfigError::InvalidValue {
-            key: self.key.clone(),
+            key,
             value: s,
             reason: e.to_string(),
         })
@@ -481,12 +484,13 @@ impl ConfigValue {
 
     /// Get the value as a boolean
     pub fn as_bool(self) -> Result<bool, ConfigError> {
+        let key = self.key.clone();
         let s = self.as_string()?;
         match s.to_lowercase().as_str() {
             "true" | "yes" | "1" | "on" => Ok(true),
             "false" | "no" | "0" | "off" => Ok(false),
             _ => Err(ConfigError::InvalidValue {
-                key: self.key.clone(),
+                key,
                 value: s,
                 reason: "Expected boolean (true/false)".to_string(),
             }),

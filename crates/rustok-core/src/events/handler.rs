@@ -181,7 +181,7 @@ impl EventDispatcher {
             for handler in matching_handlers {
                 let envelope = envelope.clone();
                 let event_type = envelope.event.event_type().to_string();
-                if let Err(error) = Self::handle_with_retry(handler, envelope, config).await {
+                if let Err(error) = Self::handle_with_retry(handler, envelope, &config).await {
                     error!(
                         event_type = event_type.as_str(),
                         error = %error,
@@ -302,7 +302,7 @@ impl RunningDispatcher {
 pub struct HandlerBuilder<F, Fut, P>
 where
     F: Fn(EventEnvelope) -> Fut + Send + Sync + 'static,
-    Fut: std::future::Future<Output = HandlerResult> + Send + 'static,
+    Fut: std::future::Future<Output = HandlerResult> + Send + Sync + 'static,
     P: Fn(&DomainEvent) -> bool + Send + Sync + 'static,
 {
     name: &'static str,
@@ -314,7 +314,7 @@ where
 impl<F, Fut, P> HandlerBuilder<F, Fut, P>
 where
     F: Fn(EventEnvelope) -> Fut + Send + Sync + 'static,
-    Fut: std::future::Future<Output = HandlerResult> + Send + 'static,
+    Fut: std::future::Future<Output = HandlerResult> + Send + Sync + 'static,
     P: Fn(&DomainEvent) -> bool + Send + Sync + 'static,
 {
     pub fn new(name: &'static str, predicate: P, handler: F) -> Self {
@@ -331,7 +331,7 @@ where
 impl<F, Fut, P> EventHandler for HandlerBuilder<F, Fut, P>
 where
     F: Fn(EventEnvelope) -> Fut + Send + Sync + 'static,
-    Fut: std::future::Future<Output = HandlerResult> + Send + 'static,
+    Fut: std::future::Future<Output = HandlerResult> + Send + Sync + 'static,
     P: Fn(&DomainEvent) -> bool + Send + Sync + 'static,
 {
     fn name(&self) -> &'static str {
