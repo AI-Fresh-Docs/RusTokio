@@ -118,8 +118,10 @@ graph TD
 - [Forum module docs](../crates/rustok-forum/docs/README.md)
 - [Pages module docs](../crates/rustok-pages/docs/README.md)
 - [Index module docs](../crates/rustok-index/docs/README.md)
+- [MCP integration crate docs](../crates/rustok-mcp/docs/README.md)
 - [Tenant module docs](../crates/rustok-tenant/docs/README.md)
 - [RBAC module docs](../crates/rustok-rbac/docs/README.md)
+- [Iggy connector crate docs](../crates/rustok-iggy-connector/docs/README.md)
 - [Telemetry docs](../crates/rustok-telemetry/docs/README.md)
 - [MCP module docs](../crates/rustok-mcp/docs/README.md)
 

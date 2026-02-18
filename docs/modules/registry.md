@@ -74,7 +74,9 @@ graph TD
 |------|------|-------------|
 | `crates/rustok-core` | **Core** | Shared traits, base entities, and common utilities. |
 | `crates/rustok-outbox` | **Outbox** | Implementation of the Transactional Outbox pattern. |
-| `crates/rustok-iggy` | **Iggy Connector** | Message bus integration with Iggy.rs. |
+| `crates/rustok-iggy` | **Iggy Runtime** | Message bus integration runtime for Iggy.rs. |
+| `crates/rustok-iggy-connector` | **Iggy Connector** | Connector and wiring layer for Iggy transport. |
+| `crates/rustok-mcp` | **MCP Toolkit** | Shared MCP integration primitives used by `apps/mcp`. |
 | `crates/rustok-telemetry` | **Telemetry** | Observability setup (OTLP, Tracing, Metrics). |
 | `crates/rustok-tenant` | **Tenant** | Multi-tenancy isolation and management logic. |
 | `crates/rustok-rbac` | **RBAC** | Role-based access control engine. |
@@ -99,7 +101,13 @@ graph TD
 |------|------|-------------|
 | `crates/leptos-ui` | **Leptos UI** | Shared UI component library for Leptos apps. |
 | `crates/leptos-auth` | **Leptos Auth** | Authentication hooks and components for Leptos. |
+| `crates/leptos-forms` | **Leptos Forms** | Form abstractions for Leptos applications. |
 | `crates/leptos-graphql` | **Leptos GraphQL** | GraphQL client integration for Leptos. |
+| `crates/leptos-hook-form` | **Leptos Hook Form** | Hook-form style bindings for Leptos. |
+| `crates/leptos-shadcn-pagination` | **Leptos Pagination** | Pagination components compatible with shadcn design. |
+| `crates/leptos-table` | **Leptos Table** | Data table primitives for Leptos UIs. |
+| `crates/leptos-zod` | **Leptos Zod** | Zod-like validation helpers for Leptos projects. |
+| `crates/leptos-zustand` | **Leptos Zustand** | Lightweight state management utilities for Leptos. |
 | `crates/utoipa-swagger-ui-vendored` | **Swagger** | Vendored UI for API documentation. |
 
 ## Maintenance Rule
