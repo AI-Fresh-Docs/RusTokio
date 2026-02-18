@@ -4,13 +4,20 @@ use sea_orm_migration::MigrationTrait;
 use rustok_core::module::{MigrationSource, RusToKModule};
 use rustok_core::registry::ModuleRegistry;
 use rustok_mcp::tools::{
-    list_modules, module_details, module_exists, McpState, McpToolResponse,
-    ModuleLookupRequest,
+    list_modules, list_modules_filtered, module_details, module_exists, McpState,
+    McpToolResponse, ModuleLookupRequest, ModuleQueryRequest,
 };
 
 struct DemoModule;
+struct ExtraModule;
 
 impl MigrationSource for DemoModule {
+    fn migrations(&self) -> Vec<Box<dyn MigrationTrait>> {
+        Vec::new()
+    }
+}
+
+impl MigrationSource for ExtraModule {
     fn migrations(&self) -> Vec<Box<dyn MigrationTrait>> {
         Vec::new()
     }
@@ -36,6 +43,29 @@ impl RusToKModule for DemoModule {
 
     fn dependencies(&self) -> &[&'static str] {
         &["core"]
+    }
+}
+
+#[async_trait]
+impl RusToKModule for ExtraModule {
+    fn slug(&self) -> &'static str {
+        "extra"
+    }
+
+    fn name(&self) -> &'static str {
+        "Extra"
+    }
+
+    fn description(&self) -> &'static str {
+        "Extra module"
+    }
+
+    fn version(&self) -> &'static str {
+        "0.2.0"
+    }
+
+    fn dependencies(&self) -> &[&'static str] {
+        &[]
     }
 }
 
@@ -128,4 +158,44 @@ fn tool_response_error_sets_error_payload() {
     let error = response.error.expect("error payload");
     assert_eq!(error.code, "invalid");
     assert_eq!(error.message, "Bad request");
+}
+
+#[tokio::test]
+async fn list_modules_filtered_applies_filters_and_pagination() {
+    let registry = ModuleRegistry::new().register(DemoModule).register(ExtraModule);
+    let state = Box::leak(Box::new(McpState { registry }));
+
+    let response = list_modules_filtered(
+        state,
+        ModuleQueryRequest {
+            slug_prefix: Some("d".to_string()),
+            dependency: Some("core".to_string()),
+            limit: Some(1),
+            offset: Some(0),
+        },
+    )
+    .await;
+
+    assert_eq!(response.modules.len(), 1);
+    assert_eq!(response.modules[0].slug, "demo");
+}
+
+#[tokio::test]
+async fn list_modules_filtered_paginates_results() {
+    let registry = ModuleRegistry::new().register(DemoModule).register(ExtraModule);
+    let state = Box::leak(Box::new(McpState { registry }));
+
+    let response = list_modules_filtered(
+        state,
+        ModuleQueryRequest {
+            slug_prefix: None,
+            dependency: None,
+            limit: Some(1),
+            offset: Some(1),
+        },
+    )
+    .await;
+
+    assert_eq!(response.modules.len(), 1);
+    assert_eq!(response.modules[0].slug, "extra");
 }

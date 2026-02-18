@@ -4,8 +4,19 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
 pub const TOOL_LIST_MODULES: &str = "list_modules";
+pub const TOOL_QUERY_MODULES: &str = "query_modules";
 pub const TOOL_MODULE_EXISTS: &str = "module_exists";
 pub const TOOL_MODULE_DETAILS: &str = "module_details";
+pub const TOOL_CONTENT_MODULE: &str = "content_module";
+pub const TOOL_BLOG_MODULE: &str = "blog_module";
+pub const TOOL_FORUM_MODULE: &str = "forum_module";
+pub const TOOL_PAGES_MODULE: &str = "pages_module";
+pub const TOOL_MCP_HEALTH: &str = "mcp_health";
+
+pub const MODULE_CONTENT: &str = "content";
+pub const MODULE_BLOG: &str = "blog";
+pub const MODULE_FORUM: &str = "forum";
+pub const MODULE_PAGES: &str = "pages";
 
 /// State for MCP tools
 #[derive(Clone)]
@@ -40,6 +51,19 @@ pub struct ModuleListResponse {
 pub struct ModuleLookupRequest {
     /// The slug of the module to look up
     pub slug: String,
+}
+
+/// Request to filter and page through modules
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+pub struct ModuleQueryRequest {
+    /// Optional slug prefix filter
+    pub slug_prefix: Option<String>,
+    /// Optional dependency filter
+    pub dependency: Option<String>,
+    /// Max number of items to return
+    pub limit: Option<usize>,
+    /// Offset into the module list
+    pub offset: Option<usize>,
 }
 
 /// Response indicating whether a module exists
@@ -78,6 +102,19 @@ pub struct McpToolError {
     pub code: String,
     /// Human-readable error message
     pub message: String,
+}
+
+/// Health response for MCP readiness checks
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+pub struct McpHealthResponse {
+    /// Readiness status
+    pub status: String,
+    /// MCP protocol version
+    pub protocol_version: String,
+    /// Number of registered tools
+    pub tool_count: usize,
+    /// List of enabled tools (when configured)
+    pub enabled_tools: Option<Vec<String>>,
 }
 
 impl<T> McpToolResponse<T> {
@@ -127,6 +164,38 @@ pub async fn list_modules(state: &McpState) -> ModuleListResponse {
     ModuleListResponse { modules }
 }
 
+/// List registered modules with filtering and pagination
+pub async fn list_modules_filtered(
+    state: &McpState,
+    request: ModuleQueryRequest,
+) -> ModuleListResponse {
+    let modules = state.registry.list();
+    let filtered = modules.into_iter().filter(|module| {
+        let slug = module.slug();
+        if let Some(prefix) = request.slug_prefix.as_deref() {
+            if !slug.starts_with(prefix) {
+                return false;
+            }
+        }
+        if let Some(dependency) = request.dependency.as_deref() {
+            if !module.dependencies().iter().any(|dep| dep == &dependency) {
+                return false;
+            }
+        }
+        true
+    });
+
+    let offset = request.offset.unwrap_or(0);
+    let limit = request.limit.unwrap_or(usize::MAX);
+    let modules = filtered
+        .skip(offset)
+        .take(limit)
+        .map(to_module_info)
+        .collect();
+
+    ModuleListResponse { modules }
+}
+
 /// Check if a module exists by slug
 pub async fn module_exists(state: &McpState, request: ModuleLookupRequest) -> ModuleLookupResponse {
     let exists = state.registry.contains(&request.slug);
@@ -142,13 +211,15 @@ pub async fn module_details(
     state: &McpState,
     request: ModuleLookupRequest,
 ) -> ModuleDetailsResponse {
-    let module = state
-        .registry
-        .get(&request.slug)
-        .map(to_module_info);
+    module_details_by_slug(state, &request.slug)
+}
+
+/// Fetch module details by slug string
+pub fn module_details_by_slug(state: &McpState, slug: &str) -> ModuleDetailsResponse {
+    let module = state.registry.get(slug).map(to_module_info);
 
     ModuleDetailsResponse {
-        slug: request.slug,
+        slug: slug.to_string(),
         module,
     }
 }
