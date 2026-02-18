@@ -93,10 +93,9 @@ RusToK — модульный монолит: модули компилирую�
 ## 7. Связанные документы
 
 ### Основная документация
-- `docs/modules/MODULE_MATRIX.md` — сводная матрица модулей.
-- `docs/modules/module-registry.md` — lifecycle/toggle/guards.
-- `docs/modules/module-manifest.md` — manifest/rebuild-подход.
-- `docs/modules/module-rebuild-plan.md` — roadmap по install/uninstall через rebuild.
+- `docs/modules/registry.md` — актуальный реестр приложений и crate'ов.
+- `docs/modules/manifest.md` — манифест и правила описания модулей.
+- `docs/modules/_index.md` — индекс модульной документации.
 
 ### Установка модулей с UI
 - `docs/modules/UI_PACKAGES_INDEX.md` — **NEW** Индекс документации по UI пакетам модулей (навигация)
@@ -112,5 +111,5 @@ RusToK — модульный монолит: модули компилирую�
 
 При добавлении/удалении модульных crate'ов или их регистрации в сервере:
 1. Обновить `apps/server/src/modules/mod.rs` (если меняется runtime-регистрация).
-2. Обновить `docs/modules/modules.md` и `docs/modules/MODULE_MATRIX.md`.
-3. Проверить consistency с `docs/modules/module-registry.md`.
+2. Обновить `docs/modules/overview.md`, `docs/modules/registry.md` и `docs/modules/_index.md`.
+3. Проверить consistency с `docs/index.md`.
