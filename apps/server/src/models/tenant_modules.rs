@@ -2,8 +2,7 @@ use sea_orm::prelude::*;
 
 use rustok_core::generate_id;
 
-use super::_entities::tenant_modules::{self, Model};
-pub use super::_entities::tenant_modules::{ActiveModel, Entity};
+use super::_entities::tenant_modules::{self, ActiveModel, Entity, Model};
 
 impl ActiveModel {
     pub fn enable(tenant_id: Uuid, module_slug: &str) -> Self {
@@ -73,4 +72,13 @@ impl Entity {
             }
         }
     }
+}
+
+pub async fn toggle(
+    db: &DatabaseConnection,
+    tenant_id: Uuid,
+    module_slug: &str,
+    enabled: bool,
+) -> Result<Model, DbErr> {
+    Entity::toggle(db, tenant_id, module_slug, enabled).await
 }

@@ -52,8 +52,7 @@ impl PasswordResetEmailSender for EmailService {
             Self::Disabled => {
                 tracing::info!(
                     recipient = %email.to,
-                    reset_url = %email.reset_url,
-                    "Password reset email provider disabled; reset link emitted to logs"
+                    "Password reset email provider disabled; skipping outbound send"
                 );
                 Ok(())
             }

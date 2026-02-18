@@ -3,9 +3,8 @@ use sea_orm::EntityTrait;
 
 use rustok_core::generate_id;
 
-pub use super::_entities::tenants::ActiveModel;
 pub use super::_entities::tenants::Entity;
-use super::_entities::tenants::{self, Model};
+use super::_entities::tenants::{self, ActiveModel, Model};
 
 impl Model {
     pub fn is_enabled(&self) -> bool {

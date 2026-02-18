@@ -8,7 +8,9 @@ use sea_orm::{ActiveModelTrait, ActiveValue::Set};
 use std::path::Path;
 
 use crate::auth::hash_password;
-use crate::models::{tenant_modules, tenants, users};
+use crate::models::{tenants, users};
+
+const DEFAULT_DEV_SEED_PASSWORD: &str = "dev-password-123";
 
 /// Seed the database with initial data
 pub async fn seed(ctx: &AppContext, path: &Path) -> Result<()> {
@@ -40,7 +42,8 @@ async fn seed_development(ctx: &AppContext) -> Result<()> {
     let demo_tenant = match tenants::Entity::find_by_slug(&ctx.db, "demo").await? {
         Some(existing) => existing,
         None => {
-            let mut tenant = tenants::ActiveModel::new("Demo Tenant", "demo");
+            let mut tenant =
+                crate::models::_entities::tenants::ActiveModel::new("Demo Tenant", "demo");
             tenant.domain = Set(Some("demo.localhost".to_string()));
             tenant.insert(&ctx.db).await?
         }
@@ -65,7 +68,7 @@ async fn seed_development(ctx: &AppContext) -> Result<()> {
     .await?;
 
     for module in ["content", "commerce", "pages", "blog", "forum", "index"] {
-        tenant_modules::Entity::toggle(&ctx.db, demo_tenant.id, module, true).await?;
+        crate::models::tenant_modules::toggle(&ctx.db, demo_tenant.id, module, true).await?;
     }
 
     tracing::info!(tenant_id = %demo_tenant.id, "Development seed data ensured");
@@ -87,7 +90,12 @@ async fn seed_user(
         return Ok(());
     }
 
-    let password_hash = hash_password("dev-password-123")?;
+    let seed_password = std::env::var("RUSTOK_DEV_SEED_PASSWORD")
+        .ok()
+        .filter(|value| !value.trim().is_empty())
+        .unwrap_or_else(|| DEFAULT_DEV_SEED_PASSWORD.to_string());
+
+    let password_hash = hash_password(&seed_password)?;
     let mut user = users::ActiveModel::new(tenant_id, email, &password_hash);
     user.name = Set(Some(name.to_string()));
     user.role = Set(role);
