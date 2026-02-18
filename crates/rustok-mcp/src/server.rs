@@ -1,7 +1,7 @@
+use std::collections::HashSet;
 use std::sync::Arc;
 
 use anyhow::Result;
-use rmcp::ServiceExt;
 use rmcp::{
     model::{CallToolRequestParams, CallToolResult, Implementation, ListToolsResult, ServerInfo},
     service::{RequestContext, RoleServer},
@@ -11,18 +11,37 @@ use rmcp::{
 use rustok_core::registry::ModuleRegistry;
 
 use crate::tools::{
-    list_modules, module_exists, McpState, ModuleListResponse, ModuleLookupRequest,
-    ModuleLookupResponse,
+    list_modules, list_modules_filtered, module_details, module_details_by_slug, module_exists,
+    McpHealthResponse, McpState, McpToolResponse, ModuleDetailsResponse, ModuleListResponse,
+    ModuleLookupRequest, ModuleLookupResponse, ModuleQueryRequest, MODULE_BLOG, MODULE_CONTENT,
+    MODULE_FORUM, MODULE_PAGES, TOOL_BLOG_MODULE, TOOL_CONTENT_MODULE, TOOL_FORUM_MODULE,
+    TOOL_LIST_MODULES, TOOL_MCP_HEALTH, TOOL_MODULE_DETAILS, TOOL_MODULE_EXISTS,
+    TOOL_PAGES_MODULE, TOOL_QUERY_MODULES,
 };
 
 /// Configuration for the MCP server
 pub struct McpServerConfig {
     pub registry: ModuleRegistry,
+    pub enabled_tools: Option<HashSet<String>>,
 }
 
 impl McpServerConfig {
     pub fn new(registry: ModuleRegistry) -> Self {
-        Self { registry }
+        Self {
+            registry,
+            enabled_tools: None,
+        }
+    }
+
+    pub fn with_enabled_tools<I, S>(registry: ModuleRegistry, enabled_tools: I) -> Self
+    where
+        I: IntoIterator<Item = S>,
+        S: Into<String>,
+    {
+        Self {
+            registry,
+            enabled_tools: Some(enabled_tools.into_iter().map(Into::into).collect()),
+        }
     }
 }
 
@@ -30,12 +49,21 @@ impl McpServerConfig {
 #[derive(Clone)]
 pub struct RusToKMcpServer {
     state: Arc<McpState>,
+    enabled_tools: Option<Arc<HashSet<String>>>,
 }
 
 impl RusToKMcpServer {
     pub fn new(registry: ModuleRegistry) -> Self {
         Self {
             state: Arc::new(McpState { registry }),
+            enabled_tools: None,
+        }
+    }
+
+    pub fn with_enabled_tools(registry: ModuleRegistry, enabled_tools: HashSet<String>) -> Self {
+        Self {
+            state: Arc::new(McpState { registry }),
+            enabled_tools: Some(Arc::new(enabled_tools)),
         }
     }
 
@@ -54,6 +82,74 @@ impl RusToKMcpServer {
         )
         .await
     }
+
+    /// Fetch module details by slug
+    async fn module_details_internal(&self, slug: &str) -> ModuleDetailsResponse {
+        module_details(
+            &self.state,
+            ModuleLookupRequest {
+                slug: slug.to_string(),
+            },
+        )
+        .await
+    }
+
+    /// Filter modules with pagination
+    async fn list_modules_filtered_internal(
+        &self,
+        request: ModuleQueryRequest,
+    ) -> ModuleListResponse {
+        list_modules_filtered(&self.state, request).await
+    }
+
+    /// Fetch module details by static slug
+    fn module_details_by_slug_internal(&self, slug: &str) -> ModuleDetailsResponse {
+        module_details_by_slug(&self.state, slug)
+    }
+
+    fn tool_allowed(&self, tool_name: &str) -> bool {
+        match &self.enabled_tools {
+            Some(enabled) => enabled.contains(tool_name) || tool_name == TOOL_MCP_HEALTH,
+            None => true,
+        }
+    }
+
+    fn health_response(&self, tool_count: usize) -> McpHealthResponse {
+        McpHealthResponse {
+            status: "ready".to_string(),
+            protocol_version: format!(
+                "{:?}",
+                rmcp::model::ProtocolVersion::V_2024_11_05
+            ),
+            tool_count,
+            enabled_tools: self
+                .enabled_tools
+                .as_ref()
+                .map(|tools| tools.iter().cloned().collect::<Vec<String>>()),
+        }
+    }
+
+    fn available_tool_names(&self) -> Vec<&'static str> {
+        let tools = vec![
+            TOOL_LIST_MODULES,
+            TOOL_QUERY_MODULES,
+            TOOL_MODULE_EXISTS,
+            TOOL_MODULE_DETAILS,
+            TOOL_CONTENT_MODULE,
+            TOOL_BLOG_MODULE,
+            TOOL_FORUM_MODULE,
+            TOOL_PAGES_MODULE,
+            TOOL_MCP_HEALTH,
+        ];
+
+        match &self.enabled_tools {
+            Some(enabled) => tools
+                .into_iter()
+                .filter(|name| enabled.contains(*name) || *name == TOOL_MCP_HEALTH)
+                .collect(),
+            None => tools,
+        }
+    }
 }
 
 impl ServerHandler for RusToKMcpServer {
@@ -62,20 +158,61 @@ impl ServerHandler for RusToKMcpServer {
         request: CallToolRequestParams,
         _context: RequestContext<RoleServer>,
     ) -> Result<CallToolResult, rmcp::ErrorData> {
+        tracing::info!(tool = %request.name, "MCP tool call");
+
+        if !self.tool_allowed(request.name.as_ref()) {
+            let content = serde_json::to_string(&McpToolResponse::<()>::error(
+                "tool_disabled",
+                "Tool is disabled by configuration",
+            ))
+            .map_err(|e| {
+                rmcp::ErrorData::internal_error(
+                    format!("Failed to serialize response: {}", e),
+                    None,
+                )
+            })?;
+            return Ok(CallToolResult::success(vec![rmcp::model::Content::text(
+                content,
+            )]));
+        }
+
         match request.name.as_ref() {
-            "list_modules" => {
+            TOOL_LIST_MODULES => {
                 let result = self.list_modules_internal().await;
-                let content = serde_json::to_string(&result).map_err(|e| {
-                    rmcp::ErrorData::internal_error(
-                        format!("Failed to serialize response: {}", e),
-                        None,
-                    )
-                })?;
+                let content = serde_json::to_string(&McpToolResponse::success(result)).map_err(
+                    |e| {
+                        rmcp::ErrorData::internal_error(
+                            format!("Failed to serialize response: {}", e),
+                            None,
+                        )
+                    },
+                )?;
                 Ok(CallToolResult::success(vec![rmcp::model::Content::text(
                     content,
                 )]))
             }
-            "module_exists" => {
+            TOOL_QUERY_MODULES => {
+                let args = request
+                    .arguments
+                    .ok_or_else(|| rmcp::ErrorData::invalid_params("Missing arguments", None))?;
+                let req: ModuleQueryRequest =
+                    serde_json::from_value(serde_json::Value::Object(args)).map_err(|e| {
+                        rmcp::ErrorData::invalid_params(format!("Invalid arguments: {}", e), None)
+                    })?;
+                let result = self.list_modules_filtered_internal(req).await;
+                let content = serde_json::to_string(&McpToolResponse::success(result)).map_err(
+                    |e| {
+                        rmcp::ErrorData::internal_error(
+                            format!("Failed to serialize response: {}", e),
+                            None,
+                        )
+                    },
+                )?;
+                Ok(CallToolResult::success(vec![rmcp::model::Content::text(
+                    content,
+                )]))
+            }
+            TOOL_MODULE_EXISTS => {
                 let args = request
                     .arguments
                     .ok_or_else(|| rmcp::ErrorData::invalid_params("Missing arguments", None))?;
@@ -84,12 +221,106 @@ impl ServerHandler for RusToKMcpServer {
                         rmcp::ErrorData::invalid_params(format!("Invalid arguments: {}", e), None)
                     })?;
                 let result = self.module_exists_internal(&req.slug).await;
-                let content = serde_json::to_string(&result).map_err(|e| {
-                    rmcp::ErrorData::internal_error(
-                        format!("Failed to serialize response: {}", e),
-                        None,
-                    )
-                })?;
+                let content = serde_json::to_string(&McpToolResponse::success(result)).map_err(
+                    |e| {
+                        rmcp::ErrorData::internal_error(
+                            format!("Failed to serialize response: {}", e),
+                            None,
+                        )
+                    },
+                )?;
+                Ok(CallToolResult::success(vec![rmcp::model::Content::text(
+                    content,
+                )]))
+            }
+            TOOL_MODULE_DETAILS => {
+                let args = request
+                    .arguments
+                    .ok_or_else(|| rmcp::ErrorData::invalid_params("Missing arguments", None))?;
+                let req: ModuleLookupRequest =
+                    serde_json::from_value(serde_json::Value::Object(args)).map_err(|e| {
+                        rmcp::ErrorData::invalid_params(format!("Invalid arguments: {}", e), None)
+                    })?;
+                let result = self.module_details_internal(&req.slug).await;
+                let content = serde_json::to_string(&McpToolResponse::success(result)).map_err(
+                    |e| {
+                        rmcp::ErrorData::internal_error(
+                            format!("Failed to serialize response: {}", e),
+                            None,
+                        )
+                    },
+                )?;
+                Ok(CallToolResult::success(vec![rmcp::model::Content::text(
+                    content,
+                )]))
+            }
+            TOOL_CONTENT_MODULE => {
+                let result = self.module_details_by_slug_internal(MODULE_CONTENT);
+                let content = serde_json::to_string(&McpToolResponse::success(result)).map_err(
+                    |e| {
+                        rmcp::ErrorData::internal_error(
+                            format!("Failed to serialize response: {}", e),
+                            None,
+                        )
+                    },
+                )?;
+                Ok(CallToolResult::success(vec![rmcp::model::Content::text(
+                    content,
+                )]))
+            }
+            TOOL_BLOG_MODULE => {
+                let result = self.module_details_by_slug_internal(MODULE_BLOG);
+                let content = serde_json::to_string(&McpToolResponse::success(result)).map_err(
+                    |e| {
+                        rmcp::ErrorData::internal_error(
+                            format!("Failed to serialize response: {}", e),
+                            None,
+                        )
+                    },
+                )?;
+                Ok(CallToolResult::success(vec![rmcp::model::Content::text(
+                    content,
+                )]))
+            }
+            TOOL_FORUM_MODULE => {
+                let result = self.module_details_by_slug_internal(MODULE_FORUM);
+                let content = serde_json::to_string(&McpToolResponse::success(result)).map_err(
+                    |e| {
+                        rmcp::ErrorData::internal_error(
+                            format!("Failed to serialize response: {}", e),
+                            None,
+                        )
+                    },
+                )?;
+                Ok(CallToolResult::success(vec![rmcp::model::Content::text(
+                    content,
+                )]))
+            }
+            TOOL_PAGES_MODULE => {
+                let result = self.module_details_by_slug_internal(MODULE_PAGES);
+                let content = serde_json::to_string(&McpToolResponse::success(result)).map_err(
+                    |e| {
+                        rmcp::ErrorData::internal_error(
+                            format!("Failed to serialize response: {}", e),
+                            None,
+                        )
+                    },
+                )?;
+                Ok(CallToolResult::success(vec![rmcp::model::Content::text(
+                    content,
+                )]))
+            }
+            TOOL_MCP_HEALTH => {
+                let tool_count = self.available_tool_names().len();
+                let result = self.health_response(tool_count);
+                let content = serde_json::to_string(&McpToolResponse::success(result)).map_err(
+                    |e| {
+                        rmcp::ErrorData::internal_error(
+                            format!("Failed to serialize response: {}", e),
+                            None,
+                        )
+                    },
+                )?;
                 Ok(CallToolResult::success(vec![rmcp::model::Content::text(
                     content,
                 )]))
@@ -110,11 +341,10 @@ impl ServerHandler for RusToKMcpServer {
         use rmcp::model::Tool;
         use schemars::schema_for;
 
-        let list_modules_schema =
-            match serde_json::to_value(schema_for!(crate::tools::ModuleListResponse)) {
-                Ok(serde_json::Value::Object(map)) => map,
-                _ => serde_json::Map::new(),
-            };
+        let empty_schema = match serde_json::to_value(schema_for!(())) {
+            Ok(serde_json::Value::Object(map)) => map,
+            _ => serde_json::Map::new(),
+        };
 
         let module_exists_schema =
             match serde_json::to_value(schema_for!(crate::tools::ModuleLookupRequest)) {
@@ -122,18 +352,63 @@ impl ServerHandler for RusToKMcpServer {
                 _ => serde_json::Map::new(),
             };
 
-        let tools = vec![
+        let module_query_schema =
+            match serde_json::to_value(schema_for!(crate::tools::ModuleQueryRequest)) {
+                Ok(serde_json::Value::Object(map)) => map,
+                _ => serde_json::Map::new(),
+            };
+
+        let mut tools = vec![
             Tool::new(
-                "list_modules",
+                TOOL_LIST_MODULES,
                 "List all registered RusToK modules with their metadata",
-                list_modules_schema,
+                empty_schema.clone(),
             ),
             Tool::new(
-                "module_exists",
+                TOOL_QUERY_MODULES,
+                "List modules with filters and pagination",
+                module_query_schema,
+            ),
+            Tool::new(
+                TOOL_MODULE_EXISTS,
                 "Check if a module exists by its slug",
+                module_exists_schema.clone(),
+            ),
+            Tool::new(
+                TOOL_MODULE_DETAILS,
+                "Fetch module metadata by slug",
                 module_exists_schema,
             ),
+            Tool::new(
+                TOOL_CONTENT_MODULE,
+                "Fetch content module metadata",
+                empty_schema.clone(),
+            ),
+            Tool::new(
+                TOOL_BLOG_MODULE,
+                "Fetch blog module metadata",
+                empty_schema.clone(),
+            ),
+            Tool::new(
+                TOOL_FORUM_MODULE,
+                "Fetch forum module metadata",
+                empty_schema.clone(),
+            ),
+            Tool::new(
+                TOOL_PAGES_MODULE,
+                "Fetch pages module metadata",
+                empty_schema.clone(),
+            ),
+            Tool::new(
+                TOOL_MCP_HEALTH,
+                "MCP readiness and configuration status",
+                empty_schema,
+            ),
         ];
+
+        if let Some(enabled) = &self.enabled_tools {
+            tools.retain(|tool| enabled.contains(&tool.name) || tool.name == TOOL_MCP_HEALTH);
+        }
 
         Ok(ListToolsResult {
             tools,
@@ -165,18 +440,14 @@ impl ServerHandler for RusToKMcpServer {
 
 /// Serve the MCP server over stdio
 pub async fn serve_stdio(config: McpServerConfig) -> Result<()> {
-    let server = RusToKMcpServer::new(config.registry);
+    let server = match config.enabled_tools {
+        Some(enabled_tools) => RusToKMcpServer::with_enabled_tools(config.registry, enabled_tools),
+        None => RusToKMcpServer::new(config.registry),
+    };
 
     // Serve over stdio transport using rmcp's stdio transport
     // The server runs until stdin is closed or an error occurs
-    let service = server
-        .serve(stdio())
+    stdio::serve(server)
         .await
-        .map_err(|e| anyhow::anyhow!("MCP server error: {}", e))?;
-
-    service
-        .waiting()
-        .await
-        .map(|_| ())
         .map_err(|e| anyhow::anyhow!("MCP server error: {}", e))
 }

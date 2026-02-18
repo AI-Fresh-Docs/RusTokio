@@ -8,6 +8,15 @@ exposes RusToK tools/resources by wiring them to platform services.
 - Keep MCP support as a thin adapter layer.
 - Reuse the `rmcp` SDK for protocol, schema, and transport handling.
 - Expose domain operations via typed tools with generated JSON Schemas.
+- Return tool payloads in a standard response envelope (`McpToolResponse`).
+
+## Tooling overview
+
+- `list_modules`: list all registered modules.
+- `query_modules`: list modules with pagination and filters.
+- `module_exists` / `module_details`: module lookups by slug.
+- `content_module` / `blog_module` / `forum_module` / `pages_module`: domain module metadata.
+- `mcp_health`: readiness snapshot for MCP server.
 
 ## Quick start
 
@@ -23,7 +32,23 @@ async fn main() -> anyhow::Result<()> {
 }
 ```
 
-For more details see `docs/mcp.md`.
+To enable a tool allow-list:
+
+```rust
+use std::collections::HashSet;
+
+use rustok_core::registry::ModuleRegistry;
+use rustok_mcp::McpServerConfig;
+
+let registry = ModuleRegistry::new();
+let enabled = HashSet::from([
+    "list_modules".to_string(),
+    "mcp_health".to_string(),
+]);
+let config = McpServerConfig::with_enabled_tools(registry, enabled);
+```
+
+For more details see `docs/implementation-plan.md`.
 
 This is an alpha version and requires clarification. Be careful, there may be errors in the text. So that no one thinks that this is an immutable rule.
 

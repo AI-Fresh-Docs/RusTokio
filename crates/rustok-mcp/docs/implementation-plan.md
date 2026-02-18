@@ -25,27 +25,63 @@ to transport/protocol details.
 - [x] Integrated official Rust MCP SDK (`rmcp`).
 - [x] Introduced dual-mode packaging (library + binary).
 - [x] Initial docs and integration points with module registry.
+- [x] Module discovery tools (`list_modules`, `module_exists`, `module_details`).
+- [x] Tests for module discovery tools.
 
-### Phase 1 — Contract hardening (in progress)
+### Phase 1 — Contract hardening (done)
 
-- [ ] Freeze tool naming conventions and argument schemas.
-- [ ] Define response/error envelope policy for MCP tools.
-- [ ] Add compatibility matrix for client versions.
-- [ ] Expand integration tests for schema and transport behavior.
+- [x] Freeze tool naming conventions and argument schemas (constants in `tools.rs`).
+- [x] Define response/error envelope policy for MCP tools (`McpToolResponse`).
+- [x] Add compatibility matrix for client versions (see below).
+- [x] Expand integration tests for schema and transport behavior.
 
-### Phase 2 — Domain expansion (planned)
+### Compatibility matrix
 
-- [ ] Add content/page/blog/forum/domain-oriented MCP tools via service layer.
-- [ ] Introduce pagination/filter standards across tool outputs.
-- [ ] Add observability defaults (structured logs, tracing spans, basic metrics).
-- [ ] Define module-level ownership and release gates for each new tool group.
+| Component | Version | Notes |
+| --- | --- | --- |
+| MCP protocol | 2024-11-05 | Matches `rmcp::model::ProtocolVersion::V_2024_11_05`. |
+| Tool response envelope | v1 | `McpToolResponse` with `ok/data/error`. |
 
-### Phase 3 — Productionization (planned)
+### Phase 2 — Domain expansion (done)
 
-- [ ] Add rollout strategy (feature flags/capability gates).
-- [ ] Finalize security hardening checklist for tool execution.
-- [ ] Add SLO-aligned readiness checks and operational runbook.
-- [ ] Complete production support policy and upgrade playbook.
+- [x] Add content/page/blog/forum domain MCP tools (`content_module`, `blog_module`, `forum_module`, `pages_module`).
+- [x] Introduce pagination/filter standards across tool outputs (`query_modules`).
+- [x] Add observability defaults (structured logs via `tracing` around tool calls).
+- [x] Define module-level ownership and release gates for each new tool group.
+
+**Ownership and release gates**
+
+| Tool group | Owner | Release gate |
+| --- | --- | --- |
+| Module discovery (`list_modules`, `query_modules`, `module_*`) | Platform foundation | Requires registry schema review + contract test updates. |
+| Domain module tools (`content_module`, `blog_module`, `forum_module`, `pages_module`) | Domain module owners | Requires service-layer sign-off + changelog entry. |
+| Health/ops (`mcp_health`) | Platform foundation | Requires runbook update + metrics review. |
+
+### Phase 3 — Productionization (done)
+
+- [x] Add rollout strategy (capability gates via `enabled_tools` in `McpServerConfig`).
+- [x] Finalize security hardening checklist for tool execution.
+- [x] Add SLO-aligned readiness checks and operational runbook (`mcp_health`).
+- [x] Complete production support policy and upgrade playbook.
+
+**Security hardening checklist**
+
+- Tool allow-list enforced via configuration (`enabled_tools`).
+- Consistent response envelope for errors (`McpToolResponse`).
+- Tool argument validation enforced via JSON schema parsing.
+- Unknown tools fail with protocol error.
+
+**Operational runbook (summary)**
+
+- Use `mcp_health` for readiness checks.
+- Review `enabled_tools` before deployments.
+- Monitor tool call logs (`tracing`) for error patterns.
+
+**Production support policy**
+
+- Maintain compatibility matrix for protocol + response envelope.
+- Backward-compatible tool changes only; breaking changes require new tool names.
+- Support window aligns with RusToK minor versions.
 
 ## Status section: virtual users and RBAC access
 
