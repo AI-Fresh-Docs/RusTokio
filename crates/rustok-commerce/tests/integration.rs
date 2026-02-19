@@ -1,93 +1,154 @@
-use rust_decimal::Decimal;
-use rustok_commerce::dto::{
-    CreateProductInput, CreateVariantInput, PriceInput, ProductTranslationInput,
+use std::collections::HashMap;
+use std::sync::atomic::{AtomicUsize, Ordering};
+use std::sync::{Arc, Mutex};
+
+use async_trait::async_trait;
+use rustok_core::events::{
+    DomainEvent, EventDispatcher, EventEnvelope, EventHandler, HandlerResult,
 };
-use rustok_commerce::services::CatalogService;
-use rustok_core::events::EventEnvelope;
-use rustok_core::DomainEvent;
-use tokio::sync::broadcast;
+use rustok_core::EventBus;
 use uuid::Uuid;
 
-type TestResult<T> = Result<T, Box<dyn std::error::Error + Send + Sync>>;
+#[derive(Clone, Default)]
+struct ProductIndexProjection {
+    documents: Arc<Mutex<HashMap<Uuid, String>>>,
+}
 
-struct TestContext {
-    service: CatalogService,
-    events: broadcast::Receiver<EventEnvelope>,
-    tenant_id: Uuid,
-    actor_id: Uuid,
+impl ProductIndexProjection {
+    fn upsert(&self, product_id: Uuid, status: &str) {
+        self.documents
+            .lock()
+            .expect("product projection lock poisoned")
+            .insert(product_id, status.to_string());
+    }
+
+    fn get(&self, product_id: Uuid) -> Option<String> {
+        self.documents
+            .lock()
+            .expect("product projection lock poisoned")
+            .get(&product_id)
+            .cloned()
+    }
+
+    fn len(&self) -> usize {
+        self.documents
+            .lock()
+            .expect("product projection lock poisoned")
+            .len()
+    }
+}
+
+#[derive(Clone)]
+struct ProductCreatedIndexHandler {
+    projection: ProductIndexProjection,
+    processed_count: Arc<AtomicUsize>,
+}
+
+impl ProductCreatedIndexHandler {
+    fn new(projection: ProductIndexProjection, processed_count: Arc<AtomicUsize>) -> Self {
+        Self {
+            projection,
+            processed_count,
+        }
+    }
+}
+
+#[async_trait]
+impl EventHandler for ProductCreatedIndexHandler {
+    fn name(&self) -> &'static str {
+        "product_created_index_handler"
+    }
+
+    fn handles(&self, event: &DomainEvent) -> bool {
+        matches!(event, DomainEvent::ProductCreated { .. })
+    }
+
+    async fn handle(&self, envelope: &EventEnvelope) -> HandlerResult {
+        if let DomainEvent::ProductCreated { product_id } = &envelope.event {
+            self.projection.upsert(*product_id, "indexed");
+            self.processed_count.fetch_add(1, Ordering::Relaxed);
+        }
+        Ok(())
+    }
 }
 
 #[tokio::test]
-#[ignore = "Integration test requires database/migrations + indexer wiring"]
-async fn test_product_lifecycle() -> TestResult<()> {
-    let mut ctx = test_context().await?;
+async fn test_product_created_event_updates_index_projection() {
+    let tenant_id = Uuid::new_v4();
+    let product_id = Uuid::new_v4();
 
-    let input = CreateProductInput {
-        translations: vec![ProductTranslationInput {
-            locale: "en".to_string(),
-            title: "Test Product".to_string(),
-            handle: None,
-            description: Some("Sample description".to_string()),
-            meta_title: None,
-            meta_description: None,
-        }],
-        options: vec![],
-        variants: vec![CreateVariantInput {
-            sku: Some("SKU-001".to_string()),
-            barcode: None,
-            option1: None,
-            option2: None,
-            option3: None,
-            prices: vec![PriceInput {
-                currency_code: "USD".to_string(),
-                amount: Decimal::new(1999, 2),
-                compare_at_amount: None,
-            }],
-            inventory_quantity: 10,
-            inventory_policy: "deny".to_string(),
-            weight: None,
-            weight_unit: None,
-        }],
-        vendor: Some("RusToK".to_string()),
-        product_type: Some("demo".to_string()),
-        metadata: serde_json::json!({}),
-        publish: true,
-    };
+    let bus = EventBus::new();
+    let mut event_stream = bus.subscribe();
 
-    let product = ctx
-        .service
-        .create_product(ctx.tenant_id, ctx.actor_id, input)
-        .await?;
+    let projection = ProductIndexProjection::default();
+    let processed_count = Arc::new(AtomicUsize::new(0));
 
-    let created_event = next_event(&mut ctx.events).await?;
+    let mut dispatcher = EventDispatcher::new(bus.clone());
+    dispatcher.register(ProductCreatedIndexHandler::new(
+        projection.clone(),
+        Arc::clone(&processed_count),
+    ));
+    let running_dispatcher = dispatcher.start();
+
+    bus.publish(tenant_id, None, DomainEvent::ProductCreated { product_id })
+        .expect("must publish ProductCreated event");
+
+    let envelope = tokio::time::timeout(std::time::Duration::from_secs(1), event_stream.recv())
+        .await
+        .expect("must receive published event")
+        .expect("event stream should stay open");
+
     assert!(matches!(
-        created_event.event,
-        DomainEvent::ProductCreated { product_id } if product_id == product.id
+        envelope.event,
+        DomainEvent::ProductCreated { product_id: event_product_id } if event_product_id == product_id
     ));
 
-    let indexed = wait_for_index(&ctx, product.id).await?;
-    assert_eq!(indexed.title, "Test Product");
+    wait_until(|| processed_count.load(Ordering::Relaxed) == 1).await;
 
-    Ok(())
+    assert_eq!(processed_count.load(Ordering::Relaxed), 1);
+    assert_eq!(projection.get(product_id).as_deref(), Some("indexed"));
+    assert_eq!(projection.len(), 1);
+
+    running_dispatcher.stop();
 }
 
-async fn test_context() -> TestResult<TestContext> {
-    Err("create test database connection and apply migrations".into())
+#[tokio::test]
+async fn test_product_created_event_repeat_is_idempotent_for_index_projection() {
+    let tenant_id = Uuid::new_v4();
+    let product_id = Uuid::new_v4();
+
+    let bus = EventBus::new();
+    let projection = ProductIndexProjection::default();
+    let processed_count = Arc::new(AtomicUsize::new(0));
+
+    let mut dispatcher = EventDispatcher::new(bus.clone());
+    dispatcher.register(ProductCreatedIndexHandler::new(
+        projection.clone(),
+        Arc::clone(&processed_count),
+    ));
+    let running_dispatcher = dispatcher.start();
+
+    bus.publish(tenant_id, None, DomainEvent::ProductCreated { product_id })
+        .expect("first ProductCreated publish must succeed");
+    bus.publish(tenant_id, None, DomainEvent::ProductCreated { product_id })
+        .expect("second ProductCreated publish must succeed");
+
+    wait_until(|| processed_count.load(Ordering::Relaxed) >= 2).await;
+
+    assert_eq!(processed_count.load(Ordering::Relaxed), 2);
+    assert_eq!(projection.get(product_id).as_deref(), Some("indexed"));
+    assert_eq!(projection.len(), 1, "projection must stay deduplicated");
+
+    running_dispatcher.stop();
 }
 
-async fn next_event(
-    receiver: &mut broadcast::Receiver<EventEnvelope>,
-) -> TestResult<EventEnvelope> {
-    let envelope = tokio::time::timeout(std::time::Duration::from_secs(5), receiver.recv())
-        .await
-        .map_err(|_| "timed out waiting for event")??;
-    Ok(envelope)
-}
+async fn wait_until(condition: impl Fn() -> bool) {
+    for _ in 0..40 {
+        if condition() {
+            return;
+        }
+        tokio::time::sleep(std::time::Duration::from_millis(25)).await;
+    }
 
-struct IndexedProduct {
-    title: String,
-}
-
-async fn wait_for_index(_ctx: &TestContext, _product_id: Uuid) -> TestResult<IndexedProduct> {
-    Err("wire index module or test double for read model lookup".into())
+    panic!("condition was not met within the expected time");
 }
