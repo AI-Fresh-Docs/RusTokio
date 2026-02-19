@@ -1,4 +1,5 @@
 use async_trait::async_trait;
+use rustok_core::module::ModuleKind;
 use rustok_core::{ModuleContext, ModuleRegistry, RusToKModule};
 use rustok_server::models::_entities::tenant_modules;
 use rustok_server::services::module_lifecycle::{ModuleLifecycleService, ToggleModuleError};
@@ -18,6 +19,15 @@ struct TestModule {
     disable_calls: Arc<AtomicUsize>,
 }
 
+struct CoreTestModule {
+    slug: &'static str,
+}
+
+struct DependentTestModule {
+    slug: &'static str,
+    deps: &'static [&'static str],
+}
+
 impl TestModule {
     fn new(slug: &'static str) -> Self {
         Self {
@@ -32,6 +42,64 @@ impl TestModule {
     fn with_enable_failure(mut self) -> Self {
         self.should_fail_enable = true;
         self
+    }
+}
+
+impl rustok_core::MigrationSource for DependentTestModule {
+    fn migrations(&self) -> Vec<Box<dyn MigrationTrait>> {
+        vec![]
+    }
+}
+
+#[async_trait]
+impl RusToKModule for DependentTestModule {
+    fn slug(&self) -> &'static str {
+        self.slug
+    }
+
+    fn name(&self) -> &'static str {
+        "dependent-test"
+    }
+
+    fn description(&self) -> &'static str {
+        "dependent test module"
+    }
+
+    fn version(&self) -> &'static str {
+        "0.1.0"
+    }
+
+    fn dependencies(&self) -> &[&'static str] {
+        self.deps
+    }
+}
+
+impl rustok_core::MigrationSource for CoreTestModule {
+    fn migrations(&self) -> Vec<Box<dyn MigrationTrait>> {
+        vec![]
+    }
+}
+
+#[async_trait]
+impl RusToKModule for CoreTestModule {
+    fn slug(&self) -> &'static str {
+        self.slug
+    }
+
+    fn name(&self) -> &'static str {
+        "core-test"
+    }
+
+    fn description(&self) -> &'static str {
+        "core test module"
+    }
+
+    fn version(&self) -> &'static str {
+        "0.1.0"
+    }
+
+    fn kind(&self) -> ModuleKind {
+        ModuleKind::Core
     }
 }
 
@@ -211,4 +279,45 @@ async fn concurrent_toggle_requests_keep_consistent_state() {
     assert!(matches!(state.enabled, true | false));
     assert!(enable_calls.load(Ordering::SeqCst) <= 1);
     assert!(disable_calls.load(Ordering::SeqCst) <= 1);
+}
+
+#[tokio::test]
+async fn core_module_cannot_be_disabled() {
+    let db = setup_db().await;
+    let tenant_id = uuid::Uuid::new_v4();
+    seed_tenant(&db, tenant_id).await;
+
+    let registry = ModuleRegistry::new().register(CoreTestModule { slug: "index" });
+
+    let err = ModuleLifecycleService::toggle_module(&db, &registry, tenant_id, "index", false)
+        .await
+        .expect_err("disabling a core module must fail");
+
+    assert!(
+        matches!(err, ToggleModuleError::CoreModuleCannotBeDisabled(_)),
+        "expected CoreModuleCannotBeDisabled, got: {err:?}"
+    );
+}
+
+#[tokio::test]
+async fn missing_dependency_blocks_enable() {
+    let db = setup_db().await;
+    let tenant_id = uuid::Uuid::new_v4();
+    seed_tenant(&db, tenant_id).await;
+
+    let registry = ModuleRegistry::new()
+        .register(TestModule::new("content"))
+        .register(DependentTestModule {
+            slug: "blog",
+            deps: &["content"],
+        });
+
+    let err = ModuleLifecycleService::toggle_module(&db, &registry, tenant_id, "blog", true)
+        .await
+        .expect_err("enabling blog without content being enabled must fail");
+
+    assert!(
+        matches!(err, ToggleModuleError::MissingDependencies(_)),
+        "expected MissingDependencies, got: {err:?}"
+    );
 }

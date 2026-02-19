@@ -76,6 +76,10 @@ impl RusToKModule for BlogModule {
         env!("CARGO_PKG_VERSION")
     }
 
+    fn dependencies(&self) -> &[&'static str] {
+        &["content"]
+    }
+
     fn permissions(&self) -> Vec<Permission> {
         vec![
             // Posts
@@ -155,5 +159,11 @@ mod tests {
     fn module_migrations_empty() {
         let module = BlogModule;
         assert!(module.migrations().is_empty());
+    }
+
+    #[test]
+    fn module_depends_on_content() {
+        let module = BlogModule;
+        assert!(module.dependencies().contains(&"content"));
     }
 }

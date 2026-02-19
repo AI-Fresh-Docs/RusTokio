@@ -11,17 +11,19 @@ profile = "release"
 deployment_profile = "monolith" # monolith | headless
 
 [modules]
-# Core modules (required)
-content = { crate = "rustok-content", source = "path", path = "crates/rustok-content" }
+# Core modules (required = true — cannot be disabled per-tenant, see DECISIONS/2026-02-19-module-kind-core-vs-optional.md)
+index = { crate = "rustok-index", source = "path", path = "crates/rustok-index", required = true }
+tenant = { crate = "rustok-tenant", source = "path", path = "crates/rustok-tenant", required = true }
+rbac = { crate = "rustok-rbac", source = "path", path = "crates/rustok-rbac", required = true }
 
-# Domain modules (optional)
+# Domain modules (optional — per-tenant toggle via ModuleLifecycleService)
+content = { crate = "rustok-content", source = "path", path = "crates/rustok-content" }
 commerce = { crate = "rustok-commerce", source = "path", path = "crates/rustok-commerce" }
-blog = { crate = "rustok-blog", source = "path", path = "crates/rustok-blog" }
-forum = { crate = "rustok-forum", source = "path", path = "crates/rustok-forum" }
+blog = { crate = "rustok-blog", source = "path", path = "crates/rustok-blog", dependencies = ["content"] }
+forum = { crate = "rustok-forum", source = "path", path = "crates/rustok-forum", dependencies = ["content"] }
 pages = { crate = "rustok-pages", source = "path", path = "crates/rustok-pages" }
 
-# Infrastructure modules
-index = { crate = "rustok-index", source = "path", path = "crates/rustok-index" }
+# Infrastructure (not RusToKModule — initialized via build_event_runtime(), not the module registry)
 outbox = { crate = "rustok-outbox", source = "path", path = "crates/rustok-outbox" }
 
 [settings]
