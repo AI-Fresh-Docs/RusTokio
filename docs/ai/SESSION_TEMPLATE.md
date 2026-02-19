@@ -8,7 +8,8 @@
 > 1) прочитай `docs/AI_CONTEXT.md`;  
 > 2) прочитай `CRATE_API.md` целевого крейта (если файл есть);  
 > 3) прочитай `README.md` целевого крейта;  
-> 4) проверь инварианты событий (`publish_in_tx`, `EventEnvelope`, обработчики).
+> 4) если изменения затрагивают Loco/Iggy — сначала сверяйся с reference-пакетом (`docs/references/loco/README.md`, `docs/references/iggy/README.md`);
+> 5) проверь инварианты событий (`publish_in_tx`, `EventEnvelope`, обработчики).
 
 ## Мини-шаблон промпта
 
@@ -17,6 +18,7 @@
 - Прочитай docs/AI_CONTEXT.md.
 - Прочитай CRATE_API.md целевого крейта (если есть).
 - Прочитай README.md целевого крейта.
+- Если меняешь Loco/Iggy — сначала прочитай `docs/references/loco/README.md` и `docs/references/iggy/README.md`.
 
 Задача:
 - <кратко опиши задачу>
@@ -35,6 +37,7 @@
 ## Чек-лист перед ответом
 
 - [ ] Использованы только существующие публичные типы/методы.
+- [ ] Для Loco/Iggy изменений сначала проверен reference-пакет.
 - [ ] Для write + event применён `publish_in_tx` (где требуется).
 - [ ] Event handlers совместимы с текущим `EventEnvelope`.
 - [ ] Обновлены релевантные docs (`docs/` и локальные docs модуля).

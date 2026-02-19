@@ -113,6 +113,12 @@ graph TD
 ### AI (`docs/ai/`)
 
 - [Session Template](./ai/SESSION_TEMPLATE.md)
+- [Known Pitfalls](./ai/KNOWN_PITFALLS.md)
+
+### References (`docs/references/`)
+
+- [Loco reference package](./references/loco/README.md)
+- [Iggy reference package](./references/iggy/README.md)
 
 ### UI (`docs/UI/`)
 
