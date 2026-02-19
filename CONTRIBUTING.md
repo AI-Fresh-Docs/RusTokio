@@ -194,6 +194,12 @@ cargo tarpaulin --workspace --out html
 2. **Integration Tests**: Test module interactions
 3. **Property Tests**: Use proptest for complex logic
 4. **E2E Tests**: Test complete user flows
+5. **Event-flow changes require integration coverage**:
+   - Changes to `DomainEvent` producers/consumers or handler routing are not accepted without integration tests for the full chain `event created -> handler executed -> projection/index updated`.
+   - Integration test naming must describe the chain explicitly, for example: `test_product_created_event_updates_index_projection`.
+   - Every newly introduced `DomainEvent` must include at least:
+     - one happy-path integration test;
+     - one repeat/idempotency integration test.
 
 See `docs/testing-guidelines.md` for detailed testing strategies.
 
@@ -237,6 +243,8 @@ cd docs && mdbook build
 
 - [ ] Code follows project style guidelines
 - [ ] Tests added/updated for new features
+- [ ] Event-flow changes include integration tests for `event -> handler -> projection/index`
+- [ ] Every new `DomainEvent` has happy-path + idempotency/repeat integration tests
 - [ ] Documentation updated
 - [ ] DOCS_MAP.md updated when docs triggers were touched
 - [ ] CHANGELOG.md updated

@@ -91,5 +91,7 @@
 Если в PR добавлен новый `DomainEvent` или изменен контракт существующего:
 
 - [ ] Добавлена **consumer-ветка** (handler/indexer/реакция) для нового события.
-- [ ] Добавлен тест цепочки **publish → outbox → delivery → consumer/read-model**.
+- [ ] Добавлен тест цепочки **event created → handler executed → projection/index updated** (или эквивалент `publish → outbox → delivery → consumer/read-model` для transactional flow).
+- [ ] Для каждого нового `DomainEvent` добавлены минимум два интеграционных теста: happy-path и repeat/idempotency.
+- [ ] Имена интеграционных тестов отражают цепочку события (например, `test_product_created_event_updates_index_projection`).
 - [ ] Обновлены документы: этот файл + docs/модуля-публикатора + docs/модуля-consumer.
