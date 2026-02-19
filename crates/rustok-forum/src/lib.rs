@@ -32,10 +32,38 @@ impl RusToKModule for ForumModule {
     fn version(&self) -> &'static str {
         env!("CARGO_PKG_VERSION")
     }
+
+    fn dependencies(&self) -> &[&'static str] {
+        &["content"]
+    }
 }
 
 impl MigrationSource for ForumModule {
     fn migrations(&self) -> Vec<Box<dyn MigrationTrait>> {
         Vec::new()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn module_metadata() {
+        let module = ForumModule;
+        assert_eq!(module.slug(), "forum");
+        assert_eq!(module.name(), "Forum");
+    }
+
+    #[test]
+    fn module_depends_on_content() {
+        let module = ForumModule;
+        assert!(module.dependencies().contains(&"content"));
+    }
+
+    #[test]
+    fn module_migrations_empty() {
+        let module = ForumModule;
+        assert!(module.migrations().is_empty());
     }
 }
