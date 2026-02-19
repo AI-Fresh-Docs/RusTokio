@@ -254,29 +254,11 @@ relay_target = "iggy"         # read-side: relay в Iggy для replay и highlo
 
 ---
 
-### 2.8 🟡 ВАЖНО: Исправить `InMemoryCacheBackend::set_with_ttl()`
+### 2.8 ✅ РЕАЛИЗОВАНО: `InMemoryCacheBackend::set_with_ttl()` учитывает per-entry TTL
 
-**Проблема.** Метод `set_with_ttl()` в `InMemoryCacheBackend` игнорирует параметр `_ttl`:
+**Решение.** In-memory backend переведён на per-entry expiration через `moka::Expiry`: значение кэша теперь хранит `payload + ttl`, а `set_with_ttl()` выставляет TTL на уровне записи. `set()` использует `default_ttl` экземпляра backend и также проходит через `set_with_ttl()`.
 
-```rust
-async fn set_with_ttl(&self, key: String, value: Vec<u8>, _ttl: Duration) -> Result<()> {
-    // Moka cache uses global TTL policy by default.
-    // For now we just insert, ignoring specific TTL.  ← BUG
-    self.cache.insert(key, value).await;
-    Ok(())
-}
-```
-
-Moka поддерживает per-entry TTL через `Cache::builder().time_to_idle()` и `insert_with_ttl()`. Сейчас отрицательный кэш (TTL 60s) и позитивный кэш (TTL 300s) оба используют один и тот же глобальный TTL того экземпляра, в который вставляется запись. Поведение соответствует ожидаемому только потому, что для каждого TTL создаётся **отдельный** `InMemoryCacheBackend`. Но `set_with_ttl` как API — обманчив.
-
-**Рекомендация.** Реализовать per-entry TTL через `moka::future::Cache` с `time_to_live_per_entry`:
-
-```rust
-async fn set_with_ttl(&self, key: String, value: Vec<u8>, ttl: Duration) -> Result<()> {
-    self.cache.insert_with_ttl(key, value, ttl).await;
-    Ok(())
-}
-```
+Это устранило расхождение между API и фактическим поведением: теперь разный TTL для ключей внутри одного `InMemoryCacheBackend` поддерживается корректно.
 
 ---
 
