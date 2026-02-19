@@ -195,46 +195,15 @@ modules::validate_registry_vs_manifest(&registry)?;
 
 ---
 
-### 2.5 🟡 ВАЖНО: Добавить `is_required` / `dependencies` для Content-модуля
+### 2.5 ✅ РЕАЛИЗОВАНО: Добавить `dependencies` для Blog/Forum относительно Content
 
-**Проблема.** `rustok-blog` и `rustok-forum` — это wrapper-модули поверх `rustok-content`. Если `content` отключить через `toggle_module()`, `blog` и `forum` сломаются без явной ошибки. Сейчас `dependencies()` в `BlogModule` и `ForumModule` возвращает `&[]`.
-
-**Рекомендация.** Заполнить зависимости:
-
-```rust
-// В BlogModule
-fn dependencies(&self) -> &[&'static str] {
-    &["content"]
-}
-
-// В ForumModule
-fn dependencies(&self) -> &[&'static str] {
-    &["content"]
-}
-```
-
-`ModuleLifecycleService` уже проверяет зависимости при `toggle_module(enabled=true)` и наличие зависимых при `toggle_module(enabled=false)`. Достаточно только заполнить поле.
+**Решение.** В `BlogModule` и `ForumModule` зависимости уже заданы как `&["content"]`, поэтому `ModuleLifecycleService` корректно блокирует неконсистентные toggle-операции (включение без dependency и отключение dependency при активных dependents).
 
 ---
 
-### 2.6 🟡 ВАЖНО: Ввести `required` флаг в `modules.toml`
+### 2.6 ✅ РЕАЛИЗОВАНО: Ввести `required`/`depends_on` в `modules.toml` + валидацию
 
-**Проблема.** В `modules.toml` нет способа пометить модуль как неотключаемый. Комментарий `# Core modules (required)` — это просто комментарий, а не машиночитаемое ограничение.
-
-**Рекомендация.** Расширить схему манифеста:
-
-```toml
-[modules]
-content = { crate = "rustok-content", source = "path", path = "crates/rustok-content", required = true }
-index   = { crate = "rustok-index",   source = "path", path = "crates/rustok-index",   required = true }
-
-commerce = { crate = "rustok-commerce", source = "path", path = "crates/rustok-commerce" }
-blog     = { crate = "rustok-blog",     source = "path", path = "crates/rustok-blog",     depends_on = ["content"] }
-forum    = { crate = "rustok-forum",    source = "path", path = "crates/rustok-forum",     depends_on = ["content"] }
-pages    = { crate = "rustok-pages",    source = "path", path = "crates/rustok-pages" }
-```
-
-Это позволит xtask/CLI инструментам и документации автоматически знать, что можно включать/отключать.
+**Решение.** `modules.toml` уже содержит `required` и `depends_on`, а runtime-проверка `validate_registry_vs_manifest()` валидирует не только `required` ↔ `ModuleKind::Core`, но и соответствие `depends_on` из манифеста зависимостям, объявленным в `RusToKModule::dependencies()`.
 
 ---
 
@@ -417,8 +386,8 @@ fn routes(ctx: &AppContext) -> AppRoutes {
 | 2.3 | Зарегистрировать Tenant/RBAC как Core | ✅ Готово | Done | — | — |
 | 2.4 | Синхронизация `modules.toml` ↔ `build_registry()` | ✅ Готово | Done | Средняя | Ops reliability |
 | 2.8 | Исправить `set_with_ttl()` в InMemoryCache | ✅ Готово | Done | Низкая | Cache correctness |
-| 2.5 | Заполнить `dependencies()` для Blog/Forum | 🔴 Критично | Backlog | Низкая | Data integrity |
-| 2.6 | `required` / `depends_on` в `modules.toml` | 🟡 Важно | Backlog | Низкая | Ops tooling |
+| 2.5 | Заполнить `dependencies()` для Blog/Forum | ✅ Готово | Done | Низкая | Data integrity |
+| 2.6 | `required` / `depends_on` в `modules.toml` | ✅ Готово | Done | Низкая | Ops tooling |
 | 2.7 | Связать L1 (Outbox) → L2 (Iggy) pipeline | 🟡 Важно | Backlog | Высокая | Event highload |
 | 2.12 | Outbox DLQ + backlog metrics | 🟢 Улучшение | Backlog | Средняя | Event reliability |
 | 2.10 | Per-tenant typed module config | 🟢 Улучшение | Backlog | Средняя | Extensibility |
@@ -475,8 +444,8 @@ graph TD
 
 ### 5.1 Итерация 1 (stability first)
 **Scope**
-- Закрыть **2.5**: прописать `dependencies()` для `blog` и `forum`.
-- Закрыть **2.6**: добавить `required`/`depends_on` в `modules.toml` и валидацию схемы.
+- Проверка результата **2.5**: зависимости `blog/forum -> content` должны оставаться синхронизированными с runtime registry.
+- Проверка результата **2.6**: `required`/`depends_on` из `modules.toml` должны валидироваться на старте сервера.
 - Добавить smoke-тесты на `toggle_module()` для сценариев disable/enable с зависимостями.
 
 **Deliverables**
