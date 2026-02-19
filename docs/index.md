@@ -28,6 +28,7 @@ graph TD
 
     A --> ASRV[apps/server/docs/*]
     A --> AADMIN[apps/admin/docs/*]
+    A --> ASF[apps/storefront/README.md]
     A --> ANEXTADMIN[apps/next-admin/docs/*]
     A --> ANEXTSF[apps/next-frontend/docs/*]
 
@@ -139,7 +140,6 @@ graph TD
 - [Outbox module implementation plan](../crates/rustok-outbox/docs/implementation-plan.md)
 - [Telemetry docs](../crates/rustok-telemetry/docs/README.md)
 - [Telemetry implementation plan](../crates/rustok-telemetry/docs/implementation-plan.md)
-- [MCP module docs](../crates/rustok-mcp/docs/README.md)
 
 ### Custom frontend libraries docs
 
