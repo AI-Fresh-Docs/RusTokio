@@ -64,6 +64,7 @@ graph TD
 - [Transactional Publishing](./architecture/events-transactional.md)
 - [Tenancy](./architecture/tenancy.md)
 - [Principles](./architecture/principles.md)
+- [Improvement Recommendations](./architecture/improvement-recommendations.md)
 
 ### Guides (`docs/guides/`)
 
