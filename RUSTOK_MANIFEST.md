@@ -24,28 +24,23 @@
 
 ### 📚 Documentation Hub
 
-> **Важно:** Полная документация находится в `docs/`. См. ссылки ниже.
+> **Важно:** Полная живая документация находится в [`docs/`](docs/index.md).
+> Этот манифест фиксирует философию, принципы и архитектурные инварианты платформы.
+> Для навигации по всем разделам используйте **[docs/index.md](docs/index.md)**.
 
 | Document | Description |
 |----------|-------------|
-| [MODULE_MATRIX.md](docs/modules/MODULE_MATRIX.md) | Полная карта модулей, зависимости, типы |
-| [DATABASE_SCHEMA.md](docs/DATABASE_SCHEMA.md) | Все таблицы БД с колонками и связями |
-| [I18N_ARCHITECTURE.md](docs/I18N_ARCHITECTURE.md) | Comprehensive i18n/multi-language guide |
-| [architecture.md](docs/architecture.md) | Каноничный обзор архитектуры |
-| [ROADMAP.md](docs/ROADMAP.md) | Фазы разработки и стратегия |
-| [IMPLEMENTATION_STATUS.md](docs/IMPLEMENTATION_STATUS.md) | Статус реализации vs документация |
-| [DOCS_MAP.md](docs/DOCS_MAP.md) | Реестр документации |
-| [modules/flex.md](docs/modules/flex.md) | Спецификация Flex модуля (новый концепт) |
-| [modules/module-manifest.md](docs/modules/module-manifest.md) | Манифест модулей и rebuild (WordPress/NodeBB-style) |
-| [modules/MODULE_UI_PACKAGES_INSTALLATION.md](docs/modules/MODULE_UI_PACKAGES_INSTALLATION.md) | Полное руководство по установке модулей с UI пакетами для админки и фронтенда |
-| [templates/module_contract.md](docs/templates/module_contract.md) | Шаблон контракта модуля |
-| [CODE_AUDIT_VERIFICATION.md](CODE_AUDIT_VERIFICATION.md) | Результаты проверки реализации и согласование чеклистов |
-| [TESTING_PROGRESS.md](TESTING_PROGRESS.md) | Testing coverage progress and test suites |
-| [rbac-enforcement.md](docs/rbac-enforcement.md) | RBAC permission system documentation |
-| [BACKEND_FIXES_2026-02-11.md](docs/BACKEND_FIXES_2026-02-11.md) | Backend compilation fixes and TransactionalEventBus migration |
-| [transactional_event_publishing.md](docs/transactional_event_publishing.md) | Transactional event publishing guide with module migration status |
-| [SPRINT_1_COMPLETION.md](docs/SPRINT_1_COMPLETION.md) | Sprint 1 completion report with metrics and impact |
-| [IMPLEMENTATION_PROGRESS.md](docs/IMPLEMENTATION_PROGRESS.md) | Sprint progress tracking with detailed task breakdown |
+| [docs/index.md](docs/index.md) | Главная карта всей документации — начинайте отсюда |
+| [docs/architecture/overview.md](docs/architecture/overview.md) | Технический обзор архитектуры |
+| [docs/architecture/database.md](docs/architecture/database.md) | Схема БД с таблицами и связями |
+| [docs/architecture/i18n.md](docs/architecture/i18n.md) | i18n/multi-language архитектура |
+| [docs/modules/registry.md](docs/modules/registry.md) | Реестр всех модулей и приложений |
+| [docs/modules/manifest.md](docs/modules/manifest.md) | Манифест модулей и rebuild (WordPress/NodeBB-style) |
+| [docs/modules/flex.md](docs/modules/flex.md) | Спецификация Flex модуля |
+| [docs/architecture/rbac.md](docs/architecture/rbac.md) | RBAC система прав доступа |
+| [docs/architecture/events.md](docs/architecture/events.md) | Event system и transactional publishing |
+| [docs/architecture/improvement-recommendations.md](docs/architecture/improvement-recommendations.md) | Актуальные рекомендации по архитектуре |
+| [CHANGELOG.md](CHANGELOG.md) | История версий и релизов |
 
 ### 🧭 Governance Update (2026-02-13)
 
