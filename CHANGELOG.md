@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added - 2026-02-19
+
+#### GraphQL completeness: Pages + Forum real resolvers
+
+- **`apps/server/src/graphql/pages/`** — новый модуль GraphQL для Pages:
+  - `PagesQuery`: `page(id)`, `pageBySlug(locale, slug)`, `pages(filter)` — через `PageService`.
+  - `PagesMutation`: `createPage`, `updatePage`, `publishPage`, `unpublishPage`, `deletePage` — через `PageService`.
+  - Типы: `GqlPage`, `GqlPageListItem`, `GqlPageTranslation`, `GqlPageBody`, `GqlPageList` и соответствующие input-объекты.
+  - Зарегистрирован в `schema.rs` как `PagesQuery` и `PagesMutation` в `MergedObject Query/Mutation`.
+- **`apps/server/src/graphql/forum/`** — заменён полый stub на реальные вызовы сервисов:
+  - `ForumQuery`: `forumCategories(tenantId, locale)`, `forumCategory(tenantId, id)`, `forumTopics(tenantId, filter)`, `forumTopic(id, locale)`, `forumReplies(tenantId, topicId, locale)` — через `CategoryService`, `TopicService`, `ReplyService`.
+  - `ForumMutation`: `createForumCategory`, `updateForumCategory`, `deleteForumCategory`, `createForumTopic`, `updateForumTopic`, `deleteForumTopic`, `createForumReply`, `updateForumReply`, `deleteForumReply`.
+  - Полностью расширены типы в `forum/types.rs`: `ForumCategory`, `ForumTopic`, `ForumTopicDetail`, `ForumReply`, `ForumReplyListItem` + все input-типы + `From` конверсии из domain DTOs.
+
 ### Fixed - 2026-02-19
 
 #### Server cleanup & Loco correctness

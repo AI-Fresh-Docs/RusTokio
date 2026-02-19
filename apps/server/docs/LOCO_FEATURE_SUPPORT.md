@@ -49,8 +49,17 @@
 ### 2.3 Controllers & API surface
 
 - REST controllers: health, metrics, auth, swagger, pages.
-- Domain controllers: commerce, content, blog, forum.
-- GraphQL endpoint + domain GraphQL modules (`auth`, `commerce`, `content`, `blog`, `forum`, loaders, persisted queries).
+- Domain controllers (REST — для интеграций): commerce, content, blog, forum.
+- GraphQL endpoint (`/api/graphql`) — единственная точка входа для admin/storefront UI:
+  - Root (`queries.rs`, `mutations.rs`): health, apiVersion, currentTenant, enabledModules, moduleRegistry, tenantModules, me, user, users, dashboardStats, recentActivity; createUser, updateUser, disableUser, toggleModule.
+  - Auth (`graphql/auth/`): signIn, forgotPassword, resetPassword, signUp, refreshToken, signOut.
+  - Commerce (`graphql/commerce/`): product, products; createProduct, updateProduct, publishProduct, deleteProduct.
+  - Content (`graphql/content/`): node, nodes; createNode, updateNode, deleteNode.
+  - Blog (`graphql/blog/`): post, posts; createPost, updatePost, deletePost.
+  - Forum (`graphql/forum/`): forumCategories, forumCategory, forumTopics, forumTopic, forumReplies; createForumCategory, updateForumCategory, deleteForumCategory, createForumTopic, updateForumTopic, deleteForumTopic, createForumReply, updateForumReply, deleteForumReply.
+  - Pages (`graphql/pages/`): page, pageBySlug, pages; createPage, updatePage, publishPage, unpublishPage, deletePage.
+  - Alloy scripting (`graphql/alloy/`): скрипты и триггеры.
+  - Persisted queries + observability extensions.
 
 ### 2.4 Models / ORM / persistence
 
