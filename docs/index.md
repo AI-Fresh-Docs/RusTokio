@@ -119,6 +119,9 @@ graph TD
 
 - [Loco reference package](./references/loco/README.md)
 - [Iggy reference package](./references/iggy/README.md)
+- [MCP reference package](./references/mcp/README.md)
+- [Outbox reference package](./references/outbox/README.md)
+- [Telemetry reference package](./references/telemetry/README.md)
 
 ### UI (`docs/UI/`)
 

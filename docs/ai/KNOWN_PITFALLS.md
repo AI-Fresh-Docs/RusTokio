@@ -14,10 +14,30 @@
 - Не переносить в код Kafka/NATS-специфичные API (offset commits, subject-only routing), которых нет в текущем abstraction.
 - Не выдумывать конфигурацию Iggy: сначала сверяться с актуальными `IggyConfig`, `ConnectorConfig`, `ConnectorMode`.
 
+
+## MCP
+
+- Не обходить typed tools/response envelope (`McpToolResponse`) ad-hoc JSON-ответами.
+- Не переносить бизнес-логику в MCP адаптер: слой должен оставаться тонким над service/registry.
+- Для ограниченного доступа использовать allow-list инструментов через `McpServerConfig::with_enabled_tools(...)`.
+
+## Outbox
+
+- Для write + event, требующих консистентности, использовать `publish_in_tx(...)`, а не `publish(...)`.
+- Не запускать production c outbox без relay-воркера.
+
+## Telemetry
+
+- Не делать многократную инициализацию telemetry runtime.
+- Не разносить метрики по разным registry без необходимости.
+
 ## Обязательная проверка перед изменениями
 
-Если задача затрагивает Loco или Iggy:
-1. Сначала открыть reference-пакет:
+Если задача затрагивает Loco/Iggy/MCP/Outbox/Telemetry:
+1. Сначала открыть соответствующий reference-пакет:
    - `docs/references/loco/README.md`
    - `docs/references/iggy/README.md`
+   - `docs/references/mcp/README.md`
+   - `docs/references/outbox/README.md`
+   - `docs/references/telemetry/README.md`
 2. Только после этого менять код/документацию.
