@@ -227,5 +227,16 @@
   "users.rest.title": "REST: /api/auth/me",
   "users.rest.unauthorized": "Unauthorized: check the token.",
   "users.subtitle": "REST and GraphQL API preview. Provide admin token and tenant slug.",
-  "users.title": "Users"
+  "users.title": "Users",
+  "users.create.button": "Create user",
+  "users.create.title": "Create new user",
+  "users.create.emailLabel": "Email",
+  "users.create.nameLabel": "Full name",
+  "users.create.passwordLabel": "Password",
+  "users.create.roleLabel": "Role (optional)",
+  "users.create.statusLabel": "Status (optional)",
+  "users.create.submit": "Create user",
+  "users.create.creating": "Creating...",
+  "users.create.cancel": "Cancel",
+  "users.create.errorRequired": "Email and password are required."
 }
