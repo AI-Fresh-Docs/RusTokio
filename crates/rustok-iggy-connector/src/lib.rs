@@ -690,8 +690,8 @@ impl IggyConnector for EmbeddedConnector {
 
         // Store topology config
         *self.stream_name.write().await = config.stream_name.clone();
-        *self.topic_name.write() = config.topic_name.clone();
-        *self.partitions.write() = config.partitions;
+        *self.topic_name.write().await = config.topic_name.clone();
+        *self.partitions.write().await = config.partitions;
 
         *self.connected.write().await = true;
 
