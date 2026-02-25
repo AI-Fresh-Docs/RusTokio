@@ -92,10 +92,8 @@ build-small = "build --release --workspace -Z build-std=std,panic_abort -Z build
 # Security & Auditing
 # ============================================================================
 
-## Security audit is provided by external `cargo-audit` subcommand (`cargo audit`)
-
-# Run additional security checks (deny)
-audit-all = "deny check"
+# Run all security checks (audit + deny)
+audit-all = "audit && deny check"
 
 # Check for outdated dependencies
 outdated = "outdated -R"
