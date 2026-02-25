@@ -187,6 +187,7 @@ pub fn Dashboard() -> impl IntoView {
                                             value=value
                                             icon=view! { <span class="text-muted-foreground">"•"</span> }.into_any()
                                             trend=hint
+                                            trend_label=translate("app.dashboard.stats.vsLastMonth")
                                             class="transition-all hover:scale-[1.02]"
                                         />
                                     }
@@ -223,7 +224,7 @@ pub fn Dashboard() -> impl IntoView {
                             if activities.is_empty() {
                                 view! {
                                     <div class="py-8 text-center text-muted-foreground">
-                                        "No recent activity"
+                                        {translate("app.dashboard.activity.empty")}
                                     </div>
                                 }.into_any()
                             } else {
@@ -236,7 +237,7 @@ pub fn Dashboard() -> impl IntoView {
                                                 .user
                                                 .as_ref()
                                                 .and_then(|u| u.name.clone())
-                                                .unwrap_or_else(|| "System".to_string());
+                                                .unwrap_or_else(|| translate("app.dashboard.activity.system").to_string());
                                             view! {
                                                 <div class="flex items-center justify-between border-b border-border py-3 last:border-b-0">
                                                     <div class="min-w-0 flex-1">
@@ -289,7 +290,6 @@ pub fn Dashboard() -> impl IntoView {
     }
 }
 
-/// Format a timestamp as relative time (e.g., "2 min ago", "1 hour ago")
 fn format_time_ago(timestamp: &str) -> String {
     use chrono::{DateTime, Utc};
 
@@ -305,19 +305,18 @@ fn format_time_ago(timestamp: &str) -> String {
     let days = duration.num_days();
 
     if minutes < 1 {
-        "just now".to_string()
+        translate("app.time.justNow").to_string()
     } else if minutes < 60 {
-        format!("{} min ago", minutes)
+        translate("app.time.minutesAgo").replace("{n}", &minutes.to_string())
     } else if hours < 24 {
-        format!("{} hour{} ago", hours, if hours == 1 { "" } else { "s" })
+        translate("app.time.hoursAgo").replace("{n}", &hours.to_string())
     } else if days < 30 {
-        format!("{} day{} ago", days, if days == 1 { "" } else { "s" })
+        translate("app.time.daysAgo").replace("{n}", &days.to_string())
     } else {
-        dt.format("%b %d, %Y").to_string()
+        dt.format("%d.%m.%Y").to_string()
     }
 }
 
-/// Activity icon component based on activity type
 #[component]
 fn ActivityIcon(activity_type: String) -> impl IntoView {
     let (icon, color_class) = match activity_type.as_str() {

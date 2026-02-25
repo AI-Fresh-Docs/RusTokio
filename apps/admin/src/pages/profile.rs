@@ -7,7 +7,6 @@ use crate::shared::api::{request, ApiError};
 use crate::shared::ui::{Button, Input, LanguageToggle};
 use crate::app::providers::locale::translate;
 
-// GraphQL mutation for updating profile
 const UPDATE_PROFILE_MUTATION: &str = r#"
 mutation UpdateProfile($input: UpdateProfileInput!) {
     updateProfile(input: $input) {

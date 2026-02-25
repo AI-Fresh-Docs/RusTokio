@@ -54,10 +54,8 @@ pub fn Button(
             class=full_class
             disabled=is_disabled
             on:click=move |_| {
-                if !is_disabled {
-                    if let Some(ref handler) = on_click {
-                        handler();
-                    }
+                if let Some(ref handler) = on_click {
+                    handler();
                 }
             }
         >

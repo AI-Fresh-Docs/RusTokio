@@ -16,15 +16,9 @@ pub fn Switch(
     #[prop(optional, into)] class: String,
     #[prop(optional, into)] id: String,
 ) -> impl IntoView {
-    let (track_cls, thumb_cls) = match size {
-        SwitchSize::Sm => (
-            "w-7 h-4",
-            "h-3 w-3 data-[state=checked]:translate-x-3",
-        ),
-        SwitchSize::Md => (
-            "w-11 h-6",
-            "h-5 w-5 data-[state=checked]:translate-x-5",
-        ),
+    let (track_w_h, thumb_size, thumb_checked_x) = match size {
+        SwitchSize::Sm => ("w-7 h-4", "h-3 w-3", "translate-x-3"),
+        SwitchSize::Md => ("w-11 h-6", "h-5 w-5", "translate-x-5"),
     };
 
     let is_checked = move || checked.map(|c| c.get()).unwrap_or(false);
@@ -35,7 +29,6 @@ pub fn Switch(
             type="button"
             role="switch"
             aria-checked=move || is_checked().to_string()
-            data-state=move || if is_checked() { "checked" } else { "unchecked" }
             disabled=disabled
             class=move || format!(
                 "peer inline-flex shrink-0 cursor-pointer items-center \
@@ -44,7 +37,7 @@ pub fn Switch(
                  focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background \
                  disabled:cursor-not-allowed disabled:opacity-50 {} {} {}",
                 if is_checked() { "bg-primary" } else { "bg-input" },
-                track_cls,
+                track_w_h,
                 class
             )
             on:click=move |_| {
@@ -57,12 +50,12 @@ pub fn Switch(
             }
         >
             <span
-                class=format!(
+                class=move || format!(
                     "pointer-events-none block rounded-full bg-background shadow-lg \
-                     ring-0 transition-transform data-[state=unchecked]:translate-x-0 {}",
-                    thumb_cls
+                     ring-0 transition-transform {} {}",
+                    if is_checked() { thumb_checked_x } else { "translate-x-0" },
+                    thumb_size
                 )
-                data-state=move || if is_checked() { "checked" } else { "unchecked" }
             />
         </button>
     }

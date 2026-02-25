@@ -15,7 +15,7 @@ pub fn Sidebar() -> impl IntoView {
                     <div class="flex h-8 w-8 items-center justify-center rounded-lg bg-primary">
                         <span class="text-primary-foreground font-bold text-sm">"R"</span>
                     </div>
-                    <span class="text-sm font-semibold text-sidebar-foreground">"RusTok Admin"</span>
+                    <span class="text-sm font-semibold text-sidebar-foreground">{translate("app.brand.title")}</span>
                 </A>
             </div>
 
@@ -40,7 +40,7 @@ pub fn Sidebar() -> impl IntoView {
                             </div>
                         }.into_any()
                     } else {
-                        view! { <div /> }.into_any()
+                        ().into_any()
                     }
                 }}
 
@@ -70,7 +70,7 @@ pub fn Sidebar() -> impl IntoView {
                     </div>
                     <div class="grid flex-1 min-w-0 text-left text-sm leading-tight">
                         <span class="truncate font-semibold text-sidebar-foreground text-xs">
-                            {move || current_user.get().and_then(|u| u.name.clone()).unwrap_or_else(|| "User".to_string())}
+                            {move || current_user.get().and_then(|u| u.name.clone()).unwrap_or_else(|| translate("app.menu.defaultUser").to_string())}
                         </span>
                         <span class="truncate text-xs text-sidebar-foreground/60">
                             {move || current_user.get().map(|u| u.email.clone()).unwrap_or_default()}

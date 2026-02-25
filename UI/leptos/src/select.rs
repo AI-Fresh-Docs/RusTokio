@@ -66,12 +66,13 @@ pub fn Select(
                 </option>
             })}
             {options.into_iter().map(|opt| {
-                let opt_val = opt.value.clone();
+                let opt_value = opt.value;
+                let opt_val_cmp = opt_value.clone();
                 view! {
                     <option
-                        value=opt.value.clone()
+                        value=opt_value
                         disabled=opt.disabled
-                        selected=move || value.map(|v| v.get()).unwrap_or_default() == opt_val
+                        selected=move || value.map(|v| v.get()).unwrap_or_default() == opt_val_cmp
                     >
                         {opt.label}
                     </option>

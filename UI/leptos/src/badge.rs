@@ -45,15 +45,15 @@ pub fn Badge(
             )
         >
             {children()}
-            {dismissible.then(|| {
-                let handler = on_dismiss.map(|f| Callback::new(move |_| f()));
+            {move || dismissible.then(|| {
+                let on_dismiss = on_dismiss.as_ref().map(|f| Callback::new(move |_: ()| f()));
                 view! {
                     <button
                         type="button"
                         class="ml-0.5 rounded-full opacity-70 hover:opacity-100 focus:outline-none"
                         aria-label="Dismiss"
                         on:click=move |_| {
-                            if let Some(cb) = handler {
+                            if let Some(ref cb) = on_dismiss {
                                 cb.run(());
                             }
                         }

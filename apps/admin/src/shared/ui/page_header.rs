@@ -41,9 +41,9 @@ pub fn PageHeader(
                                 .enumerate()
                                 .map(|(index, (label, href))| {
                                     view! {
-                                        <span class="text-border">
-                                            {if index > 0 { "/" } else { "" }}
-                                        </span>
+                                        {(index > 0).then(|| view! {
+                                            <span class="text-border">"/"</span>
+                                        })}
                                         <a href=href class="transition-colors hover:text-foreground">
                                             {label}
                                         </a>

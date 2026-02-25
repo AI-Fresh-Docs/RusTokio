@@ -20,14 +20,14 @@ pub fn Header() -> impl IntoView {
     let title_key = Memo::new(move |_| resolve_title_key(&location.pathname.get()));
 
     Effect::new(move |_| {
-        let title = format!("RusTok Admin — {}", translate(title_key.get()));
+        let title = format!("{} — {}", translate("app.brand.title"), translate(title_key.get()));
         set_document_title(&title);
     });
 
     view! {
         <header class="h-14 bg-background border-b border-border flex items-center justify-between px-6 shrink-0">
             <div class="flex items-center gap-2 text-sm text-muted-foreground">
-                <span class="font-medium text-foreground">"RusTok"</span>
+                <span class="font-medium text-foreground">{translate("app.brand.short")}</span>
                 <span>"/"</span>
                 {{
                     let crumbs = breadcrumbs.get();
