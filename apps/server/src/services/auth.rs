@@ -318,7 +318,6 @@ impl AuthService {
         let evaluation = evaluate_single_permission(&user_permissions, required_permission);
         let allowed = evaluation.allowed;
         let denied = evaluation.denied_reason;
-        let missing_permissions = evaluation.missing_permissions;
         let latency_ms = started_at.elapsed().as_millis() as u64;
 
         debug!(
@@ -379,7 +378,6 @@ impl AuthService {
         let evaluation = evaluate_any_permission(&user_permissions, required_permissions);
         let allowed = evaluation.allowed;
         let denied = evaluation.denied_reason;
-        let missing_permissions = evaluation.missing_permissions;
         let latency_ms = started_at.elapsed().as_millis() as u64;
 
         debug!(

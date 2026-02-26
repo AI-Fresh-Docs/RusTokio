@@ -16,10 +16,12 @@ pub fn evaluate_single_permission(
 ) -> PermissionEvaluation {
     let outcome = check_permission(user_permissions, required_permission);
 
+    let denied_reason = outcome.denied_reason(user_permissions);
+
     PermissionEvaluation {
         allowed: outcome.allowed,
-        missing_permissions: outcome.missing_permissions.clone(),
-        denied_reason: outcome.denied_reason(user_permissions),
+        missing_permissions: outcome.missing_permissions,
+        denied_reason,
     }
 }
 
@@ -29,10 +31,12 @@ pub fn evaluate_any_permission(
 ) -> PermissionEvaluation {
     let outcome = check_any_permission(user_permissions, required_permissions);
 
+    let denied_reason = outcome.denied_reason(user_permissions);
+
     PermissionEvaluation {
         allowed: outcome.allowed,
-        missing_permissions: outcome.missing_permissions.clone(),
-        denied_reason: outcome.denied_reason(user_permissions),
+        missing_permissions: outcome.missing_permissions,
+        denied_reason,
     }
 }
 
@@ -42,10 +46,12 @@ pub fn evaluate_all_permissions(
 ) -> PermissionEvaluation {
     let outcome = check_all_permissions(user_permissions, required_permissions);
 
+    let denied_reason = outcome.denied_reason(user_permissions);
+
     PermissionEvaluation {
         allowed: outcome.allowed,
-        missing_permissions: outcome.missing_permissions.clone(),
-        denied_reason: outcome.denied_reason(user_permissions),
+        missing_permissions: outcome.missing_permissions,
+        denied_reason,
     }
 }
 
