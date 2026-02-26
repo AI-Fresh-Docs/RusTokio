@@ -1,5 +1,5 @@
 use axum::http::StatusCode;
-use rustok_core::{Permission, Rbac};
+use rustok_core::Permission;
 
 use crate::extractors::auth::CurrentUser;
 
@@ -53,13 +53,11 @@ macro_rules! define_permission_extractor {
                 parts: &mut axum::http::request::Parts,
                 state: &S,
             ) -> Result<Self, Self::Rejection> {
-                use rustok_core::Rbac;
-
                 let user = $crate::extractors::auth::CurrentUser::from_request_parts(parts, state)
                     .await
                     .map_err(|(code, msg)| (code, msg.to_string()))?;
 
-                if !Rbac::has_permission(&user.user.role, &$permission) {
+                if !user.permissions.contains(&$permission) {
                     return Err((
                         axum::http::StatusCode::FORBIDDEN,
                         format!("Insufficient permissions. Required: {}", $permission),
@@ -143,7 +141,7 @@ pub fn check_permission(
     user: &CurrentUser,
     permission: Permission,
 ) -> Result<(), (StatusCode, String)> {
-    if !Rbac::has_permission(&user.user.role, &permission) {
+    if !user.permissions.contains(&permission) {
         return Err((
             StatusCode::FORBIDDEN,
             format!("Insufficient permissions. Required: {}", permission),
@@ -157,7 +155,10 @@ pub fn check_any_permission(
     user: &CurrentUser,
     permissions: &[Permission],
 ) -> Result<(), (StatusCode, String)> {
-    if !Rbac::has_any_permission(&user.user.role, permissions) {
+    if !permissions
+        .iter()
+        .any(|permission| user.permissions.contains(permission))
+    {
         let perms_str = permissions
             .iter()
             .map(|p| p.to_string())
@@ -176,7 +177,10 @@ pub fn check_all_permissions(
     user: &CurrentUser,
     permissions: &[Permission],
 ) -> Result<(), (StatusCode, String)> {
-    if !Rbac::has_all_permissions(&user.user.role, permissions) {
+    if !permissions
+        .iter()
+        .all(|permission| user.permissions.contains(permission))
+    {
         let perms_str = permissions
             .iter()
             .map(|p| p.to_string())
@@ -213,10 +217,15 @@ mod tests {
             updated_at: chrono::Utc::now().into(),
         };
 
+        let permissions = rustok_core::Rbac::permissions_for_role(&user.role)
+            .iter()
+            .cloned()
+            .collect();
+
         CurrentUser {
             user,
             session_id: rustok_core::generate_id(),
-            permissions: vec![],
+            permissions,
         }
     }
 
