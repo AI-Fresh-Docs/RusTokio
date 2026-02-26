@@ -44,6 +44,7 @@
 - [~] **Фаза 5 — Dual-read и cutover (частично):**
   - В `AuthService` добавлен runtime shadow dual-read для `has_permission/has_any_permission/has_all_permissions` под env-флагом `RUSTOK_RBAC_AUTHZ_MODE=dual_read` (relation decision остаётся авторитативным).
   - При расхождении relation-vs-legacy-role увеличивается `rustok_rbac_decision_mismatch_total` и пишется warning-лог `rbac_decision_mismatch`.
+  - Для снижения накладных расходов dual-read legacy role lookup покрыт in-memory TTL-кэшем в `AuthService`.
 - [ ] **Фаза 6 — Cleanup legacy-модели:** не начато.
 
 ### Что осталось приоритетно на ближайший шаг

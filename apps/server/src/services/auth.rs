@@ -22,11 +22,18 @@ enum RbacAuthzMode {
 }
 
 impl RbacAuthzMode {
-    fn from_env() -> Self {
-        match std::env::var("RUSTOK_RBAC_AUTHZ_MODE") {
-            Ok(raw) if raw.trim().eq_ignore_ascii_case("dual_read") => Self::DualRead,
-            _ => Self::RelationOnly,
+    fn parse(value: &str) -> Self {
+        if value.trim().eq_ignore_ascii_case("dual_read") {
+            return Self::DualRead;
         }
+
+        Self::RelationOnly
+    }
+
+    fn from_env() -> Self {
+        std::env::var("RUSTOK_RBAC_AUTHZ_MODE")
+            .map(|raw| Self::parse(&raw))
+            .unwrap_or(Self::RelationOnly)
     }
 }
 
@@ -39,6 +46,13 @@ static USER_PERMISSION_CACHE: Lazy<Cache<(uuid::Uuid, uuid::Uuid), Vec<Permissio
             .time_to_live(Duration::from_secs(60))
             .build()
     });
+
+static USER_LEGACY_ROLE_CACHE: Lazy<Cache<(uuid::Uuid, uuid::Uuid), UserRole>> = Lazy::new(|| {
+    Cache::builder()
+        .max_capacity(20_000)
+        .time_to_live(Duration::from_secs(60))
+        .build()
+});
 
 #[derive(Debug, Clone, Copy)]
 pub struct RbacResolverMetricsSnapshot {
@@ -92,12 +106,22 @@ impl AuthService {
         tenant_id: &uuid::Uuid,
         user_id: &uuid::Uuid,
     ) -> Result<Option<UserRole>> {
+        let cache_key = Self::cache_key(tenant_id, user_id);
+        if let Some(cached_role) = USER_LEGACY_ROLE_CACHE.get(&cache_key).await {
+            return Ok(Some(cached_role));
+        }
+
         let user = users::Entity::find_by_id(*user_id)
             .filter(users::Column::TenantId.eq(*tenant_id))
             .one(db)
             .await?;
 
-        Ok(user.map(|model| model.role))
+        if let Some(user) = user {
+            USER_LEGACY_ROLE_CACHE.insert(cache_key, user.role).await;
+            return Ok(Some(user.role));
+        }
+
+        Ok(None)
     }
 
     async fn shadow_compare_permission_decision(
@@ -273,6 +297,12 @@ impl AuthService {
         USER_PERMISSION_CACHE
             .invalidate(&Self::cache_key(tenant_id, user_id))
             .await;
+    }
+
+    pub async fn invalidate_user_rbac_caches(tenant_id: &uuid::Uuid, user_id: &uuid::Uuid) {
+        let cache_key = Self::cache_key(tenant_id, user_id);
+        USER_PERMISSION_CACHE.invalidate(&cache_key).await;
+        USER_LEGACY_ROLE_CACHE.invalidate(&cache_key).await;
     }
 
     fn record_permission_check_result(allowed: bool) {
@@ -671,7 +701,7 @@ impl AuthService {
             .await?;
         }
 
-        Self::invalidate_user_permissions_cache(tenant_id, user_id).await;
+        Self::invalidate_user_rbac_caches(tenant_id, user_id).await;
 
         Ok(())
     }
@@ -700,7 +730,7 @@ impl AuthService {
                 .await?;
         }
 
-        Self::invalidate_user_permissions_cache(tenant_id, user_id).await;
+        Self::invalidate_user_rbac_caches(tenant_id, user_id).await;
 
         Self::assign_role_permissions(db, user_id, tenant_id, role).await
     }
@@ -839,15 +869,21 @@ mod tests {
     }
 
     #[test]
-    fn rbac_authz_mode_defaults_to_relation_only() {
-        unsafe { std::env::remove_var("RUSTOK_RBAC_AUTHZ_MODE") };
-        assert_eq!(RbacAuthzMode::from_env(), RbacAuthzMode::RelationOnly);
+    fn rbac_authz_mode_parse_defaults_to_relation_only() {
+        assert_eq!(RbacAuthzMode::parse(""), RbacAuthzMode::RelationOnly);
+        assert_eq!(
+            RbacAuthzMode::parse("relation_only"),
+            RbacAuthzMode::RelationOnly
+        );
+        assert_eq!(
+            RbacAuthzMode::parse("unexpected"),
+            RbacAuthzMode::RelationOnly
+        );
     }
 
     #[test]
-    fn rbac_authz_mode_supports_dual_read() {
-        unsafe { std::env::set_var("RUSTOK_RBAC_AUTHZ_MODE", "dual_read") };
-        assert_eq!(RbacAuthzMode::from_env(), RbacAuthzMode::DualRead);
-        unsafe { std::env::remove_var("RUSTOK_RBAC_AUTHZ_MODE") };
+    fn rbac_authz_mode_parse_supports_dual_read() {
+        assert_eq!(RbacAuthzMode::parse("dual_read"), RbacAuthzMode::DualRead);
+        assert_eq!(RbacAuthzMode::parse("DUAL_READ"), RbacAuthzMode::DualRead);
     }
 }
