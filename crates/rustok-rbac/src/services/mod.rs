@@ -6,3 +6,4 @@ pub mod permission_resolver;
 pub mod relation_permission_resolver;
 pub mod runtime_permission_resolver;
 pub mod shadow_decision;
+pub mod shadow_dual_read;

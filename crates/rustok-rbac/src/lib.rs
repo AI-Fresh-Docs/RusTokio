@@ -27,6 +27,7 @@ pub use services::shadow_decision::{
     compare_all_permissions, compare_any_permissions, compare_shadow_decision,
     compare_single_permission, ShadowCheck, ShadowDecision,
 };
+pub use services::shadow_dual_read::{evaluate_dual_read, DualReadOutcome};
 
 use async_trait::async_trait;
 use rustok_core::module::{HealthStatus, MigrationSource, ModuleKind, RusToKModule};

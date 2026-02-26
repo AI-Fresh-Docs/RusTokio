@@ -12,8 +12,8 @@ use tracing::{debug, warn};
 
 use rustok_core::{Action, Permission, Rbac, Resource, UserRole};
 use rustok_rbac::{
-    authorize_all_permissions, authorize_any_permission, authorize_permission,
-    compare_shadow_decision, invalidate_cached_permissions, DeniedReasonKind, PermissionCache,
+    authorize_all_permissions, authorize_any_permission, authorize_permission, evaluate_dual_read,
+    invalidate_cached_permissions, DeniedReasonKind, DualReadOutcome, PermissionCache,
     PermissionResolver, RbacAuthzMode, RelationPermissionStore, RoleAssignmentStore,
     RuntimePermissionResolver, ShadowCheck,
 };
@@ -120,26 +120,31 @@ impl AuthService {
             return Ok(());
         }
 
-        let Some(legacy_role) = Self::load_legacy_role(db, tenant_id, user_id).await? else {
-            debug!(
-                tenant_id = %tenant_id,
-                user_id = %user_id,
-                "rbac dual-read skipped: user not found for legacy role"
-            );
-            return Ok(());
-        };
+        let legacy_role = Self::load_legacy_role(db, tenant_id, user_id).await?;
 
-        let shadow = compare_shadow_decision(&legacy_role, shadow_check, relation_allowed);
-        if shadow.mismatch() {
-            Self::record_decision_mismatch();
-            Self::log_shadow_mismatch(
-                tenant_id,
-                user_id,
-                shadow_check,
-                &legacy_role,
-                shadow.relation_allowed,
-                shadow.legacy_allowed,
-            );
+        match evaluate_dual_read(legacy_role.as_ref(), shadow_check, relation_allowed) {
+            DualReadOutcome::Skipped => {
+                debug!(
+                    tenant_id = %tenant_id,
+                    user_id = %user_id,
+                    "rbac dual-read skipped: user not found for legacy role"
+                );
+            }
+            DualReadOutcome::Compared(shadow_decision) => {
+                if shadow_decision.mismatch() {
+                    if let Some(legacy_role) = legacy_role.as_ref() {
+                        Self::record_decision_mismatch();
+                        Self::log_shadow_mismatch(
+                            tenant_id,
+                            user_id,
+                            shadow_check,
+                            legacy_role,
+                            shadow_decision.relation_allowed,
+                            shadow_decision.legacy_allowed,
+                        );
+                    }
+                }
+            }
         }
 
         Ok(())
