@@ -11,6 +11,7 @@ Options:
   --samples <N>               Number of scrapes to collect (default: 7)
   --interval-sec <N>          Delay between scrapes in seconds (default: 60)
   --artifacts-dir <dir>       Output folder for baseline artifacts (default: artifacts/rbac-cutover)
+  --min-decision-delta <N>    Minimum total permission decision delta required for a valid baseline (default: 1)
   --require-zero-mismatch     Exit non-zero if mismatch counter delta is not zero (default: enabled)
   --allow-mismatch            Disable strict mismatch gate
   --help                      Show this message
@@ -28,6 +29,7 @@ METRICS_URL="http://127.0.0.1:5150/metrics"
 SAMPLES=7
 INTERVAL_SEC=60
 ARTIFACTS_DIR="artifacts/rbac-cutover"
+MIN_DECISION_DELTA=1
 REQUIRE_ZERO_MISMATCH="true"
 CURL_BIN="${RUSTOK_CURL_BIN:-curl}"
 
@@ -41,6 +43,8 @@ while [[ $# -gt 0 ]]; do
       INTERVAL_SEC="$2"; shift 2 ;;
     --artifacts-dir)
       ARTIFACTS_DIR="$2"; shift 2 ;;
+    --min-decision-delta)
+      MIN_DECISION_DELTA="$2"; shift 2 ;;
     --require-zero-mismatch)
       REQUIRE_ZERO_MISMATCH="true"; shift ;;
     --allow-mismatch)
@@ -61,6 +65,11 @@ fi
 
 if ! [[ "$INTERVAL_SEC" =~ ^[0-9]+$ ]]; then
   echo "--interval-sec must be a non-negative integer." >&2
+  exit 1
+fi
+
+if ! [[ "$MIN_DECISION_DELTA" =~ ^[0-9]+$ ]]; then
+  echo "--min-decision-delta must be a non-negative integer." >&2
   exit 1
 fi
 
@@ -104,8 +113,11 @@ first_denied=""
 last_denied=""
 first_allowed=""
 last_allowed=""
+counter_reset_detected="false"
+counter_reset_reason=""
 
 for ((i = 1; i <= SAMPLES; i++)); do
+  sample_ts="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
   sample_file="$tmp_dir/sample_${i}.prom"
   "$CURL_BIN" -fsS "$METRICS_URL" > "$sample_file"
 
@@ -131,7 +143,19 @@ for ((i = 1; i <= SAMPLES; i++)); do
   last_denied="$denied"
   last_allowed="$allowed"
 
-  sample_json_lines+=("{\"sample\":${i},\"mismatch_total\":${mismatch},\"shadow_compare_failures_total\":${shadow_fail},\"permission_checks_denied\":${denied},\"permission_checks_allowed\":${allowed}}")
+  if [[ "$i" -gt 1 ]]; then
+    if [[ "$mismatch" -lt "$prev_mismatch" || "$shadow_fail" -lt "$prev_shadow_fail" || "$denied" -lt "$prev_denied" || "$allowed" -lt "$prev_allowed" ]]; then
+      counter_reset_detected="true"
+      counter_reset_reason="one or more counters decreased between samples"
+    fi
+  fi
+
+  prev_mismatch="$mismatch"
+  prev_shadow_fail="$shadow_fail"
+  prev_denied="$denied"
+  prev_allowed="$allowed"
+
+  sample_json_lines+=("{\"sample\":${i},\"timestamp\":\"${sample_ts}\",\"mismatch_total\":${mismatch},\"shadow_compare_failures_total\":${shadow_fail},\"permission_checks_denied\":${denied},\"permission_checks_allowed\":${allowed}}")
 
   if [[ "$i" -lt "$SAMPLES" && "$INTERVAL_SEC" -gt 0 ]]; then
     sleep "$INTERVAL_SEC"
@@ -151,6 +175,16 @@ if [[ "$REQUIRE_ZERO_MISMATCH" == "true" && "$mismatch_delta" -ne 0 ]]; then
   gate_message="Mismatch delta is ${mismatch_delta}; investigate before relation-only cutover."
 fi
 
+if [[ "$gate_status" == "pass" && "$counter_reset_detected" == "true" ]]; then
+  gate_status="fail"
+  gate_message="Counter reset detected: ${counter_reset_reason}."
+fi
+
+if [[ "$gate_status" == "pass" && "$total_decisions_delta" -lt "$MIN_DECISION_DELTA" ]]; then
+  gate_status="fail"
+  gate_message="Decision delta is ${total_decisions_delta}; requires at least ${MIN_DECISION_DELTA} decisions in baseline window."
+fi
+
 {
   echo "{" 
   echo "  \"metrics_url\": \"${METRICS_URL}\"," 
@@ -165,6 +199,8 @@ fi
   echo "  \"permission_checks_denied_delta\": ${denied_delta},"
   echo "  \"permission_checks_allowed_delta\": ${allowed_delta},"
   echo "  \"permission_checks_total_delta\": ${total_decisions_delta},"
+  echo "  \"counter_reset_detected\": ${counter_reset_detected},"
+  echo "  \"min_decision_delta\": ${MIN_DECISION_DELTA},"
   echo "  \"gate_status\": \"${gate_status}\","
   echo "  \"gate_message\": \"${gate_message}\","
   echo "  \"samples_data\": ["
@@ -185,11 +221,13 @@ fi
   echo "- metrics_url: ${METRICS_URL}"
   echo "- samples: ${SAMPLES}"
   echo "- interval_sec: ${INTERVAL_SEC}"
+  echo "- min_decision_delta: ${MIN_DECISION_DELTA}"
   echo "- mismatch_total: ${first_mismatch} -> ${last_mismatch} (delta ${mismatch_delta})"
   echo "- shadow_compare_failures_total: ${first_shadow_fail} -> ${last_shadow_fail} (delta ${shadow_fail_delta})"
   echo "- permission_checks_denied delta: ${denied_delta}"
   echo "- permission_checks_allowed delta: ${allowed_delta}"
   echo "- permission_checks_total delta: ${total_decisions_delta}"
+  echo "- counter_reset_detected: ${counter_reset_detected}"
   echo
   echo "## Gate"
   echo

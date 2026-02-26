@@ -94,8 +94,60 @@ test_allow_mismatch_disables_strict_gate() {
   pass "allow-mismatch flag bypasses strict gate"
 }
 
+test_baseline_fails_when_decision_volume_is_too_low() {
+  local tmp
+  tmp="$(mktemp -d)"
+
+  cat > "$tmp/mock-curl" <<'MOCK'
+#!/usr/bin/env bash
+set -euo pipefail
+cat <<METRICS
+rustok_rbac_decision_mismatch_total 0
+rustok_rbac_shadow_compare_failures_total 0
+rustok_rbac_permission_checks_denied 0
+rustok_rbac_permission_checks_allowed 0
+METRICS
+MOCK
+  chmod +x "$tmp/mock-curl"
+
+  set +e
+  RUSTOK_CURL_BIN="$tmp/mock-curl" "$SCRIPT" \
+    --samples 2 --interval-sec 0 --artifacts-dir "$tmp/artifacts" >"$tmp/out.log" 2>&1
+  code=$?
+  set -e
+
+  [[ "$code" -eq 1 ]] || fail "expected non-zero exit when decision volume is too low"
+  rg -q "Decision delta is" "$tmp/out.log" || fail "expected low-decision gate message"
+  pass "baseline helper enforces minimum decision volume"
+}
+
+test_min_decision_delta_zero_allows_idle_windows() {
+  local tmp
+  tmp="$(mktemp -d)"
+
+  cat > "$tmp/mock-curl" <<'MOCK'
+#!/usr/bin/env bash
+set -euo pipefail
+cat <<METRICS
+rustok_rbac_decision_mismatch_total 0
+rustok_rbac_shadow_compare_failures_total 0
+rustok_rbac_permission_checks_denied 0
+rustok_rbac_permission_checks_allowed 0
+METRICS
+MOCK
+  chmod +x "$tmp/mock-curl"
+
+  RUSTOK_CURL_BIN="$tmp/mock-curl" "$SCRIPT" \
+    --samples 2 --interval-sec 0 --min-decision-delta 0 --artifacts-dir "$tmp/artifacts" >"$tmp/out.log" 2>&1
+
+  rg -q "Done. Report:" "$tmp/out.log" || fail "expected successful output when min decision delta is zero"
+  pass "min-decision-delta=0 allows idle windows"
+}
+
 test_baseline_passes_when_mismatch_is_stable
 test_baseline_fails_when_mismatch_changes
 test_allow_mismatch_disables_strict_gate
+test_baseline_fails_when_decision_volume_is_too_low
+test_min_decision_delta_zero_allows_idle_windows
 
 echo "All rbac_cutover_baseline tests passed"
