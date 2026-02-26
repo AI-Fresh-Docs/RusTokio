@@ -33,7 +33,9 @@ RusToK реализован как **Modular Monolith**: все модули к�
 | `rustok-tenant` | `tenant` | Tenant metadata, lifecycle hooks |
 | `rustok-rbac` | `rbac` | RBAC helpers, lifecycle hooks |
 
-Итоговый критичный core-baseline платформы: `rustok-index`, `rustok-tenant`, `rustok-rbac`, `rustok-core`, `rustok-outbox`, `rustok-telemetry`.
+Итоговые обязательные core-модули платформы (`ModuleKind::Core`): `rustok-index`, `rustok-tenant`, `rustok-rbac`.
+
+`rustok-core`, `rustok-outbox`, `rustok-telemetry` — это обязательная инфраструктура, но не `RusToKModule`.
 
 ## Категория C — Optional Domain Modules (`ModuleKind::Optional`)
 

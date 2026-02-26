@@ -132,7 +132,9 @@ Core modules are mandatory for the platform runtime; optional modules are additi
 | `crates/alloy-scripting` | **Alloy Scripting** | `Optional` | `rustok-core` (registered via `AlloyModule` in `apps/server/src/modules/alloy.rs`) |
 
 
-> Core platform baseline (critical): `rustok-index`, `rustok-tenant`, `rustok-rbac`, `rustok-core`, `rustok-outbox`, `rustok-telemetry`.
+> Mandatory core modules (`ModuleKind::Core`): `rustok-index`, `rustok-tenant`, `rustok-rbac`.
+>
+> Core infrastructure (not `RusToKModule`): `rustok-core`, `rustok-outbox`, `rustok-telemetry`.
 
 ### Internal Frontend Libraries (`crates/`)
 

@@ -32,12 +32,12 @@ pub enum ToggleModuleError {
 }
 
 impl ModuleLifecycleService {
-    fn validate_core_toggle(
-        registry: &ModuleRegistry,
-        module_slug: &str,
-        enabled: bool,
-    ) -> Result<(), ToggleModuleError> {
-        if !enabled && registry.is_core(module_slug) {
+    /// Platform core modules are fixed on server side and cannot be disabled per tenant.
+    /// Keep this list aligned with runtime registration in `apps/server/src/modules/mod.rs`.
+    const CORE_MODULE_SLUGS: [&'static str; 3] = ["index", "tenant", "rbac"];
+
+    fn validate_core_toggle(module_slug: &str, enabled: bool) -> Result<(), ToggleModuleError> {
+        if !enabled && Self::CORE_MODULE_SLUGS.contains(&module_slug) {
             return Err(ToggleModuleError::CoreModuleCannotBeDisabled(
                 module_slug.to_string(),
             ));
@@ -57,7 +57,7 @@ impl ModuleLifecycleService {
             return Err(ToggleModuleError::UnknownModule);
         };
 
-        Self::validate_core_toggle(registry, module_slug, enabled)?;
+        Self::validate_core_toggle(module_slug, enabled)?;
 
         let enabled_modules = TenantModulesEntity::find_enabled(db, tenant_id).await?;
         let enabled_set: HashSet<String> = enabled_modules.into_iter().collect();
@@ -180,80 +180,28 @@ impl ModuleLifecycleService {
 
 #[cfg(test)]
 mod tests {
-    use rustok_core::RusToKModule;
-
     use super::*;
 
-    struct CoreTestModule;
-    struct OptionalTestModule;
-
-    impl RusToKModule for CoreTestModule {
-        fn slug(&self) -> &'static str {
-            "core-test"
-        }
-
-        fn name(&self) -> &'static str {
-            "Core Test"
-        }
-
-        fn description(&self) -> &'static str {
-            "Core module for tests"
-        }
-
-        fn version(&self) -> &'static str {
-            "0.0.0"
-        }
-
-        fn kind(&self) -> rustok_core::ModuleKind {
-            rustok_core::ModuleKind::Core
-        }
-    }
-
-    impl RusToKModule for OptionalTestModule {
-        fn slug(&self) -> &'static str {
-            "optional-test"
-        }
-
-        fn name(&self) -> &'static str {
-            "Optional Test"
-        }
-
-        fn description(&self) -> &'static str {
-            "Optional module for tests"
-        }
-
-        fn version(&self) -> &'static str {
-            "0.0.0"
-        }
-    }
-
     #[test]
-    fn disable_core_module_is_rejected() {
-        let registry = ModuleRegistry::new().register(CoreTestModule);
-
-        let result = ModuleLifecycleService::validate_core_toggle(&registry, "core-test", false);
+    fn disable_known_core_module_is_rejected() {
+        let result = ModuleLifecycleService::validate_core_toggle("tenant", false);
 
         assert!(matches!(
             result,
-            Err(ToggleModuleError::CoreModuleCannotBeDisabled(slug)) if slug == "core-test"
+            Err(ToggleModuleError::CoreModuleCannotBeDisabled(slug)) if slug == "tenant"
         ));
     }
 
     #[test]
-    fn enable_core_module_is_allowed() {
-        let registry = ModuleRegistry::new().register(CoreTestModule);
-
-        let result = ModuleLifecycleService::validate_core_toggle(&registry, "core-test", true);
+    fn enable_known_core_module_is_allowed() {
+        let result = ModuleLifecycleService::validate_core_toggle("rbac", true);
 
         assert!(result.is_ok());
     }
 
     #[test]
-    fn disable_optional_module_is_allowed() {
-        let registry = ModuleRegistry::new().register(OptionalTestModule);
-
-        let result =
-            ModuleLifecycleService::validate_core_toggle(&registry, "optional-test", false);
+    fn disable_non_core_module_is_allowed() {
+        let result = ModuleLifecycleService::validate_core_toggle("content", false);
 
         assert!(result.is_ok());
     }
