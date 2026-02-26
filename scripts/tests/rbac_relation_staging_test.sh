@@ -26,9 +26,6 @@ args="$*"
 if [[ "$args" == *"target=rbac-report"* ]]; then
   output_file="$(printf '%s' "$args" | sed -n 's/.*output=\([^ ]*\).*/\1/p')"
   if [[ -n "$output_file" ]]; then
-    if [[ -n "${MOCK_SKIP_REPORT_OUTPUT:-}" ]]; then
-      exit 0
-    fi
     if [[ -n "${MOCK_SKIP_POST_APPLY_REPORT_OUTPUT:-}" && "$output_file" == *"post_apply"* ]]; then
       exit 0
     fi
@@ -229,7 +226,7 @@ test_require_zero_post_apply_fails_when_report_missing() {
   make_mock_cargo "$tmp"
 
   set +e
-  MOCK_TOUCH_ROLLBACK_FILE=1 MOCK_SKIP_REPORT_OUTPUT=1 RUSTOK_CARGO_BIN="$tmp/mock-cargo" "$SCRIPT" --run-apply --require-zero-post-apply --artifacts-dir "$tmp/artifacts" >"$tmp/out.log" 2>&1
+  MOCK_TOUCH_ROLLBACK_FILE=1 MOCK_SKIP_POST_APPLY_REPORT_OUTPUT=1 RUSTOK_CARGO_BIN="$tmp/mock-cargo" "$SCRIPT" --run-apply --require-zero-post-apply --artifacts-dir "$tmp/artifacts" >"$tmp/out.log" 2>&1
   local code=$?
   set -e
 
