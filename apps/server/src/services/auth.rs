@@ -900,11 +900,17 @@ mod tests {
         }
 
         fn set(&self, value: &str) {
-            std::env::set_var(self.name, value);
+            // SAFETY: tests serialize environment mutations via `EnvVarGuard` lock.
+            unsafe {
+                std::env::set_var(self.name, value);
+            }
         }
 
         fn remove(&self) {
-            std::env::remove_var(self.name);
+            // SAFETY: tests serialize environment mutations via `EnvVarGuard` lock.
+            unsafe {
+                std::env::remove_var(self.name);
+            }
         }
 
         fn previous(&self) -> Option<&str> {
@@ -913,9 +919,15 @@ mod tests {
 
         fn restore(&self) {
             if let Some(previous) = self.previous.as_ref() {
-                std::env::set_var(self.name, previous);
+                // SAFETY: tests serialize environment mutations via `EnvVarGuard` lock.
+                unsafe {
+                    std::env::set_var(self.name, previous);
+                }
             } else {
-                std::env::remove_var(self.name);
+                // SAFETY: tests serialize environment mutations via `EnvVarGuard` lock.
+                unsafe {
+                    std::env::remove_var(self.name);
+                }
             }
         }
     }
