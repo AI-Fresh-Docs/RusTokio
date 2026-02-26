@@ -21,3 +21,6 @@
 - Auth/lifecycle extraction: REST handlers и GraphQL mutations для `register/sign_in`, `login/sign_in`, `refresh`, `change_password`, `reset_password` теперь маршрутизируют бизнес-логику через общий `AuthLifecycleService` (transport adapters остаются тонкими).
 
 - Auth/error contracts: `AuthLifecycleService` использует типизированные ошибки (`AuthLifecycleError`), а REST/GraphQL делают единообразный transport-specific mapping без дублирования строковых веток.
+
+- Auth/release gates (Phase D): перед выкатом auth-lifecycle изменений фиксируем 3 артефакта — integration report (`cargo test -p rustok-server auth_lifecycle` + auth integration suite), staging parity report для REST/GraphQL и security checklist по reset/change-password.
+- Auth/rollback: при stop-the-line откатываем release-artifact, выполняем soft-revoke сессий через `sessions.revoked_at`, затем подтверждаем parity REST/GraphQL на staging и документируем postmortem.
