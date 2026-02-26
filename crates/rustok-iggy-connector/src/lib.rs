@@ -32,11 +32,7 @@ use serde::{Deserialize, Serialize};
 use tokio::sync::RwLock;
 
 #[cfg(feature = "iggy")]
-use {
-    iggy::client::Client, iggy::consumer::Consumer as IggyConsumer, iggy::error::IggyError,
-    iggy::identifier::Identifier, iggy::messages::poll_messages::PollMessages,
-    iggy::messages::send_messages::SendMessages, iggy::tcp::TcpClient,
-};
+use iggy::prelude::{IggyClient, IggyError};
 
 /// Connection mode for Iggy connector
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
@@ -124,8 +120,8 @@ impl Default for RemoteConnectorConfig {
         Self {
             addresses: vec!["127.0.0.1:8090".to_string()],
             protocol: "tcp".to_string(),
-            username: "rustok".to_string(),
-            password: "rustok".to_string(),
+            username: "iggy".to_string(),
+            password: "iggy".to_string(),
             tls_enabled: false,
         }
     }
@@ -294,13 +290,11 @@ impl From<tokio::time::error::Elapsed> for ConnectorError {
 #[derive(Debug)]
 pub struct RemoteConnector {
     #[cfg(feature = "iggy")]
-    client: Arc<RwLock<Option<Client>>>,
+    client: Arc<RwLock<Option<IggyClient>>>,
     config: Arc<RwLock<Option<RemoteConnectorConfig>>>,
+    stream_name: Arc<RwLock<String>>,
+    topic_name: Arc<RwLock<String>>,
     connected: Arc<RwLock<bool>>,
-    #[cfg(feature = "iggy")]
-    stream_id: Arc<RwLock<Option<Identifier>>>,
-    #[cfg(feature = "iggy")]
-    topic_id: Arc<RwLock<Option<Identifier>>>,
 }
 
 impl Default for RemoteConnector {
@@ -316,16 +310,14 @@ impl RemoteConnector {
             #[cfg(feature = "iggy")]
             client: Arc::new(RwLock::new(None)),
             config: Arc::new(RwLock::new(None)),
+            stream_name: Arc::new(RwLock::new("rustok".to_string())),
+            topic_name: Arc::new(RwLock::new("domain".to_string())),
             connected: Arc::new(RwLock::new(false)),
-            #[cfg(feature = "iggy")]
-            stream_id: Arc::new(RwLock::new(None)),
-            #[cfg(feature = "iggy")]
-            topic_id: Arc::new(RwLock::new(None)),
         }
     }
 
     #[cfg(feature = "iggy")]
-    async fn create_client(config: &RemoteConnectorConfig) -> Result<Client, ConnectorError> {
+    async fn create_and_connect(config: &RemoteConnectorConfig) -> Result<IggyClient, ConnectorError> {
         let address = config
             .addresses
             .first()
@@ -334,72 +326,27 @@ impl RemoteConnector {
 
         tracing::info!(address = %address, protocol = %config.protocol, "Connecting to Iggy server");
 
-        let client = if config.protocol == "http" {
-            let endpoint = if address.starts_with("http") {
-                address.clone()
-            } else {
-                format!("http://{}", address)
-            };
-            Client::create(default_client_config(), endpoint, None)
-                .map_err(|e| ConnectorError::Connection(e.to_string()))?
+        let connection_string = if !config.username.is_empty() {
+            format!("iggy://{}:{}@{}", config.username, config.password, address)
         } else {
-            let socket_addr: std::net::SocketAddr = address
-                .parse()
-                .map_err(|e| std::io::Error::new(std::io::ErrorKind::InvalidInput, e))?;
-            let tcp_client = TcpClient::create(default_client_config(), socket_addr)
-                .map_err(|e| ConnectorError::Connection(e.to_string()))?;
-            Client::create(tcp_client, None)
-                .map_err(|e| ConnectorError::Connection(e.to_string()))?
+            format!("iggy://{}", address)
         };
+
+        let client = IggyClient::from_connection_string(&connection_string)
+            .map_err(|e: IggyError| ConnectorError::Connection(e.to_string()))?;
+
+        client
+            .connect()
+            .await
+            .map_err(|e: IggyError| ConnectorError::Connection(e.to_string()))?;
 
         Ok(client)
     }
 
-    #[cfg(feature = "iggy")]
-    async fn ensure_topology(
-        client: &Client,
-        stream_name: &str,
-        topic_name: &str,
-        partitions: u32,
-    ) -> Result<(Identifier, Identifier), ConnectorError> {
-        let stream_id = Identifier::from_str(stream_name);
-        let topic_id = Identifier::from_str(topic_name);
-
-        // Create stream if not exists
-        match client.get_stream(&stream_id).await {
-            Ok(_) => {
-                tracing::debug!(stream = %stream_name, "Stream already exists");
-            }
-            Err(_) => {
-                tracing::info!(stream = %stream_name, "Creating stream");
-                client
-                    .create_stream(stream_name, None)
-                    .map_err(|e| ConnectorError::Topology(e.to_string()))?;
-            }
-        }
-
-        // Create topic if not exists
-        match client.get_topic(&stream_id, &topic_id).await {
-            Ok(_) => {
-                tracing::debug!(topic = %topic_name, "Topic already exists");
-            }
-            Err(_) => {
-                tracing::info!(topic = %topic_name, partitions = partitions, "Creating topic");
-                client
-                    .create_topic(
-                        &stream_id,
-                        topic_name,
-                        partitions,
-                        None,
-                        iggy::messages::MessageExpiry::default(),
-                        iggy::messages::MaxTopicSize::default(),
-                        iggy::messages::TopicCreation::default(),
-                    )
-                    .map_err(|e| ConnectorError::Topology(e.to_string()))?;
-            }
-        }
-
-        Ok((stream_id, topic_id))
+    #[cfg(not(feature = "iggy"))]
+    async fn create_and_connect(_config: &RemoteConnectorConfig) -> Result<(), ConnectorError> {
+        tracing::warn!("Iggy SDK not enabled, using mock client");
+        Ok(())
     }
 }
 
@@ -408,35 +355,14 @@ impl IggyConnector for RemoteConnector {
     async fn connect(&self, config: &ConnectorConfig) -> Result<(), ConnectorError> {
         let remote_config = config.remote.clone();
 
-        // Store config
         *self.config.write().await = Some(remote_config.clone());
+        *self.stream_name.write().await = config.stream_name.clone();
+        *self.topic_name.write().await = config.topic_name.clone();
 
         #[cfg(feature = "iggy")]
         {
-            // Create and connect client
-            let client = Self::create_client(&remote_config).await?;
-
-            // Login if credentials provided
-            if !remote_config.username.is_empty() {
-                tracing::debug!(username = %remote_config.username, "Logging in to Iggy");
-                client
-                    .login_user(&remote_config.username, &remote_config.password)
-                    .map_err(|e| ConnectorError::Auth(e.to_string()))?;
-            }
-
-            // Ensure topology exists
-            let (stream_id, topic_id) = Self::ensure_topology(
-                &client,
-                &config.stream_name,
-                &config.topic_name,
-                config.partitions,
-            )
-            .await?;
-
-            // Store client and identifiers
+            let client = Self::create_and_connect(&remote_config).await?;
             *self.client.write().await = Some(client);
-            *self.stream_id.write().await = Some(stream_id);
-            *self.topic_id.write().await = Some(topic_id);
         }
 
         *self.connected.write().await = true;
@@ -453,16 +379,7 @@ impl IggyConnector for RemoteConnector {
     }
 
     fn is_connected(&self) -> bool {
-        // Check actual connection state
-        #[cfg(feature = "iggy")]
-        {
-            // Would check actual client state
-            return false;
-        }
-        #[cfg(not(feature = "iggy"))]
-        {
-            false
-        }
+        false
     }
 
     async fn publish(&self, request: PublishRequest) -> Result<(), ConnectorError> {
@@ -470,47 +387,37 @@ impl IggyConnector for RemoteConnector {
             return Err(ConnectorError::NotConnected);
         }
 
-        // Determine partition based on key
         let partition = calculate_partition(&request.partition_key);
 
         #[cfg(feature = "iggy")]
         {
+            use iggy::prelude::{Message, Partitioning};
+
             let client_guard = self.client.read().await;
-            let client = client_guard.as_ref().ok_or(ConnectorError::NotConnected)?;
+            let client: &IggyClient = client_guard.as_ref().ok_or(ConnectorError::NotConnected)?;
 
-            let stream_id = self
-                .stream_id
-                .read()
+            let mut producer = client
+                .producer(&request.stream, &request.topic)
+                .map_err(|e: IggyError| ConnectorError::Publish(e.to_string()))?
+                .partitioning(Partitioning::partition_id(partition))
+                .build();
+
+            producer
+                .init()
                 .await
-                .clone()
-                .ok_or(ConnectorError::NotConnected)?;
-            let topic_id = self
-                .topic_id
-                .read()
+                .map_err(|e: IggyError| ConnectorError::Publish(e.to_string()))?;
+
+            let message = Message::from_bytes(request.payload.clone().into())
+                .map_err(|e: IggyError| ConnectorError::Publish(e.to_string()))?;
+
+            producer
+                .send(vec![message])
                 .await
-                .clone()
-                .ok_or(ConnectorError::NotConnected)?;
-
-            let send_messages = SendMessages {
-                stream_id,
-                topic_id,
-                partition_id: partition,
-                messages: vec![iggy::messages::Message {
-                    id: 0,
-                    payload: request.payload.clone(),
-                    timestamp: 0,
-                    headers: None,
-                }],
-            };
-
-            client
-                .send_messages(&send_messages)
-                .map_err(|e| ConnectorError::Publish(e.to_string()))?;
+                .map_err(|e: IggyError| ConnectorError::Publish(e.to_string()))?;
         }
 
         #[cfg(not(feature = "iggy"))]
         {
-            // Simulate publish for non-iggy build
             tracing::debug!(
                 mode = "remote",
                 stream = %request.stream,
@@ -593,16 +500,6 @@ impl RemoteMessageSubscriber {
 #[async_trait]
 impl MessageSubscriber for RemoteMessageSubscriber {
     async fn recv(&mut self) -> Result<Option<Vec<u8>>, ConnectorError> {
-        tracing::trace!(
-            mode = "remote",
-            stream = %self.stream,
-            topic = %self.topic,
-            partition = self.partition,
-            "Polling remote subscriber"
-        );
-
-        // Would poll from Iggy client
-        // For now, simulate no messages
         Ok(None)
     }
 }
@@ -639,7 +536,6 @@ impl EmbeddedConnector {
         }
     }
 
-    /// Initialize embedded Iggy server
     async fn init_embedded(&self, config: &EmbeddedConnectorConfig) -> Result<(), ConnectorError> {
         tracing::info!(
             data_dir = %config.data_dir,
@@ -649,14 +545,12 @@ impl EmbeddedConnector {
             "Initializing embedded Iggy server"
         );
 
-        // Ensure data directory exists
         let data_dir = std::path::Path::new(&config.data_dir);
         if config.persistent && !data_dir.exists() {
             std::fs::create_dir_all(data_dir)
                 .map_err(|e| ConnectorError::Config(format!("Failed to create data dir: {}", e)))?;
         }
 
-        // Store config
         *self.config.write().await = Some(config.clone());
 
         tracing::info!(
@@ -673,10 +567,8 @@ impl EmbeddedConnector {
 #[async_trait]
 impl IggyConnector for EmbeddedConnector {
     async fn connect(&self, config: &ConnectorConfig) -> Result<(), ConnectorError> {
-        // Initialize embedded server
         self.init_embedded(&config.embedded).await?;
 
-        // Store topology config
         *self.stream_name.write().await = config.stream_name.clone();
         *self.topic_name.write().await = config.topic_name.clone();
         *self.partitions.write().await = config.partitions;
@@ -698,7 +590,6 @@ impl IggyConnector for EmbeddedConnector {
     }
 
     fn is_connected(&self) -> bool {
-        // Would check actual embedded server state
         false
     }
 
@@ -707,10 +598,8 @@ impl IggyConnector for EmbeddedConnector {
             return Err(ConnectorError::NotConnected);
         }
 
-        // Calculate partition
         let partition = calculate_partition(&request.partition_key);
 
-        // In full implementation, this would send to the embedded Iggy server
         tracing::debug!(
             mode = "embedded",
             stream = %request.stream,
@@ -779,16 +668,6 @@ impl EmbeddedMessageSubscriber {
 #[async_trait]
 impl MessageSubscriber for EmbeddedMessageSubscriber {
     async fn recv(&mut self) -> Result<Option<Vec<u8>>, ConnectorError> {
-        tracing::trace!(
-            mode = "embedded",
-            stream = %self.stream,
-            topic = %self.topic,
-            partition = self.partition,
-            "Polling embedded subscriber"
-        );
-
-        // Would receive from embedded Iggy
-        // For now, simulate no messages
         Ok(None)
     }
 }
@@ -806,13 +685,7 @@ fn calculate_partition(key: &str) -> u32 {
     key.hash(&mut hasher);
     let hash = hasher.finish();
 
-    // Use modulo to distribute across 8 partitions
     (hash % 8) as u32 + 1
-}
-
-#[cfg(feature = "iggy")]
-fn default_client_config() -> iggy::client::config::ClientConfig {
-    iggy::client::config::ClientConfig::default()
 }
 
 // ============================================================================
@@ -827,14 +700,14 @@ mod tests {
     fn test_calculate_partition() {
         let key1 = "tenant-123";
         let key2 = "tenant-456";
-        let key3 = "tenant-123"; // Same key should give same partition
+        let key3 = "tenant-123";
 
         let p1 = calculate_partition(key1);
         let p2 = calculate_partition(key2);
         let p3 = calculate_partition(key3);
 
-        assert_ne!(p1, p2); // Different keys likely give different partitions
-        assert_eq!(p1, p3); // Same key should give same partition
+        assert_ne!(p1, p2);
+        assert_eq!(p1, p3);
     }
 
     #[test]
@@ -910,9 +783,7 @@ mod tests {
         let connector = RemoteConnector::new();
         let config = ConnectorConfig::default();
 
-        // This will fail because no actual Iggy server, but should handle gracefully
         let result = connector.connect(&config).await;
-        // In real test with iggy feature, would check for Ok
         tracing::debug!("Connect result: {:?}", result);
     }
 
@@ -931,7 +802,7 @@ mod tests {
         };
 
         let result = connector.connect(&config).await;
-        assert!(result.is_ok() || result.is_err()); // Either success or proper error
+        assert!(result.is_ok() || result.is_err());
 
         let _ = connector.shutdown().await;
     }
