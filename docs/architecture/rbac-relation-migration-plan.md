@@ -99,11 +99,13 @@
 
 Это создаёт риск рассинхронизации: пользователь может иметь роль в `users`, но не иметь корректных связей в `user_roles`.
 
-### 1.1 Симптомы в текущей реализации
+### 1.1 Исторические симптомы (закрыты в фазах 1–3)
 
-- В `register`/`sign_up` вызывается `AuthService::assign_role_permissions`, а в части других user-flow это не гарантировано единообразно.
-- Проверки прав в GraphQL сейчас ориентируются на `auth.role`, а не на relation-права.
-- В `CurrentUser` permissions формируются от роли, а не через relation-вычисление.
+- В `register`/`sign_up` назначение relation-RBAC ранее было неравномерным между user-flow.
+- Часть GraphQL-проверок ранее опиралась на `auth.role` вместо relation-проверок.
+- `CurrentUser` permissions ранее формировались от role-claim, а не relation-resolver.
+
+Текущее состояние по этим пунктам зафиксировано в progress tracker выше: baseline-симптомы закрыты, фокус смещён на data migration/cutover/cleanup.
 
 ---
 
@@ -383,23 +385,23 @@
   - [x] invite accept
   - [x] seed / sync / system bootstrap (seed_user)
 - [x] В каждом flow гарантированно формируются `user_roles` (все публичные entrypoints покрыты; `GraphQL update_user` синхронизирует через `replace_user_role`).
-- [ ] В каждом flow роль и tenant валидируются до записи.
+- [x] В каждом flow роль и tenant валидируются до записи.
 - [ ] Reset password в REST и GraphQL имеет одинаковую policy отзыва сессий.
 - [ ] Добавлены интеграционные тесты на каждый flow.
 
 ### 9.3 Фаза 2 — Resolver
 
-- [ ] Введён единый tenant-aware resolver API.
-- [ ] Удалено дублирование permission-логики из handlers/resolvers.
-- [ ] Проверки прав на критичных маршрутах переведены на resolver.
-- [ ] Включено fail-closed поведение при ошибке резолва.
-- [ ] Добавлены метрики latency/hit/miss/denied.
+- [x] Введён единый tenant-aware resolver API.
+- [x] Удалено дублирование permission-логики из handlers/resolvers.
+- [x] Проверки прав на критичных маршрутах переведены на resolver.
+- [x] Включено fail-closed поведение при ошибке резолва.
+- [x] Добавлены метрики latency/hit/miss/denied.
 
 ### 9.4 Фаза 3 — Auth context и токены
 
-- [ ] AuthContext получает permissions только из relation-resolver.
-- [ ] JWT role-claim не влияет на authorization decision.
-- [ ] Внедрена инвалидация permission-cache при изменениях ролей.
+- [x] AuthContext получает permissions только из relation-resolver.
+- [x] JWT role-claim не влияет на authorization decision.
+- [x] Внедрена инвалидация permission-cache при изменениях ролей.
 - [ ] Проверено поведение long-lived sessions после изменения прав.
 
 ### 9.5 Фаза 4 — Data migration
