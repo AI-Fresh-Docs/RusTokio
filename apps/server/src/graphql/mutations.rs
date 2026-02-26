@@ -154,8 +154,9 @@ impl RootMutation {
             model.name = Set(Some(name));
         }
 
-        if let Some(role) = input.role {
-            let role: rustok_core::UserRole = role.into();
+        let requested_role = input.role.map(rustok_core::UserRole::from);
+
+        if let Some(role) = requested_role.clone() {
             model.role = Set(role);
         }
 
@@ -170,8 +171,24 @@ impl RootMutation {
             model.password_hash = Set(password_hash);
         }
 
+        let tx = app_ctx
+            .db
+            .begin()
+            .await
+            .map_err(|err| <FieldError as GraphQLError>::internal_error(&err.to_string()))?;
+
         let user = model
-            .update(&app_ctx.db)
+            .update(&tx)
+            .await
+            .map_err(|err| <FieldError as GraphQLError>::internal_error(&err.to_string()))?;
+
+        if let Some(role) = requested_role {
+            AuthService::replace_user_role(&tx, &user.id, &tenant.id, role)
+                .await
+                .map_err(|err| <FieldError as GraphQLError>::internal_error(&err.to_string()))?;
+        }
+
+        tx.commit()
             .await
             .map_err(|err| <FieldError as GraphQLError>::internal_error(&err.to_string()))?;
 
