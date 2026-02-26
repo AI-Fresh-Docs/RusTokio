@@ -19,7 +19,7 @@ pub async fn metrics(State(ctx): State<AppContext>) -> Result<Response> {
             payload.push('\n');
             payload.push_str(&render_tenant_cache_metrics(&ctx).await);
             payload.push_str(&render_outbox_metrics(&ctx).await);
-            payload.push_str(&render_rbac_metrics());
+            payload.push_str(&render_rbac_metrics(&ctx).await);
 
             Ok((
                 StatusCode::OK,
@@ -92,8 +92,31 @@ outbox_retries_total {retries_total}\n",
     )
 }
 
-fn render_rbac_metrics() -> String {
+async fn render_rbac_metrics(ctx: &AppContext) -> String {
     let stats = AuthService::metrics_snapshot();
+    let users_without_roles_total = ctx
+        .db
+        .query_one(Statement::from_string(
+            DbBackend::Postgres,
+            "SELECT COUNT(*)::BIGINT AS total
+             FROM users u
+             LEFT JOIN user_roles ur ON ur.user_id = u.id
+             WHERE ur.id IS NULL"
+                .to_string(),
+        ))
+        .await
+        .ok()
+        .flatten()
+        .and_then(|row| row.try_get::<i64>("", "total").ok())
+        .unwrap_or(0);
+
+    format_rbac_metrics(stats, users_without_roles_total)
+}
+
+fn format_rbac_metrics(
+    stats: crate::services::auth::RbacResolverMetricsSnapshot,
+    users_without_roles_total: i64,
+) -> String {
     format!(
         "rustok_rbac_permission_cache_hits {cache_hits}\n\
 rustok_rbac_permission_cache_misses {cache_misses}\n\
@@ -106,7 +129,8 @@ rustok_rbac_permission_lookup_latency_samples {lookup_latency_samples}\n\
 rustok_rbac_permission_denied_reason_no_permissions_resolved {denied_no_permissions_resolved}\n\
 rustok_rbac_permission_denied_reason_missing_permissions {denied_missing_permissions}\n\
 rustok_rbac_permission_denied_reason_unknown {denied_unknown}\n\
-rustok_rbac_claim_role_mismatch_total {claim_role_mismatch_total}\n",
+rustok_rbac_claim_role_mismatch_total {claim_role_mismatch_total}\n\
+rustok_rbac_users_without_roles_total {users_without_roles_total}\n",
         cache_hits = stats.permission_cache_hits,
         cache_misses = stats.permission_cache_misses,
         checks_allowed = stats.permission_checks_allowed,
@@ -119,16 +143,24 @@ rustok_rbac_claim_role_mismatch_total {claim_role_mismatch_total}\n",
         denied_missing_permissions = stats.denied_missing_permissions,
         denied_unknown = stats.denied_unknown,
         claim_role_mismatch_total = stats.claim_role_mismatch_total,
+        users_without_roles_total = users_without_roles_total,
     )
 }
 
 #[cfg(test)]
 mod tests {
-    use super::render_rbac_metrics;
+    use super::format_rbac_metrics;
+    use crate::services::auth::AuthService;
 
     #[test]
     fn rbac_metrics_include_claim_role_mismatch_counter() {
-        let payload = render_rbac_metrics();
+        let payload = format_rbac_metrics(AuthService::metrics_snapshot(), 0);
         assert!(payload.contains("rustok_rbac_claim_role_mismatch_total"));
+    }
+
+    #[test]
+    fn rbac_metrics_include_users_without_roles_counter() {
+        let payload = format_rbac_metrics(AuthService::metrics_snapshot(), 0);
+        assert!(payload.contains("rustok_rbac_users_without_roles_total"));
     }
 }
