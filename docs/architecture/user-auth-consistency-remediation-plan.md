@@ -154,7 +154,7 @@ REST/GraphQL должны вызывать этот сервис, оставая
   - [x] refresh
   - [x] reset flows
   - [x] change_password
-- [ ] Унифицировать маппинг ошибок (REST status codes и GraphQL errors).
+- [x] Унифицировать маппинг ошибок (REST status codes и GraphQL errors).
 - [x] Выравнять session invalidation semantics между REST и GraphQL для `sign_out`/`change_password`/`reset_password` (soft-revoke через `revoked_at`).
 
 ## 5.2 Документационные задачи

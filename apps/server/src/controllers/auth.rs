@@ -24,7 +24,10 @@ use crate::models::{
     sessions,
     users::{self, ActiveModel as UserActiveModel, Entity as Users},
 };
-use crate::services::{auth::AuthService, auth_lifecycle::AuthLifecycleService};
+use crate::services::{
+    auth::AuthService,
+    auth_lifecycle::{AuthLifecycleError, AuthLifecycleService},
+};
 
 const DEFAULT_RESET_TOKEN_TTL_SECS: u64 = 15 * 60;
 const DEFAULT_VERIFY_TOKEN_TTL_SECS: u64 = 24 * 60 * 60;
@@ -182,7 +185,8 @@ async fn register(
         &params.password,
         params.name,
     )
-    .await?;
+    .await
+    .map_err(|e: AuthLifecycleError| Error::from(e))?;
 
     let user_role = user.role.clone();
     format::json(AuthResponse {
@@ -222,7 +226,8 @@ async fn login(
         Some(addr.ip().to_string()),
         user_agent,
     )
-    .await?;
+    .await
+    .map_err(|e: AuthLifecycleError| Error::from(e))?;
 
     let user_role = user.role.clone();
     format::json(AuthResponse {
@@ -247,8 +252,9 @@ async fn refresh(
     CurrentTenant(tenant): CurrentTenant,
     Json(params): Json<RefreshRequest>,
 ) -> Result<Response> {
-    let (user, tokens) =
-        AuthLifecycleService::refresh(&ctx, tenant.id, &params.refresh_token).await?;
+    let (user, tokens) = AuthLifecycleService::refresh(&ctx, tenant.id, &params.refresh_token)
+        .await
+        .map_err(|e: AuthLifecycleError| Error::from(e))?;
 
     let user_role = user.role.clone();
     format::json(AuthResponse {
@@ -376,7 +382,8 @@ async fn confirm_reset(
     Json(params): Json<ConfirmResetParams>,
 ) -> Result<Response> {
     AuthLifecycleService::confirm_password_reset(&ctx, tenant.id, &params.token, &params.password)
-        .await?;
+        .await
+        .map_err(|e: AuthLifecycleError| Error::from(e))?;
 
     format::json(GenericStatusResponse { status: "ok" })
 }
@@ -519,7 +526,8 @@ async fn change_password(
         &params.current_password,
         &params.new_password,
     )
-    .await?;
+    .await
+    .map_err(|e: AuthLifecycleError| Error::from(e))?;
 
     format::json(GenericStatusResponse { status: "ok" })
 }

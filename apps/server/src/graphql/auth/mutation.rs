@@ -6,7 +6,7 @@ use crate::auth::{encode_password_reset_token, AuthConfig};
 use crate::context::TenantContext;
 use crate::graphql::errors::GraphQLError;
 use crate::models::users;
-use crate::services::auth_lifecycle::AuthLifecycleService;
+use crate::services::auth_lifecycle::{AuthLifecycleError, AuthLifecycleService};
 use crate::services::email::{EmailService, PasswordResetEmail, PasswordResetEmailSender};
 
 use crate::context::AuthContext;
@@ -14,6 +14,21 @@ use crate::context::AuthContext;
 use super::types::*;
 
 const DEFAULT_RESET_TOKEN_TTL_SECS: u64 = 15 * 60;
+
+fn map_auth_lifecycle_error(error: AuthLifecycleError) -> FieldError {
+    match error {
+        AuthLifecycleError::EmailAlreadyExists => FieldError::new("Email already exists"),
+        AuthLifecycleError::InvalidCredentials => FieldError::new("Invalid credentials"),
+        AuthLifecycleError::UserInactive => FieldError::new("User is inactive"),
+        AuthLifecycleError::InvalidRefreshToken => FieldError::new("Invalid refresh token"),
+        AuthLifecycleError::SessionExpired => FieldError::new("Session expired"),
+        AuthLifecycleError::UserNotFound => FieldError::new("User not found"),
+        AuthLifecycleError::InvalidResetToken => FieldError::new("Invalid reset token"),
+        AuthLifecycleError::Internal(err) => {
+            <FieldError as GraphQLError>::internal_error(&err.to_string())
+        }
+    }
+}
 
 #[derive(Default)]
 pub struct AuthMutation;
@@ -34,10 +49,7 @@ impl AuthMutation {
             None,
         )
         .await
-        .map_err(|e| match e {
-            Error::Unauthorized(msg) => FieldError::new(msg),
-            _ => <FieldError as GraphQLError>::internal_error(&e.to_string()),
-        })?;
+        .map_err(map_auth_lifecycle_error)?;
 
         Ok(AuthPayload {
             access_token: tokens.access_token,
@@ -67,10 +79,7 @@ impl AuthMutation {
             input.name,
         )
         .await
-        .map_err(|e| match e {
-            Error::BadRequest(msg) => FieldError::new(msg),
-            _ => <FieldError as GraphQLError>::internal_error(&e.to_string()),
-        })?;
+        .map_err(map_auth_lifecycle_error)?;
 
         Ok(AuthPayload {
             access_token: tokens.access_token,
@@ -99,10 +108,7 @@ impl AuthMutation {
         let (user, tokens) =
             AuthLifecycleService::refresh(app_ctx, tenant.id, &input.refresh_token)
                 .await
-                .map_err(|e| match e {
-                    Error::Unauthorized(msg) => FieldError::new(msg),
-                    _ => <FieldError as GraphQLError>::internal_error(&e.to_string()),
-                })?;
+                .map_err(map_auth_lifecycle_error)?;
 
         Ok(AuthPayload {
             access_token: tokens.access_token,
@@ -234,10 +240,7 @@ impl AuthMutation {
             &input.new_password,
         )
         .await
-        .map_err(|e| match e {
-            Error::Unauthorized(msg) => FieldError::new(msg),
-            _ => <FieldError as GraphQLError>::internal_error(&e.to_string()),
-        })?;
+        .map_err(map_auth_lifecycle_error)?;
 
         Ok(ChangePasswordPayload { success: true })
     }
@@ -258,10 +261,7 @@ impl AuthMutation {
             &input.new_password,
         )
         .await
-        .map_err(|e| match e {
-            Error::Unauthorized(_) => FieldError::new("Invalid reset token"),
-            _ => <FieldError as GraphQLError>::internal_error(&e.to_string()),
-        })?;
+        .map_err(map_auth_lifecycle_error)?;
 
         Ok(ResetPasswordPayload { success: true })
     }

@@ -16,6 +16,47 @@ pub struct AuthTokens {
     pub expires_in: u64,
 }
 
+#[derive(Debug)]
+pub enum AuthLifecycleError {
+    EmailAlreadyExists,
+    InvalidCredentials,
+    UserInactive,
+    InvalidRefreshToken,
+    SessionExpired,
+    UserNotFound,
+    InvalidResetToken,
+    Internal(Error),
+}
+
+impl From<Error> for AuthLifecycleError {
+    fn from(value: Error) -> Self {
+        Self::Internal(value)
+    }
+}
+
+impl From<AuthLifecycleError> for Error {
+    fn from(value: AuthLifecycleError) -> Self {
+        match value {
+            AuthLifecycleError::EmailAlreadyExists => {
+                Error::BadRequest("Email already exists".into())
+            }
+            AuthLifecycleError::InvalidCredentials => {
+                Error::Unauthorized("Invalid credentials".into())
+            }
+            AuthLifecycleError::UserInactive => Error::Unauthorized("User is inactive".into()),
+            AuthLifecycleError::InvalidRefreshToken => {
+                Error::Unauthorized("Invalid refresh token".into())
+            }
+            AuthLifecycleError::SessionExpired => Error::Unauthorized("Session expired".into()),
+            AuthLifecycleError::UserNotFound => Error::Unauthorized("User not found".into()),
+            AuthLifecycleError::InvalidResetToken => {
+                Error::Unauthorized("Invalid reset token".into())
+            }
+            AuthLifecycleError::Internal(err) => err,
+        }
+    }
+}
+
 pub struct AuthLifecycleService;
 
 impl AuthLifecycleService {
@@ -25,23 +66,29 @@ impl AuthLifecycleService {
         email: &str,
         password: &str,
         name: Option<String>,
-    ) -> Result<(users::Model, AuthTokens)> {
-        let config = AuthConfig::from_ctx(ctx)?;
+    ) -> std::result::Result<(users::Model, AuthTokens), AuthLifecycleError> {
+        let config = AuthConfig::from_ctx(ctx).map_err(AuthLifecycleError::from)?;
 
         if users::Entity::find_by_email(&ctx.db, tenant_id, email)
-            .await?
+            .await
+            .map_err(AuthLifecycleError::from)?
             .is_some()
         {
-            return Err(Error::BadRequest("Email already exists".into()));
+            return Err(AuthLifecycleError::EmailAlreadyExists);
         }
 
-        let password_hash = hash_password(password)?;
+        let password_hash = hash_password(password).map_err(AuthLifecycleError::from)?;
         let mut user = users::ActiveModel::new(tenant_id, email, &password_hash);
         user.name = Set(name);
-        let user = user.insert(&ctx.db).await?;
+        let user = user
+            .insert(&ctx.db)
+            .await
+            .map_err(AuthLifecycleError::from)?;
 
         let user_role = user.role.clone();
-        AuthService::assign_role_permissions(&ctx.db, &user.id, &tenant_id, user_role).await?;
+        AuthService::assign_role_permissions(&ctx.db, &user.id, &tenant_id, user_role)
+            .await
+            .map_err(AuthLifecycleError::from)?;
 
         let tokens =
             Self::create_session_and_tokens(ctx, tenant_id, &user, None, None, &config).await?;
@@ -56,25 +103,29 @@ impl AuthLifecycleService {
         password: &str,
         ip_address: Option<String>,
         user_agent: Option<String>,
-    ) -> Result<(users::Model, AuthTokens)> {
-        let config = AuthConfig::from_ctx(ctx)?;
+    ) -> std::result::Result<(users::Model, AuthTokens), AuthLifecycleError> {
+        let config = AuthConfig::from_ctx(ctx).map_err(AuthLifecycleError::from)?;
 
         let user = users::Entity::find_by_email(&ctx.db, tenant_id, email)
-            .await?
-            .ok_or_else(|| Error::Unauthorized("Invalid credentials".into()))?;
+            .await
+            .map_err(AuthLifecycleError::from)?
+            .ok_or(AuthLifecycleError::InvalidCredentials)?;
 
-        if !verify_password(password, &user.password_hash)? {
-            return Err(Error::Unauthorized("Invalid credentials".into()));
+        if !verify_password(password, &user.password_hash).map_err(AuthLifecycleError::from)? {
+            return Err(AuthLifecycleError::InvalidCredentials);
         }
 
         if !user.is_active() {
-            return Err(Error::Unauthorized("User is inactive".into()));
+            return Err(AuthLifecycleError::UserInactive);
         }
 
         let now = Utc::now();
         let mut user_active: users::ActiveModel = user.clone().into();
         user_active.last_login_at = Set(Some(now.into()));
-        let user = user_active.update(&ctx.db).await?;
+        let user = user_active
+            .update(&ctx.db)
+            .await
+            .map_err(AuthLifecycleError::from)?;
 
         let tokens =
             Self::create_session_and_tokens(ctx, tenant_id, &user, ip_address, user_agent, &config)
@@ -87,25 +138,27 @@ impl AuthLifecycleService {
         ctx: &AppContext,
         tenant_id: uuid::Uuid,
         refresh_token: &str,
-    ) -> Result<(users::Model, AuthTokens)> {
-        let config = AuthConfig::from_ctx(ctx)?;
+    ) -> std::result::Result<(users::Model, AuthTokens), AuthLifecycleError> {
+        let config = AuthConfig::from_ctx(ctx).map_err(AuthLifecycleError::from)?;
         let token_hash = hash_refresh_token(refresh_token);
 
         let session = sessions::Entity::find_by_token_hash(&ctx.db, tenant_id, &token_hash)
-            .await?
-            .ok_or_else(|| Error::Unauthorized("Invalid refresh token".into()))?;
+            .await
+            .map_err(AuthLifecycleError::from)?
+            .ok_or(AuthLifecycleError::InvalidRefreshToken)?;
 
         if !session.is_active() {
-            return Err(Error::Unauthorized("Session expired".into()));
+            return Err(AuthLifecycleError::SessionExpired);
         }
 
         let user = users::Entity::find_by_id(session.user_id)
             .one(&ctx.db)
-            .await?
-            .ok_or_else(|| Error::Unauthorized("User not found".into()))?;
+            .await
+            .map_err(AuthLifecycleError::from)?
+            .ok_or(AuthLifecycleError::UserNotFound)?;
 
         if !user.is_active() {
-            return Err(Error::Unauthorized("User is inactive".into()));
+            return Err(AuthLifecycleError::UserInactive);
         }
 
         let now = Utc::now();
@@ -118,10 +171,14 @@ impl AuthLifecycleService {
         session_model.token_hash = Set(new_token_hash);
         session_model.expires_at = Set(expires_at.into());
         session_model.last_used_at = Set(Some(now.into()));
-        session_model.update(&ctx.db).await?;
+        session_model
+            .update(&ctx.db)
+            .await
+            .map_err(AuthLifecycleError::from)?;
 
         let access_token =
-            encode_access_token(&config, user.id, tenant_id, user.role.clone(), session_id)?;
+            encode_access_token(&config, user.id, tenant_id, user.role.clone(), session_id)
+                .map_err(AuthLifecycleError::from)?;
 
         Ok((
             user,
@@ -138,22 +195,27 @@ impl AuthLifecycleService {
         tenant_id: uuid::Uuid,
         token: &str,
         password: &str,
-    ) -> Result<()> {
-        let config = AuthConfig::from_ctx(ctx)?;
-        let claims = decode_password_reset_token(&config, token)?;
+    ) -> std::result::Result<(), AuthLifecycleError> {
+        let config = AuthConfig::from_ctx(ctx).map_err(AuthLifecycleError::from)?;
+        let claims = decode_password_reset_token(&config, token)
+            .map_err(|_| AuthLifecycleError::InvalidResetToken)?;
 
         if claims.tenant_id != tenant_id {
-            return Err(Error::Unauthorized("Invalid reset token".into()));
+            return Err(AuthLifecycleError::InvalidResetToken);
         }
 
         let user = users::Entity::find_by_email(&ctx.db, tenant_id, &claims.sub)
-            .await?
-            .ok_or_else(|| Error::Unauthorized("Invalid reset token".into()))?;
+            .await
+            .map_err(AuthLifecycleError::from)?
+            .ok_or(AuthLifecycleError::InvalidResetToken)?;
 
         let user_id = user.id;
         let mut user_active: users::ActiveModel = user.into();
-        user_active.password_hash = Set(hash_password(password)?);
-        user_active.update(&ctx.db).await?;
+        user_active.password_hash = Set(hash_password(password).map_err(AuthLifecycleError::from)?);
+        user_active
+            .update(&ctx.db)
+            .await
+            .map_err(AuthLifecycleError::from)?;
 
         Self::revoke_user_sessions(ctx, tenant_id, user_id, None).await?;
 
@@ -167,20 +229,27 @@ impl AuthLifecycleService {
         current_session_id: uuid::Uuid,
         current_password: &str,
         new_password: &str,
-    ) -> Result<()> {
+    ) -> std::result::Result<(), AuthLifecycleError> {
         let user = users::Entity::find_by_id(user_id)
             .filter(users::Column::TenantId.eq(tenant_id))
             .one(&ctx.db)
-            .await?
-            .ok_or_else(|| Error::Unauthorized("Invalid credentials".into()))?;
+            .await
+            .map_err(AuthLifecycleError::from)?
+            .ok_or(AuthLifecycleError::InvalidCredentials)?;
 
-        if !verify_password(current_password, &user.password_hash)? {
-            return Err(Error::Unauthorized("Invalid credentials".into()));
+        if !verify_password(current_password, &user.password_hash)
+            .map_err(AuthLifecycleError::from)?
+        {
+            return Err(AuthLifecycleError::InvalidCredentials);
         }
 
         let mut user_active: users::ActiveModel = user.into();
-        user_active.password_hash = Set(hash_password(new_password)?);
-        user_active.update(&ctx.db).await?;
+        user_active.password_hash =
+            Set(hash_password(new_password).map_err(AuthLifecycleError::from)?);
+        user_active
+            .update(&ctx.db)
+            .await
+            .map_err(AuthLifecycleError::from)?;
 
         Self::revoke_user_sessions(ctx, tenant_id, user_id, Some(current_session_id)).await?;
 
@@ -194,7 +263,7 @@ impl AuthLifecycleService {
         ip_address: Option<String>,
         user_agent: Option<String>,
         config: &AuthConfig,
-    ) -> Result<AuthTokens> {
+    ) -> std::result::Result<AuthTokens, AuthLifecycleError> {
         let now = Utc::now();
         let refresh_token = generate_refresh_token();
         let token_hash = hash_refresh_token(&refresh_token);
@@ -204,10 +273,12 @@ impl AuthLifecycleService {
             tenant_id, user.id, token_hash, expires_at, ip_address, user_agent,
         )
         .insert(&ctx.db)
-        .await?;
+        .await
+        .map_err(AuthLifecycleError::from)?;
 
         let access_token =
-            encode_access_token(config, user.id, tenant_id, user.role.clone(), session.id)?;
+            encode_access_token(config, user.id, tenant_id, user.role.clone(), session.id)
+                .map_err(AuthLifecycleError::from)?;
 
         Ok(AuthTokens {
             access_token,
@@ -221,7 +292,7 @@ impl AuthLifecycleService {
         tenant_id: uuid::Uuid,
         user_id: uuid::Uuid,
         except_session_id: Option<uuid::Uuid>,
-    ) -> Result<()> {
+    ) -> std::result::Result<(), AuthLifecycleError> {
         let mut query = sessions::Entity::update_many()
             .col_expr(sessions::Column::RevokedAt, Expr::value(Utc::now()))
             .filter(sessions::Column::TenantId.eq(tenant_id))
@@ -232,7 +303,10 @@ impl AuthLifecycleService {
             query = query.filter(sessions::Column::Id.ne(session_id));
         }
 
-        query.exec(&ctx.db).await?;
+        query
+            .exec(&ctx.db)
+            .await
+            .map_err(AuthLifecycleError::from)?;
         Ok(())
     }
 }
