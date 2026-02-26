@@ -14,32 +14,10 @@ use rustok_core::{Action, Permission, Rbac, Resource, UserRole};
 use rustok_rbac::{
     authorize_all_permissions, authorize_any_permission, authorize_permission,
     invalidate_cached_permissions, DeniedReasonKind, PermissionCache, PermissionResolver,
-    RelationPermissionStore, RoleAssignmentStore, RuntimePermissionResolver,
+    RbacAuthzMode, RelationPermissionStore, RoleAssignmentStore, RuntimePermissionResolver,
 };
 
 use crate::models::_entities::{permissions, role_permissions, roles, user_roles, users};
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-enum RbacAuthzMode {
-    RelationOnly,
-    DualRead,
-}
-
-impl RbacAuthzMode {
-    fn parse(value: &str) -> Self {
-        if value.trim().eq_ignore_ascii_case("dual_read") {
-            return Self::DualRead;
-        }
-
-        Self::RelationOnly
-    }
-
-    fn from_env() -> Self {
-        std::env::var("RUSTOK_RBAC_AUTHZ_MODE")
-            .map(|raw| Self::parse(&raw))
-            .unwrap_or(Self::RelationOnly)
-    }
-}
 
 pub struct AuthService;
 
