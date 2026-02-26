@@ -801,33 +801,6 @@ impl PermissionResolver for ServerPermissionResolver {
         })
     }
 
-    async fn has_permission(
-        &self,
-        tenant_id: &uuid::Uuid,
-        user_id: &uuid::Uuid,
-        required_permission: &Permission,
-    ) -> Result<bool> {
-        AuthService::has_permission(&self.db, tenant_id, user_id, required_permission).await
-    }
-
-    async fn has_any_permission(
-        &self,
-        tenant_id: &uuid::Uuid,
-        user_id: &uuid::Uuid,
-        required_permissions: &[Permission],
-    ) -> Result<bool> {
-        AuthService::has_any_permission(&self.db, tenant_id, user_id, required_permissions).await
-    }
-
-    async fn has_all_permissions(
-        &self,
-        tenant_id: &uuid::Uuid,
-        user_id: &uuid::Uuid,
-        required_permissions: &[Permission],
-    ) -> Result<bool> {
-        AuthService::has_all_permissions(&self.db, tenant_id, user_id, required_permissions).await
-    }
-
     async fn assign_role_permissions(
         &self,
         tenant_id: &uuid::Uuid,
