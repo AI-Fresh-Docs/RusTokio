@@ -52,6 +52,7 @@ graph TD
 
 - [System Manifest](../RUSTOK_MANIFEST.md) — Философия, принципы и архитектурные инварианты платформы.
 - [Agent Rules](../AGENTS.md) — Правила для AI-агентов и контрибьюторов.
+- [Architecture Decisions](../DECISIONS/README.md) — Реестр архитектурных решений (ADR).
 - [Contributing](../CONTRIBUTING.md) — Инструкция по участию в разработке.
 - [Changelog](../CHANGELOG.md) — История версий и релизов.
 - [Roadmap](./roadmap.md) — Текущая дорожная карта и история релизов.
