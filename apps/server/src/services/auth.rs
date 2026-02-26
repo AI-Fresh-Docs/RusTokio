@@ -1173,6 +1173,64 @@ mod tests {
         assert_eq!(assignment_count, 1);
     }
 
+    #[tokio::test]
+    async fn remove_tenant_role_assignments_clears_user_links_for_tenant_roles() {
+        let db = setup_test_db_with_migrations::<Migrator>().await;
+        let tenant_id = rustok_core::generate_id();
+        let user_id = rustok_core::generate_id();
+
+        tenants::Entity::insert(tenants::ActiveModel {
+            id: Set(tenant_id),
+            name: Set("Test tenant".to_string()),
+            slug: Set("test-tenant-remove-all-roles".to_string()),
+            domain: Set(None),
+            settings: Set(serde_json::json!({})),
+            is_active: Set(true),
+            created_at: Set(Utc::now().into()),
+            updated_at: Set(Utc::now().into()),
+        })
+        .exec(&db)
+        .await
+        .expect("failed to insert tenant");
+
+        users::Entity::insert(users::ActiveModel {
+            id: Set(user_id),
+            tenant_id: Set(tenant_id),
+            email: Set("remove-all-roles@example.com".to_string()),
+            password_hash: Set("hash".to_string()),
+            name: Set(None),
+            role: Set(UserRole::Customer),
+            status: Set(rustok_core::UserStatus::Active),
+            email_verified_at: Set(None),
+            last_login_at: Set(None),
+            metadata: Set(serde_json::json!({})),
+            created_at: Set(Utc::now().into()),
+            updated_at: Set(Utc::now().into()),
+        })
+        .exec(&db)
+        .await
+        .expect("failed to insert user");
+
+        AuthService::assign_role_permissions(&db, &user_id, &tenant_id, UserRole::Customer)
+            .await
+            .expect("customer role assignment should succeed");
+        AuthService::assign_role_permissions(&db, &user_id, &tenant_id, UserRole::Manager)
+            .await
+            .expect("manager role assignment should succeed");
+
+        AuthService::remove_tenant_role_assignments(&db, &user_id, &tenant_id)
+            .await
+            .expect("remove tenant role assignments should succeed");
+
+        let remaining_links = user_roles::Entity::find()
+            .filter(user_roles::Column::UserId.eq(user_id))
+            .all(&db)
+            .await
+            .expect("failed to query remaining user_roles links");
+
+        assert!(remaining_links.is_empty());
+    }
+
     #[test]
     fn claim_role_mismatch_counter_increments() {
         let before = AuthService::metrics_snapshot().claim_role_mismatch_total;
