@@ -143,27 +143,70 @@ impl AuthService {
     ) -> Result<()> {
         let role_model = Self::get_or_create_role(db, tenant_id, &role).await?;
 
-        let user_role = user_roles::ActiveModel {
-            id: ActiveValue::Set(rustok_core::generate_id()),
-            user_id: ActiveValue::Set(*user_id),
-            role_id: ActiveValue::Set(role_model.id),
-        };
-        user_role.insert(db).await?;
+        let existing_user_role = user_roles::Entity::find()
+            .filter(user_roles::Column::UserId.eq(*user_id))
+            .filter(user_roles::Column::RoleId.eq(role_model.id))
+            .one(db)
+            .await?;
+
+        if existing_user_role.is_none() {
+            let user_role = user_roles::ActiveModel {
+                id: ActiveValue::Set(rustok_core::generate_id()),
+                user_id: ActiveValue::Set(*user_id),
+                role_id: ActiveValue::Set(role_model.id),
+            };
+            user_role.insert(db).await?;
+        }
 
         for permission in Rbac::permissions_for_role(&role).iter() {
             if let Some(permission_model) =
                 Self::get_or_create_permission(db, tenant_id, permission).await?
             {
-                let role_permission = role_permissions::ActiveModel {
-                    id: ActiveValue::Set(rustok_core::generate_id()),
-                    role_id: ActiveValue::Set(role_model.id),
-                    permission_id: ActiveValue::Set(permission_model.id),
-                };
-                role_permission.insert(db).await?;
+                let existing_role_permission = role_permissions::Entity::find()
+                    .filter(role_permissions::Column::RoleId.eq(role_model.id))
+                    .filter(role_permissions::Column::PermissionId.eq(permission_model.id))
+                    .one(db)
+                    .await?;
+
+                if existing_role_permission.is_none() {
+                    let role_permission = role_permissions::ActiveModel {
+                        id: ActiveValue::Set(rustok_core::generate_id()),
+                        role_id: ActiveValue::Set(role_model.id),
+                        permission_id: ActiveValue::Set(permission_model.id),
+                    };
+                    role_permission.insert(db).await?;
+                }
             }
         }
 
         Ok(())
+    }
+
+    pub async fn replace_user_role(
+        db: &DatabaseConnection,
+        user_id: &uuid::Uuid,
+        tenant_id: &uuid::Uuid,
+        role: UserRole,
+    ) -> Result<()> {
+        let tenant_role_models = roles::Entity::find()
+            .filter(roles::Column::TenantId.eq(*tenant_id))
+            .all(db)
+            .await?;
+
+        let tenant_role_ids: Vec<uuid::Uuid> = tenant_role_models
+            .into_iter()
+            .map(|tenant_role| tenant_role.id)
+            .collect();
+
+        if !tenant_role_ids.is_empty() {
+            user_roles::Entity::delete_many()
+                .filter(user_roles::Column::UserId.eq(*user_id))
+                .filter(user_roles::Column::RoleId.is_in(tenant_role_ids))
+                .exec(db)
+                .await?;
+        }
+
+        Self::assign_role_permissions(db, user_id, tenant_id, role).await
     }
 
     async fn get_or_create_role(

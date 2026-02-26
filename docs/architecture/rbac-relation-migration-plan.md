@@ -22,6 +22,7 @@
   - В `AuthService` добавлены tenant-aware методы `get_user_permissions / has_permission / has_any_permission / has_all_permissions`.
   - Реализованы tenant-scoping и deduplication; сохранена семантика `resource:manage` как wildcard.
   - Переведена часть GraphQL-checks (users CRUD/read/list, alloy, content mutation/query) и RBAC extractors на relation-проверки.
+  - `GraphQL update_user` теперь синхронно обновляет relation-модель (`user_roles`) через `replace_user_role`, чтобы legacy-role и relation RBAC не расходились.
 - [~] **Фаза 3 — AuthContext и токены (начато):**
   - `CurrentUser.permissions` теперь резолвятся из relation-модели, а не из `users.role`.
   - Полный отказ от role-claim в policy-решениях ещё не завершён (есть оставшиеся role-based места).
@@ -323,7 +324,7 @@
   - [ ] GraphQL create_user
   - [ ] invite accept
   - [ ] seed / sync / system bootstrap
-- [ ] В каждом flow гарантированно формируются `user_roles`.
+- [~] В каждом flow гарантированно формируются `user_roles` (добавлена синхронизация для `GraphQL update_user`; остаются invite/sync edge-cases).
 - [ ] В каждом flow роль и tenant валидируются до записи.
 - [ ] Reset password в REST и GraphQL имеет одинаковую policy отзыва сессий.
 - [ ] Добавлены интеграционные тесты на каждый flow.
