@@ -27,7 +27,7 @@ graph TD
         ALLOY[crates/alloy-scripting]
     end
 
-    subgraph Infrastructure
+    subgraph Platform Core Crates
         CORE[crates/rustok-core]
         EVENTS[crates/rustok-events]
         OUTBOX[crates/rustok-outbox - Core Infra]
@@ -99,17 +99,17 @@ graph TD
 | `apps/next-admin` | **Next.js Admin** | Modern React-based admin interface (Next.js). Primary admin dashboard. ([CRATE_API](../../apps/next-admin/CRATE_API.md)) |
 | `apps/next-frontend` | **Next.js Storefront** | Modern React-based storefront (Next.js). ([CRATE_API](../../apps/next-frontend/CRATE_API.md)) |
 
-### Core & Infrastructure (`crates/`)
+### Core Platform Crates (`crates/`)
 
 | Path | Name | Description |
 |------|------|-------------|
 | `crates/rustok-core` | **Core (critical)** | Shared traits, base entities, events, cache abstractions, circuit breaker, RBAC primitives. Not a `RusToKModule`. ([CRATE_API](../../crates/rustok-core/CRATE_API.md)) |
 | `crates/rustok-events` | **Events Contracts** | Stable import point for `DomainEvent`/`EventEnvelope` (re-exports from core). ([CRATE_API](../../crates/rustok-events/CRATE_API.md)) |
-| `crates/rustok-outbox` | **Outbox (Core, critical)** | Core infrastructure for transactional event delivery (`TransactionalEventBus`). Not a `RusToKModule` — initialized via `build_event_runtime()`. ([CRATE_API](../../crates/rustok-outbox/CRATE_API.md)) |
+| `crates/rustok-outbox` | **Outbox (Core, critical)** | Core event delivery (`TransactionalEventBus`). Not a `RusToKModule` — initialized via `build_event_runtime()`. ([CRATE_API](../../crates/rustok-outbox/CRATE_API.md)) |
 | `crates/rustok-iggy` | **Iggy Transport** | L2 streaming `EventTransport` implementation with serialization, topology, DLQ, replay. ([CRATE_API](../../crates/rustok-iggy/CRATE_API.md)) |
 | `crates/rustok-iggy-connector` | **Iggy Connector** | Embedded/Remote mode switching, connection lifecycle, message I/O. ([CRATE_API](../../crates/rustok-iggy-connector/CRATE_API.md)) |
 | `crates/rustok-mcp` | **MCP** | MCP adapter crate with embedded `rustok-mcp-server` binary. Exposes RusToK tools/resources via the MCP protocol using the `rmcp` SDK. ([CRATE_API](../../crates/rustok-mcp/CRATE_API.md)) |
-| `crates/rustok-telemetry` | **Telemetry (Core, critical)** | Observability setup (OTLP, Tracing, Prometheus metrics). Cross-cutting, not a `RusToKModule`. ([CRATE_API](../../crates/rustok-telemetry/CRATE_API.md)) |
+| `crates/rustok-telemetry` | **Telemetry (Core, critical)** | Observability setup (OTLP, Tracing, Prometheus metrics). Mandatory core crate, not a `RusToKModule`. ([CRATE_API](../../crates/rustok-telemetry/CRATE_API.md)) |
 | `crates/rustok-tenant` | **Tenant** | Multi-tenancy isolation and management logic. Registered as `ModuleKind::Core`. ([CRATE_API](../../crates/rustok-tenant/CRATE_API.md)) |
 | `crates/rustok-rbac` | **RBAC** | Role-based access control engine. Registered as `ModuleKind::Core`. ([CRATE_API](../../crates/rustok-rbac/CRATE_API.md)) |
 | `crates/rustok-test-utils` | **Test Utils** | Shared testing helpers and mocks. `[dev-dependencies]` only — never in production binary. ([CRATE_API](../../crates/rustok-test-utils/CRATE_API.md)) |
