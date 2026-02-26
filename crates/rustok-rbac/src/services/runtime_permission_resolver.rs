@@ -352,6 +352,63 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn role_assignment_operations_invalidate_cached_permissions() {
+        let cache = StubCache::default();
+        let resolver = RuntimePermissionResolver::new(
+            StubStore {
+                role_ids: vec![uuid::Uuid::new_v4()],
+                tenant_role_ids: vec![uuid::Uuid::new_v4()],
+                permissions: vec![Permission::PRODUCTS_READ],
+                fail_load: false,
+            },
+            cache,
+            StubAssignmentStore::default(),
+        );
+        let tenant_id = uuid::Uuid::new_v4();
+        let user_id = uuid::Uuid::new_v4();
+
+        let first = resolver
+            .resolve_permissions(&tenant_id, &user_id)
+            .await
+            .unwrap();
+        assert!(!first.cache_hit);
+
+        let second = resolver
+            .resolve_permissions(&tenant_id, &user_id)
+            .await
+            .unwrap();
+        assert!(second.cache_hit);
+
+        resolver
+            .replace_user_role(&tenant_id, &user_id, UserRole::Admin)
+            .await
+            .unwrap();
+
+        let after_replace = resolver
+            .resolve_permissions(&tenant_id, &user_id)
+            .await
+            .unwrap();
+        assert!(!after_replace.cache_hit);
+
+        let after_replace_cached = resolver
+            .resolve_permissions(&tenant_id, &user_id)
+            .await
+            .unwrap();
+        assert!(after_replace_cached.cache_hit);
+
+        resolver
+            .remove_tenant_role_assignments(&tenant_id, &user_id)
+            .await
+            .unwrap();
+
+        let after_remove = resolver
+            .resolve_permissions(&tenant_id, &user_id)
+            .await
+            .unwrap();
+        assert!(!after_remove.cache_hit);
+    }
+
+    #[tokio::test]
     async fn role_assignment_use_cases_delegate_to_assignment_store() {
         let assignment_store = StubAssignmentStore::default();
         let resolver = RuntimePermissionResolver::new(
