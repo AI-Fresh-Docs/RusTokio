@@ -13,15 +13,14 @@ pub fn evaluate_dual_read(
     shadow_check: ShadowCheck<'_>,
     relation_allowed: bool,
 ) -> DualReadOutcome {
-    let Some(legacy_role) = legacy_role else {
-        return DualReadOutcome::Skipped;
-    };
-
-    DualReadOutcome::Compared(compare_shadow_decision(
-        legacy_role,
-        shadow_check,
-        relation_allowed,
-    ))
+    match legacy_role {
+        Some(legacy_role) => DualReadOutcome::Compared(compare_shadow_decision(
+            legacy_role,
+            shadow_check,
+            relation_allowed,
+        )),
+        None => DualReadOutcome::Skipped,
+    }
 }
 
 #[cfg(test)]
