@@ -1,7 +1,7 @@
 # План устранения косяков в user/auth логике (без миграции RBAC)
 
 - Дата: 2026-02-26
-- Статус: In progress (Phase D release gates pending)
+- Статус: In progress (Phase D rollout controls documented; verification gates pending environment-ready run)
 - Область: `apps/server` (REST + GraphQL auth), `apps/server/docs`, `docs/architecture/*`
 - Граница плана: этот документ **не дублирует RBAC migration** и не заменяет `rbac-relation-migration-plan.md`. Здесь фиксируем только косяки user/auth потоков, которые нужно закрыть до/параллельно RBAC cutover.
 
@@ -204,9 +204,30 @@ Gate перед выкладкой:
 - [ ] REST/GraphQL parity проверена на staging.
 - [ ] Security review по reset/change-password закрыт.
 
+Артефакты gate-проверки (обновлять при каждом pre-release прогоне):
+
+- Integration report: `apps/server` (`cargo test -p rustok-server auth_lifecycle` + auth integration suite).
+- Staging parity report: сравнение REST/GraphQL результатов для `create_user`, `confirm_reset`/`reset_password`, `change_password`.
+- Security review checklist: подтверждение инварианта «password reset => revoke all active sessions» и отсутствие bypass по inactive user.
+
+Шаблон фиксации результатов gate (заполняется перед релизом):
+
+| Гейт | Артефакт | Статус | Подтверждение | Ответственный | Дата |
+| --- | --- | --- | --- | --- | --- |
+| Integration | `cargo test -p rustok-server auth_lifecycle` + auth integration suite | Pending | Ссылка на job/лог прогона | Platform foundation | YYYY-MM-DD |
+| REST/GraphQL parity | staging report (`create_user`, `confirm_reset`/`reset_password`, `change_password`) | Pending | Ссылка на parity report | Platform foundation | YYYY-MM-DD |
+| Security review | checklist по reset/change-password + inactive-user bypass | Pending | Ссылка на checklist/sign-off | Platform foundation + security reviewer | YYYY-MM-DD |
+
+Порядок заполнения gate-артефактов:
+
+1. Перед релизом обновить таблицу фактическими статусами и ссылками на evidence.
+2. Для каждого gate зафиксировать owner и дату завершения проверки.
+3. Если хотя бы один gate не закрыт, релиз блокируется до устранения причины.
+
 Текущий прогресс по gate:
 
 - Кодовые и документационные задачи Phases A-C завершены (см. раздел 5).
+- Rollout controls и rollback-инструкция добавлены в `apps/server/docs/README.md`.
 - Phase D остаётся открытой до фиксации результатов integration/staging/security проверок.
 
 Stop-the-line условия:
@@ -214,6 +235,13 @@ Stop-the-line условия:
 1. Найден сценарий, где reset не отзывает сессии.
 2. Найдено расхождение behavior между REST и GraphQL для одного и того же use-case.
 3. Рост 401/403/5xx по auth-эндпоинтам выше согласованного порога после релиза.
+
+Rollback-процедура (операционная):
+
+1. Немедленно приостановить rollout auth-изменений и вернуть предыдущий release-artifact.
+2. Принудительно отозвать скомпрометированные/сомнительные сессии через soft-revoke `sessions.revoked_at`.
+3. Включить усиленный мониторинг метрик из раздела 7 и сверить parity REST/GraphQL на staging.
+4. После стабилизации открыть postmortem и обновить этот план с конкретной причиной отката.
 
 ---
 

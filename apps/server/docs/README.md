@@ -21,3 +21,5 @@
 - Auth/lifecycle extraction: REST handlers и GraphQL mutations для `register/sign_in`, `login/sign_in`, `refresh`, `change_password`, `reset_password` теперь маршрутизируют бизнес-логику через общий `AuthLifecycleService` (transport adapters остаются тонкими).
 
 - Auth/error contracts: `AuthLifecycleService` использует типизированные ошибки (`AuthLifecycleError`), а REST/GraphQL делают единообразный transport-specific mapping без дублирования строковых веток.
+
+- Auth rollout controls: канонические release gates, stop-the-line условия и rollback-процедура ведутся централизованно в `docs/architecture/user-auth-consistency-remediation-plan.md` (раздел 8), этот README хранит только краткий changelog.
