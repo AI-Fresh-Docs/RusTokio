@@ -18,6 +18,7 @@ Options:
   --run-apply                 Run non-dry-run backfill step
   --run-rollback-dry          Run rollback dry-run after backfill
   --run-rollback-apply        Run actual rollback (dangerous; explicit)
+  --rollback-source <file>    Use existing rollback snapshot file instead of generated one
   --artifacts-dir <dir>       Output folder for logs/report (default: artifacts/rbac-staging)
   --help                      Show this message
 
@@ -35,6 +36,7 @@ CONTINUE_ON_ERROR="false"
 RUN_APPLY="false"
 RUN_ROLLBACK_DRY="false"
 RUN_ROLLBACK_APPLY="false"
+ROLLBACK_SOURCE=""
 ARTIFACTS_DIR="artifacts/rbac-staging"
 
 while [[ $# -gt 0 ]]; do
@@ -55,6 +57,8 @@ while [[ $# -gt 0 ]]; do
       RUN_ROLLBACK_DRY="true"; shift ;;
     --run-rollback-apply)
       RUN_ROLLBACK_APPLY="true"; shift ;;
+    --rollback-source)
+      ROLLBACK_SOURCE="$2"; shift 2 ;;
     --artifacts-dir)
       ARTIFACTS_DIR="$2"; shift 2 ;;
     --help)
@@ -68,7 +72,11 @@ done
 
 mkdir -p "$ARTIFACTS_DIR"
 TS="$(date -u +%Y%m%dT%H%M%SZ)"
-ROLLBACK_FILE="$ARTIFACTS_DIR/rbac_backfill_${TS}.rollback.json"
+GENERATED_ROLLBACK_FILE="$ARTIFACTS_DIR/rbac_backfill_${TS}.rollback.json"
+ROLLBACK_FILE="$GENERATED_ROLLBACK_FILE"
+if [[ -n "$ROLLBACK_SOURCE" ]]; then
+  ROLLBACK_FILE="$ROLLBACK_SOURCE"
+fi
 REPORT_FILE="$ARTIFACTS_DIR/rbac_relation_stage_report_${TS}.md"
 
 build_args() {
@@ -91,6 +99,15 @@ build_args() {
   echo "$args"
 }
 
+require_rollback_source() {
+  local reason="$1"
+  if [[ ! -f "$ROLLBACK_FILE" ]]; then
+    echo "Rollback source file is required for ${reason} but was not found: ${ROLLBACK_FILE}" >&2
+    echo "Hint: run with --run-apply first, or pass --rollback-source <existing_snapshot.json>." >&2
+    exit 1
+  fi
+}
+
 run_step() {
   local name="$1"
   local args="$2"
@@ -104,11 +121,11 @@ run_step() {
 run_step "01_pre_report" "target=rbac-report"
 
 # 2) Dry-run backfill
-run_step "02_backfill_dry_run" "$(build_args rbac-backfill) dry_run=true rollback_file=${ROLLBACK_FILE}"
+run_step "02_backfill_dry_run" "$(build_args rbac-backfill) dry_run=true rollback_file=${GENERATED_ROLLBACK_FILE}"
 
 # 3) Apply backfill (optional)
 if [[ "$RUN_APPLY" == "true" ]]; then
-  run_step "03_backfill_apply" "$(build_args rbac-backfill) rollback_file=${ROLLBACK_FILE}"
+  run_step "03_backfill_apply" "$(build_args rbac-backfill) rollback_file=${GENERATED_ROLLBACK_FILE}"
   run_step "04_post_report" "target=rbac-report"
 else
   echo "Skipping apply step (use --run-apply to enable)."
@@ -116,11 +133,13 @@ fi
 
 # 4) Rollback dry-run (optional)
 if [[ "$RUN_ROLLBACK_DRY" == "true" ]]; then
+  require_rollback_source "rollback dry-run"
   run_step "05_rollback_dry_run" "target=rbac-backfill-rollback source=${ROLLBACK_FILE} dry_run=true"
 fi
 
 # 5) Rollback apply (optional, explicit)
 if [[ "$RUN_ROLLBACK_APPLY" == "true" ]]; then
+  require_rollback_source "rollback apply"
   run_step "06_rollback_apply" "target=rbac-backfill-rollback source=${ROLLBACK_FILE} continue_on_error=${CONTINUE_ON_ERROR}"
   run_step "07_post_rollback_report" "target=rbac-report"
 fi
@@ -131,7 +150,8 @@ cat > "$REPORT_FILE" <<REPORT
 - Timestamp (UTC): ${TS}
 - Environment: ${ENV_NAME}
 - Artifacts directory: ${ARTIFACTS_DIR}
-- Rollback snapshot: ${ROLLBACK_FILE}
+- Generated rollback snapshot path: ${GENERATED_ROLLBACK_FILE}
+- Effective rollback source: ${ROLLBACK_FILE}
 - Apply step enabled: ${RUN_APPLY}
 - Rollback dry-run enabled: ${RUN_ROLLBACK_DRY}
 - Rollback apply enabled: ${RUN_ROLLBACK_APPLY}
