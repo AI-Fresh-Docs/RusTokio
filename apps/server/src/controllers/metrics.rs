@@ -11,6 +11,7 @@ use sea_orm::{
 
 use crate::middleware::tenant::tenant_cache_stats;
 use crate::services::auth::AuthService;
+use tracing::warn;
 
 pub async fn metrics(State(ctx): State<AppContext>) -> Result<Response> {
     match rustok_telemetry::metrics_handle() {
@@ -94,21 +95,36 @@ outbox_retries_total {retries_total}\n",
 
 async fn render_rbac_metrics(ctx: &AppContext) -> String {
     let stats = AuthService::metrics_snapshot();
-    let users_without_roles_total = ctx
+    match ctx
         .db
-        .query_one(Statement::from_string(
-            DbBackend::Postgres,
-            "SELECT COUNT(*)::BIGINT AS total
-             FROM users u
-             LEFT JOIN user_roles ur ON ur.user_id = u.id
-             WHERE ur.id IS NULL"
-                .to_string(),
-        ))
-        .await
-        .ok()
-        .flatten()
-        .and_then(|row| row.try_get::<i64>("", "total").ok())
-        .unwrap_or(0);
+    {
+        Ok(Some(row)) => RbacConsistencyStats {
+            users_without_roles_total: parse_consistency_metric(&row, "users_without_roles_total"),
+            orphan_user_roles_total: parse_consistency_metric(&row, "orphan_user_roles_total"),
+            orphan_role_permissions_total: parse_consistency_metric(
+                &row,
+                "orphan_role_permissions_total",
+            ),
+        },
+        Ok(None) => {
+            warn!("rbac consistency stats query returned no rows");
+            RbacConsistencyStats::default()
+        }
+        Err(error) => {
+            warn!(error = %error, "failed to load RBAC consistency stats");
+            RbacConsistencyStats::default()
+        }
+    }
+}
+
+fn parse_consistency_metric(row: &sea_orm::QueryResult, column: &str) -> i64 {
+    match row.try_get::<i64>("", column) {
+        Ok(value) => value,
+        Err(error) => {
+            warn!(column, error = %error, "failed to parse RBAC consistency metric");
+            0
+        }
+    }
 
     let orphan_user_roles_total = ctx
         .db
@@ -190,6 +206,14 @@ rustok_rbac_orphan_role_permissions_total {orphan_role_permissions_total}\n",
     )
 }
 
+
+    #[test]
+    fn rbac_metrics_render_consistency_values() {
+        let payload = format_rbac_metrics(AuthService::metrics_snapshot(), 7, 3, 1);
+        assert!(payload.contains("rustok_rbac_users_without_roles_total 7"));
+        assert!(payload.contains("rustok_rbac_orphan_user_roles_total 3"));
+        assert!(payload.contains("rustok_rbac_orphan_role_permissions_total 1"));
+    }
 #[cfg(test)]
 mod tests {
     use super::format_rbac_metrics;
