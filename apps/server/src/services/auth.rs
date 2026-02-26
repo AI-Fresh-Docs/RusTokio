@@ -13,8 +13,8 @@ use tracing::{debug, warn};
 
 use rustok_core::{Action, Permission, Rbac, Resource, UserRole};
 use rustok_rbac::{
-    evaluate_all_permissions, evaluate_any_permission, evaluate_single_permission,
-    DeniedReasonKind, PermissionResolution, PermissionResolver,
+    authorize_all_permissions, authorize_any_permission, authorize_permission, DeniedReasonKind,
+    PermissionResolution, PermissionResolver,
 };
 
 use crate::models::_entities::{permissions, role_permissions, roles, user_roles, users};
@@ -316,17 +316,19 @@ impl AuthService {
         required_permission: &Permission,
     ) -> Result<bool> {
         let started_at = Instant::now();
-        let user_permissions = Self::get_user_permissions(db, tenant_id, user_id).await?;
-        let evaluation = evaluate_single_permission(&user_permissions, required_permission);
-        let allowed = evaluation.allowed;
-        let denied = evaluation.denied_reason;
+        let resolver = ServerPermissionResolver::new(db.clone());
+        let decision =
+            authorize_permission(&resolver, tenant_id, user_id, required_permission).await?;
+        let allowed = decision.allowed;
+        let denied = decision.denied_reason;
         let latency_ms = started_at.elapsed().as_millis() as u64;
 
         debug!(
             tenant_id = %tenant_id,
             user_id = %user_id,
             required_permission = %required_permission,
-            permissions_count = user_permissions.len(),
+            permissions_count = decision.permissions_count,
+            cache_hit = decision.cache_hit,
             denied_reason = denied.as_ref().map(|(_, reason)| reason.as_str()),
             allowed,
             latency_ms,
@@ -376,17 +378,19 @@ impl AuthService {
     ) -> Result<bool> {
         let started_at = Instant::now();
 
-        let user_permissions = Self::get_user_permissions(db, tenant_id, user_id).await?;
-        let evaluation = evaluate_any_permission(&user_permissions, required_permissions);
-        let allowed = evaluation.allowed;
-        let denied = evaluation.denied_reason;
+        let resolver = ServerPermissionResolver::new(db.clone());
+        let decision =
+            authorize_any_permission(&resolver, tenant_id, user_id, required_permissions).await?;
+        let allowed = decision.allowed;
+        let denied = decision.denied_reason;
         let latency_ms = started_at.elapsed().as_millis() as u64;
 
         debug!(
             tenant_id = %tenant_id,
             user_id = %user_id,
             required_permissions = ?required_permissions,
-            permissions_count = user_permissions.len(),
+            permissions_count = decision.permissions_count,
+            cache_hit = decision.cache_hit,
             denied_reason = denied.as_ref().map(|(_, reason)| reason.as_str()),
             allowed,
             latency_ms,
@@ -436,18 +440,20 @@ impl AuthService {
     ) -> Result<bool> {
         let started_at = Instant::now();
 
-        let user_permissions = Self::get_user_permissions(db, tenant_id, user_id).await?;
-        let evaluation = evaluate_all_permissions(&user_permissions, required_permissions);
-        let allowed = evaluation.allowed;
-        let denied = evaluation.denied_reason;
-        let missing_permissions = evaluation.missing_permissions;
+        let resolver = ServerPermissionResolver::new(db.clone());
+        let decision =
+            authorize_all_permissions(&resolver, tenant_id, user_id, required_permissions).await?;
+        let allowed = decision.allowed;
+        let denied = decision.denied_reason;
+        let missing_permissions = decision.missing_permissions;
         let latency_ms = started_at.elapsed().as_millis() as u64;
 
         debug!(
             tenant_id = %tenant_id,
             user_id = %user_id,
             required_permissions = ?required_permissions,
-            permissions_count = user_permissions.len(),
+            permissions_count = decision.permissions_count,
+            cache_hit = decision.cache_hit,
             denied_reason = denied.as_ref().map(|(_, reason)| reason.as_str()),
             missing_permissions = ?missing_permissions,
             allowed,
