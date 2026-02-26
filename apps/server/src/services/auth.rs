@@ -13,8 +13,8 @@ use tracing::{debug, warn};
 use rustok_core::{Action, Permission, Rbac, Resource, UserRole};
 use rustok_rbac::{
     authorize_all_permissions, authorize_any_permission, authorize_permission,
-    invalidate_cached_permissions, resolve_permissions_with_cache, DeniedReasonKind,
-    PermissionCache, PermissionResolution, PermissionResolver, RelationPermissionStore,
+    invalidate_cached_permissions, DeniedReasonKind, PermissionCache, PermissionResolver,
+    RelationPermissionStore, RoleAssignmentStore, RuntimePermissionResolver,
 };
 
 use crate::models::_entities::{permissions, role_permissions, roles, user_roles, users};
@@ -42,6 +42,13 @@ impl RbacAuthzMode {
 }
 
 pub struct AuthService;
+
+type ServerRuntimePermissionResolver = RuntimePermissionResolver<
+    SeaOrmRelationPermissionStore,
+    MokaPermissionCache,
+    ServerRoleAssignmentStore,
+    Error,
+>;
 
 static USER_PERMISSION_CACHE: Lazy<Cache<(uuid::Uuid, uuid::Uuid), Vec<Permission>>> =
     Lazy::new(|| {
@@ -317,7 +324,7 @@ impl AuthService {
         required_permission: &Permission,
     ) -> Result<bool> {
         let started_at = Instant::now();
-        let resolver = ServerPermissionResolver::new(db.clone());
+        let resolver = Self::resolver(db);
         let decision =
             authorize_permission(&resolver, tenant_id, user_id, required_permission).await?;
         let allowed = decision.allowed;
@@ -379,7 +386,7 @@ impl AuthService {
     ) -> Result<bool> {
         let started_at = Instant::now();
 
-        let resolver = ServerPermissionResolver::new(db.clone());
+        let resolver = Self::resolver(db);
         let decision =
             authorize_any_permission(&resolver, tenant_id, user_id, required_permissions).await?;
         let allowed = decision.allowed;
@@ -441,7 +448,7 @@ impl AuthService {
     ) -> Result<bool> {
         let started_at = Instant::now();
 
-        let resolver = ServerPermissionResolver::new(db.clone());
+        let resolver = Self::resolver(db);
         let decision =
             authorize_all_permissions(&resolver, tenant_id, user_id, required_permissions).await?;
         let allowed = decision.allowed;
@@ -498,39 +505,14 @@ impl AuthService {
         Ok(allowed)
     }
 
-    pub async fn resolve_permissions(
-        db: &DatabaseConnection,
-        tenant_id: &uuid::Uuid,
-        user_id: &uuid::Uuid,
-    ) -> Result<PermissionResolution> {
-        let (permissions, cache_hit) = Self::load_user_permissions(db, tenant_id, user_id).await?;
-
-        Ok(PermissionResolution {
-            permissions,
-            cache_hit,
-        })
-    }
-
     pub async fn get_user_permissions(
         db: &DatabaseConnection,
         tenant_id: &uuid::Uuid,
         user_id: &uuid::Uuid,
     ) -> Result<Vec<Permission>> {
-        let (permissions, _cache_hit) = Self::load_user_permissions(db, tenant_id, user_id).await?;
-
-        Ok(permissions)
-    }
-
-    async fn load_user_permissions(
-        db: &DatabaseConnection,
-        tenant_id: &uuid::Uuid,
-        user_id: &uuid::Uuid,
-    ) -> Result<(Vec<Permission>, bool)> {
+        let resolver = Self::resolver(db);
         let started_at = Instant::now();
-        let store = SeaOrmRelationPermissionStore { db };
-        let cache = MokaPermissionCache;
-
-        let resolved = resolve_permissions_with_cache(&store, &cache, tenant_id, user_id).await?;
+        let resolved = resolver.resolve_permissions(tenant_id, user_id).await?;
 
         if resolved.cache_hit {
             RBAC_PERMISSION_CACHE_HITS.fetch_add(1, Ordering::Relaxed);
@@ -549,7 +531,15 @@ impl AuthService {
 
         Self::record_permission_lookup_latency(started_at.elapsed().as_millis() as u64);
 
-        Ok((resolved.permissions, resolved.cache_hit))
+        Ok(resolved.permissions)
+    }
+
+    fn resolver(db: &DatabaseConnection) -> ServerRuntimePermissionResolver {
+        RuntimePermissionResolver::new(
+            SeaOrmRelationPermissionStore { db: db.clone() },
+            MokaPermissionCache,
+            ServerRoleAssignmentStore { db: db.clone() },
+        )
     }
 
     pub async fn assign_role_permissions(
@@ -718,11 +708,18 @@ impl AuthService {
     }
 }
 
-struct SeaOrmRelationPermissionStore<'a> {
-    db: &'a DatabaseConnection,
+#[derive(Clone)]
+struct SeaOrmRelationPermissionStore {
+    db: DatabaseConnection,
 }
 
+#[derive(Clone)]
 struct MokaPermissionCache;
+
+#[derive(Clone)]
+struct ServerRoleAssignmentStore {
+    db: DatabaseConnection,
+}
 
 #[async_trait]
 impl PermissionCache for MokaPermissionCache {
@@ -749,13 +746,13 @@ impl PermissionCache for MokaPermissionCache {
 }
 
 #[async_trait]
-impl RelationPermissionStore for SeaOrmRelationPermissionStore<'_> {
+impl RelationPermissionStore for SeaOrmRelationPermissionStore {
     type Error = Error;
 
     async fn load_user_role_ids(&self, user_id: &uuid::Uuid) -> Result<Vec<uuid::Uuid>> {
         let user_role_models = user_roles::Entity::find()
             .filter(user_roles::Column::UserId.eq(*user_id))
-            .all(self.db)
+            .all(&self.db)
             .await?;
 
         Ok(user_role_models
@@ -772,7 +769,7 @@ impl RelationPermissionStore for SeaOrmRelationPermissionStore<'_> {
         let tenant_role_models = roles::Entity::find()
             .filter(roles::Column::TenantId.eq(*tenant_id))
             .filter(roles::Column::Id.is_in(role_ids.iter().copied()))
-            .all(self.db)
+            .all(&self.db)
             .await?;
 
         Ok(tenant_role_models.into_iter().map(|role| role.id).collect())
@@ -785,7 +782,7 @@ impl RelationPermissionStore for SeaOrmRelationPermissionStore<'_> {
     ) -> Result<Vec<Permission>> {
         let role_permission_models = role_permissions::Entity::find()
             .filter(role_permissions::Column::RoleId.is_in(role_ids.iter().copied()))
-            .all(self.db)
+            .all(&self.db)
             .await?;
 
         if role_permission_models.is_empty() {
@@ -800,7 +797,7 @@ impl RelationPermissionStore for SeaOrmRelationPermissionStore<'_> {
         let permission_models = permissions::Entity::find()
             .filter(permissions::Column::TenantId.eq(*tenant_id))
             .filter(permissions::Column::Id.is_in(permission_ids))
-            .all(self.db)
+            .all(&self.db)
             .await?;
 
         let mut result = Vec::with_capacity(permission_models.len());
@@ -820,28 +817,9 @@ impl RelationPermissionStore for SeaOrmRelationPermissionStore<'_> {
     }
 }
 
-#[derive(Clone)]
-pub struct ServerPermissionResolver {
-    db: DatabaseConnection,
-}
-
-impl ServerPermissionResolver {
-    pub fn new(db: DatabaseConnection) -> Self {
-        Self { db }
-    }
-}
-
 #[async_trait]
-impl PermissionResolver for ServerPermissionResolver {
+impl RoleAssignmentStore for ServerRoleAssignmentStore {
     type Error = Error;
-
-    async fn resolve_permissions(
-        &self,
-        tenant_id: &uuid::Uuid,
-        user_id: &uuid::Uuid,
-    ) -> Result<PermissionResolution> {
-        AuthService::resolve_permissions(&self.db, tenant_id, user_id).await
-    }
 
     async fn assign_role_permissions(
         &self,

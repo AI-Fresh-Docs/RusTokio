@@ -21,6 +21,7 @@ pub use services::relation_permission_resolver::{
     invalidate_cached_permissions, resolve_permissions_from_relations,
     resolve_permissions_with_cache, PermissionCache, RelationPermissionStore,
 };
+pub use services::runtime_permission_resolver::{RoleAssignmentStore, RuntimePermissionResolver};
 
 use async_trait::async_trait;
 use rustok_core::module::{HealthStatus, MigrationSource, ModuleKind, RusToKModule};
