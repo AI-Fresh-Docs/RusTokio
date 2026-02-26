@@ -1109,6 +1109,70 @@ mod tests {
         assert!(has_admin);
         assert!(!has_customer);
     }
+
+    #[tokio::test]
+    async fn assign_role_permissions_is_idempotent_for_user_role_link() {
+        let db = setup_test_db_with_migrations::<Migrator>().await;
+        let tenant_id = rustok_core::generate_id();
+        let user_id = rustok_core::generate_id();
+
+        tenants::Entity::insert(tenants::ActiveModel {
+            id: Set(tenant_id),
+            name: Set("Test tenant".to_string()),
+            slug: Set("test-tenant-idempotent-role".to_string()),
+            domain: Set(None),
+            settings: Set(serde_json::json!({})),
+            is_active: Set(true),
+            created_at: Set(Utc::now().into()),
+            updated_at: Set(Utc::now().into()),
+        })
+        .exec(&db)
+        .await
+        .expect("failed to insert tenant");
+
+        users::Entity::insert(users::ActiveModel {
+            id: Set(user_id),
+            tenant_id: Set(tenant_id),
+            email: Set("idempotent-role@example.com".to_string()),
+            password_hash: Set("hash".to_string()),
+            name: Set(None),
+            role: Set(UserRole::Customer),
+            status: Set(rustok_core::UserStatus::Active),
+            email_verified_at: Set(None),
+            last_login_at: Set(None),
+            metadata: Set(serde_json::json!({})),
+            created_at: Set(Utc::now().into()),
+            updated_at: Set(Utc::now().into()),
+        })
+        .exec(&db)
+        .await
+        .expect("failed to insert user");
+
+        AuthService::assign_role_permissions(&db, &user_id, &tenant_id, UserRole::Manager)
+            .await
+            .expect("first role assignment should succeed");
+        AuthService::assign_role_permissions(&db, &user_id, &tenant_id, UserRole::Manager)
+            .await
+            .expect("second role assignment should succeed");
+
+        let manager_role = roles::Entity::find()
+            .filter(roles::Column::TenantId.eq(tenant_id))
+            .filter(roles::Column::Slug.eq(UserRole::Manager.to_string()))
+            .one(&db)
+            .await
+            .expect("failed to load manager role")
+            .expect("manager role should exist");
+
+        let assignment_count = user_roles::Entity::find()
+            .filter(user_roles::Column::UserId.eq(user_id))
+            .filter(user_roles::Column::RoleId.eq(manager_role.id))
+            .count(&db)
+            .await
+            .expect("failed to count user_roles links");
+
+        assert_eq!(assignment_count, 1);
+    }
+
     #[test]
     fn claim_role_mismatch_counter_increments() {
         let before = AuthService::metrics_snapshot().claim_role_mismatch_total;
