@@ -35,7 +35,7 @@ RusToK реализован как **Modular Monolith**: все модули к�
 
 Итоговые обязательные core-модули платформы (`ModuleKind::Core`): `rustok-index`, `rustok-tenant`, `rustok-rbac`.
 
-`rustok-core`, `rustok-outbox`, `rustok-telemetry` — обязательные **core (critical)** модули инфраструктурного уровня (инициализируются вне `ModuleRegistry`).
+`rustok-core`, `rustok-outbox`, `rustok-telemetry` — обязательные **core (critical)** модули платформы (инициализируются вне `ModuleRegistry`).
 
 ## Категория C — Optional Domain Modules (`ModuleKind::Optional`)
 

@@ -14,7 +14,7 @@
 - `rustok-outbox` — **Core, critical**
 - `rustok-telemetry` — **Core, critical**
 
-Агентам: считать этот список обязательным baseline платформы. Логика tenant-toggle/disable применяется только к `ModuleKind::Core` модульного уровня и остается централизованной в `ModuleLifecycleService`.
+Агентам: считать этот список обязательным baseline платформы. Логика tenant-toggle/disable для отключения core-модулей централизованно контролируется в `ModuleLifecycleService`.
 
 - [`library-stack.md`](./library-stack.md) — основные backend-библиотеки сервера и их роль (framework, HTTP, ORM, GraphQL, runtime, observability).
 - [`event-transport.md`](./event-transport.md) — как работает конфигурация и runtime-пайплайн транспорта событий.

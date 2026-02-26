@@ -118,7 +118,7 @@ graph TD
 
 These implement `RusToKModule` and are registered via `ModuleRegistry` in `apps/server`.
 Core modules are mandatory for the platform runtime; optional modules are additive domain capabilities.
-The core baseline includes both `ModuleKind::Core` modules and infrastructure core crates.
+The core baseline includes `ModuleKind::Core` modules and additional mandatory core crates.
 
 | Path | Name | Kind | Depends on |
 |------|------|------|-----------|
