@@ -68,6 +68,7 @@
   - Для staged rollout в backfill добавлены safety-controls: `dry_run=true` (без изменений данных), `limit=<N>` (батчевый прогон) и `continue_on_error=true` (best-effort режим при частичных ошибках).
   - Backfill расширен исключениями для service/special-case аккаунтов (`exclude_user_ids`, `exclude_roles`) и добавлен rollback-путь `rbac-backfill-rollback` через snapshot-файл (`rollback_file` -> `source`) с role-targeted откатом (удаляется только роль из snapshot, а не все tenant-роли пользователя).
   - Добавлен helper-скрипт `scripts/rbac_relation_staging.sh` для staged rehearsal (pre-report, dry-run, optional apply, optional rollback, markdown-отчёт + таймстемпированные логи в `artifacts/rbac-staging`); rollback-шаги требуют валидный snapshot (`--run-apply` в том же запуске или `--rollback-source=<file>`).
+  - Добавлены smoke-тесты helper-скрипта (`scripts/tests/rbac_relation_staging_test.sh`) с mock cargo-path для проверки rollback guardrails и snapshot-source сценариев.
 - [~] **Фаза 5 — Dual-read и cutover (частично):**
   - В `AuthService` добавлен runtime shadow dual-read для `has_permission/has_any_permission/has_all_permissions` под env-флагом `RUSTOK_RBAC_AUTHZ_MODE=dual_read` (relation decision остаётся авторитативным).
   - Режим rollout-конфигурации (`RbacAuthzMode`: `relation_only`/`dual_read`) перенесён в `crates/rustok-rbac` как модульный контракт, `apps/server` использует его без локального enum-дублирования.

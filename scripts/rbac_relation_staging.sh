@@ -22,6 +22,9 @@ Options:
   --artifacts-dir <dir>       Output folder for logs/report (default: artifacts/rbac-staging)
   --help                      Show this message
 
+Environment:
+  RUSTOK_CARGO_BIN            Override cargo executable path (default: cargo)
+
 Examples:
   scripts/rbac_relation_staging.sh --run-apply --run-rollback-dry
   scripts/rbac_relation_staging.sh --limit 100 --exclude-roles super_admin --run-apply
@@ -38,6 +41,7 @@ RUN_ROLLBACK_DRY="false"
 RUN_ROLLBACK_APPLY="false"
 ROLLBACK_SOURCE=""
 ARTIFACTS_DIR="artifacts/rbac-staging"
+CARGO_BIN="${RUSTOK_CARGO_BIN:-cargo}"
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
@@ -113,8 +117,8 @@ run_step() {
   local args="$2"
   local log_file="$ARTIFACTS_DIR/${TS}_${name}.log"
 
-  echo "==> ${name}: cargo loco task --name cleanup --env ${ENV_NAME} --args \"${args}\""
-  cargo loco task --name cleanup --env "$ENV_NAME" --args "$args" | tee "$log_file"
+  echo "==> ${name}: ${CARGO_BIN} loco task --name cleanup --env ${ENV_NAME} --args \"${args}\""
+  "$CARGO_BIN" loco task --name cleanup --env "$ENV_NAME" --args "$args" | tee "$log_file"
 }
 
 # 1) Baseline
