@@ -82,7 +82,7 @@ impl AuthService {
             .collect()
     }
 
-    fn denied_reason(
+    fn denied_reason_for_denial(
         user_permissions: &[Permission],
         missing_permissions: &[Permission],
     ) -> (DeniedReasonKind, String) {
@@ -185,8 +185,14 @@ impl AuthService {
         } else {
             vec![*required_permission]
         };
-        let (denied_reason_kind, denied_reason) =
-            Self::denied_reason(&user_permissions, &missing_permissions);
+        let denied = if allowed {
+            None
+        } else {
+            Some(Self::denied_reason_for_denial(
+                &user_permissions,
+                &missing_permissions,
+            ))
+        };
         let latency_ms = started_at.elapsed().as_millis() as u64;
 
         debug!(
@@ -194,13 +200,13 @@ impl AuthService {
             user_id = %user_id,
             required_permission = %required_permission,
             permissions_count = user_permissions.len(),
-            denied_reason = %denied_reason,
+            denied_reason = denied.as_ref().map(|(_, reason)| reason.as_str()),
             allowed,
             latency_ms,
             "rbac resolver decision (single permission check)"
         );
 
-        if !allowed {
+        if let Some((denied_reason_kind, denied_reason)) = denied {
             warn!(
                 tenant_id = %tenant_id,
                 user_id = %user_id,
@@ -208,13 +214,11 @@ impl AuthService {
                 denied_reason = %denied_reason,
                 "rbac deny: missing required permission"
             );
+            Self::denied_reason_bucket(denied_reason_kind);
         }
 
         Self::record_permission_check_result(allowed);
         Self::record_permission_check_latency(latency_ms);
-        if !allowed {
-            Self::denied_reason_bucket(denied_reason_kind);
-        }
 
         Ok(allowed)
     }
@@ -240,8 +244,14 @@ impl AuthService {
         } else {
             required_permissions.to_vec()
         };
-        let (denied_reason_kind, denied_reason) =
-            Self::denied_reason(&user_permissions, &missing_permissions);
+        let denied = if allowed {
+            None
+        } else {
+            Some(Self::denied_reason_for_denial(
+                &user_permissions,
+                &missing_permissions,
+            ))
+        };
         let latency_ms = started_at.elapsed().as_millis() as u64;
 
         debug!(
@@ -249,13 +259,13 @@ impl AuthService {
             user_id = %user_id,
             required_permissions = ?required_permissions,
             permissions_count = user_permissions.len(),
-            denied_reason = %denied_reason,
+            denied_reason = denied.as_ref().map(|(_, reason)| reason.as_str()),
             allowed,
             latency_ms,
             "rbac resolver decision (any-permission check)"
         );
 
-        if !allowed {
+        if let Some((denied_reason_kind, denied_reason)) = denied {
             warn!(
                 tenant_id = %tenant_id,
                 user_id = %user_id,
@@ -263,13 +273,11 @@ impl AuthService {
                 denied_reason = %denied_reason,
                 "rbac deny: none of required permissions granted"
             );
+            Self::denied_reason_bucket(denied_reason_kind);
         }
 
         Self::record_permission_check_result(allowed);
         Self::record_permission_check_latency(latency_ms);
-        if !allowed {
-            Self::denied_reason_bucket(denied_reason_kind);
-        }
 
         Ok(allowed)
     }
@@ -290,8 +298,14 @@ impl AuthService {
         let missing_permissions =
             Self::missing_permissions(&user_permissions, required_permissions);
         let allowed = missing_permissions.is_empty();
-        let (denied_reason_kind, denied_reason) =
-            Self::denied_reason(&user_permissions, &missing_permissions);
+        let denied = if allowed {
+            None
+        } else {
+            Some(Self::denied_reason_for_denial(
+                &user_permissions,
+                &missing_permissions,
+            ))
+        };
         let latency_ms = started_at.elapsed().as_millis() as u64;
 
         debug!(
@@ -299,14 +313,14 @@ impl AuthService {
             user_id = %user_id,
             required_permissions = ?required_permissions,
             permissions_count = user_permissions.len(),
-            denied_reason = %denied_reason,
+            denied_reason = denied.as_ref().map(|(_, reason)| reason.as_str()),
             missing_permissions = ?missing_permissions,
             allowed,
             latency_ms,
             "rbac resolver decision (all-permissions check)"
         );
 
-        if !allowed {
+        if let Some((denied_reason_kind, denied_reason)) = denied {
             warn!(
                 tenant_id = %tenant_id,
                 user_id = %user_id,
@@ -315,13 +329,11 @@ impl AuthService {
                 missing_permissions = ?missing_permissions,
                 "rbac deny: not all required permissions granted"
             );
+            Self::denied_reason_bucket(denied_reason_kind);
         }
 
         Self::record_permission_check_result(allowed);
         Self::record_permission_check_latency(latency_ms);
-        if !allowed {
-            Self::denied_reason_bucket(denied_reason_kind);
-        }
 
         Ok(allowed)
     }
@@ -614,7 +626,7 @@ mod tests {
     #[test]
     fn denied_reason_reports_no_permissions_resolved() {
         let (denied_reason_kind, denied_reason) =
-            AuthService::denied_reason(&[], &[Permission::USERS_READ]);
+            AuthService::denied_reason_for_denial(&[], &[Permission::USERS_READ]);
         assert_eq!(denied_reason_kind, DeniedReasonKind::NoPermissionsResolved);
         assert_eq!(denied_reason, "no_permissions_resolved");
     }
@@ -632,8 +644,10 @@ mod tests {
 
     #[test]
     fn denied_reason_classifies_missing_permissions() {
-        let (denied_reason_kind, denied_reason) =
-            AuthService::denied_reason(&[Permission::USERS_READ], &[Permission::USERS_UPDATE]);
+        let (denied_reason_kind, denied_reason) = AuthService::denied_reason_for_denial(
+            &[Permission::USERS_READ],
+            &[Permission::USERS_UPDATE],
+        );
         assert_eq!(denied_reason_kind, DeniedReasonKind::MissingPermissions);
         assert!(denied_reason.starts_with("missing_permissions:"));
     }
