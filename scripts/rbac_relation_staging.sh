@@ -22,6 +22,7 @@ Options:
   --fail-on-regression        Exit non-zero if post-check invariants regress vs pre-check
   --require-zero-post-apply   Exit non-zero if post-apply invariants are not all zero
   --require-zero-post-rollback Exit non-zero if post-rollback invariants are not all zero
+  --require-report-artifacts  Exit non-zero if expected report JSON artifacts are missing
   --artifacts-dir <dir>       Output folder for logs/report (default: artifacts/rbac-staging)
   --help                      Show this message
 
@@ -46,6 +47,7 @@ ROLLBACK_SOURCE=""
 FAIL_ON_REGRESSION="false"
 REQUIRE_ZERO_POST_APPLY="false"
 REQUIRE_ZERO_POST_ROLLBACK="false"
+REQUIRE_REPORT_ARTIFACTS="false"
 ARTIFACTS_DIR="artifacts/rbac-staging"
 CARGO_BIN="${RUSTOK_CARGO_BIN:-cargo}"
 
@@ -75,6 +77,8 @@ while [[ $# -gt 0 ]]; do
       REQUIRE_ZERO_POST_APPLY="true"; shift ;;
     --require-zero-post-rollback)
       REQUIRE_ZERO_POST_ROLLBACK="true"; shift ;;
+    --require-report-artifacts)
+      REQUIRE_REPORT_ARTIFACTS="true"; shift ;;
     --artifacts-dir)
       ARTIFACTS_DIR="$2"; shift 2 ;;
     --help)
@@ -105,7 +109,11 @@ if [[ -n "$ROLLBACK_SOURCE" ]]; then
 fi
 REPORT_FILE="$ARTIFACTS_DIR/rbac_relation_stage_report_${TS}.md"
 PRECHECK_JSON="$ARTIFACTS_DIR/rbac_report_pre_${TS}.json"
+DRYRUN_JSON="$ARTIFACTS_DIR/rbac_backfill_dry_run_${TS}.json"
 POST_APPLY_JSON="$ARTIFACTS_DIR/rbac_report_post_apply_${TS}.json"
+POST_APPLY_BACKFILL_JSON="$ARTIFACTS_DIR/rbac_backfill_apply_${TS}.json"
+ROLLBACK_DRYRUN_JSON="$ARTIFACTS_DIR/rbac_backfill_rollback_dry_run_${TS}.json"
+ROLLBACK_APPLY_JSON="$ARTIFACTS_DIR/rbac_backfill_rollback_apply_${TS}.json"
 POST_ROLLBACK_JSON="$ARTIFACTS_DIR/rbac_report_post_rollback_${TS}.json"
 
 build_args() {
@@ -141,6 +149,61 @@ value = payload.get(key)
 if not isinstance(value, int):
     raise SystemExit(f"invalid or missing integer metric '{key}' in {path}")
 print(value)
+PY
+}
+
+append_backfill_summary() {
+  local title="$1"
+  local file="$2"
+
+  if [[ ! -f "$file" ]]; then
+    return 0
+  fi
+
+  python - "$title" "$file" >> "$REPORT_FILE" <<'PY'
+import json
+import sys
+
+_, title, path = sys.argv
+with open(path, 'r', encoding='utf-8') as fh:
+    payload = json.load(fh)
+
+if not isinstance(payload, dict):
+    raise SystemExit(f"unexpected report format in {path}: expected JSON object")
+
+priority_keys = [
+    "dry_run",
+    "candidates_total",
+    "entries_total",
+    "fixed_users",
+    "reverted",
+    "failed_users",
+    "failed",
+    "users_without_roles_total_before",
+    "users_without_roles_total_after",
+    "orphan_user_roles_total_before",
+    "orphan_user_roles_total_after",
+    "orphan_role_permissions_total_before",
+    "orphan_role_permissions_total_after",
+]
+
+seen = set()
+ordered = []
+for key in priority_keys:
+    if key in payload:
+        ordered.append((key, payload[key]))
+        seen.add(key)
+
+for key in sorted(payload):
+    if key in seen:
+        continue
+    ordered.append((key, payload[key]))
+
+print()
+print(f"## {title}")
+print()
+for key, value in ordered:
+    print(f"- {key}: {value}")
 PY
 }
 
@@ -220,6 +283,21 @@ require_rollback_source() {
   fi
 }
 
+require_report_artifact() {
+  local file="$1"
+  local stage="$2"
+
+  if [[ "$REQUIRE_REPORT_ARTIFACTS" != "true" ]]; then
+    return 0
+  fi
+
+  if [[ ! -f "$file" ]]; then
+    echo "Missing required report artifact for ${stage}: ${file}" >&2
+    echo "See report: ${REPORT_FILE}" >&2
+    exit 1
+  fi
+}
+
 run_step() {
   local name="$1"
   local args="$2"
@@ -233,12 +311,15 @@ run_step() {
 run_step "01_pre_report" "target=rbac-report output=${PRECHECK_JSON}"
 
 # 2) Dry-run backfill
-run_step "02_backfill_dry_run" "$(build_args rbac-backfill) dry_run=true rollback_file=${GENERATED_ROLLBACK_FILE}"
+run_step "02_backfill_dry_run" "$(build_args rbac-backfill) dry_run=true rollback_file=${GENERATED_ROLLBACK_FILE} report_file=${DRYRUN_JSON}"
+require_report_artifact "$DRYRUN_JSON" "backfill dry-run"
 
 # 3) Apply backfill (optional)
 if [[ "$RUN_APPLY" == "true" ]]; then
-  run_step "03_backfill_apply" "$(build_args rbac-backfill) rollback_file=${GENERATED_ROLLBACK_FILE}"
+  run_step "03_backfill_apply" "$(build_args rbac-backfill) rollback_file=${GENERATED_ROLLBACK_FILE} report_file=${POST_APPLY_BACKFILL_JSON}"
   run_step "04_post_report" "target=rbac-report output=${POST_APPLY_JSON}"
+  require_report_artifact "$POST_APPLY_BACKFILL_JSON" "backfill apply"
+  require_report_artifact "$POST_APPLY_JSON" "post-apply consistency report"
   if [[ "$REQUIRE_ZERO_POST_APPLY" == "true" ]]; then
     enforce_zero_invariants "$POST_APPLY_JSON" "post-apply"
   fi
@@ -249,14 +330,17 @@ fi
 # 4) Rollback dry-run (optional)
 if [[ "$RUN_ROLLBACK_DRY" == "true" ]]; then
   require_rollback_source "rollback dry-run"
-  run_step "05_rollback_dry_run" "target=rbac-backfill-rollback source=${ROLLBACK_FILE} dry_run=true"
+  run_step "05_rollback_dry_run" "target=rbac-backfill-rollback source=${ROLLBACK_FILE} dry_run=true report_file=${ROLLBACK_DRYRUN_JSON}"
+  require_report_artifact "$ROLLBACK_DRYRUN_JSON" "rollback dry-run"
 fi
 
 # 5) Rollback apply (optional, explicit)
 if [[ "$RUN_ROLLBACK_APPLY" == "true" ]]; then
   require_rollback_source "rollback apply"
-  run_step "06_rollback_apply" "target=rbac-backfill-rollback source=${ROLLBACK_FILE} continue_on_error=${CONTINUE_ON_ERROR}"
+  run_step "06_rollback_apply" "target=rbac-backfill-rollback source=${ROLLBACK_FILE} continue_on_error=${CONTINUE_ON_ERROR} report_file=${ROLLBACK_APPLY_JSON}"
   run_step "07_post_rollback_report" "target=rbac-report output=${POST_ROLLBACK_JSON}"
+  require_report_artifact "$ROLLBACK_APPLY_JSON" "rollback apply"
+  require_report_artifact "$POST_ROLLBACK_JSON" "post-rollback consistency report"
   if [[ "$REQUIRE_ZERO_POST_ROLLBACK" == "true" ]]; then
     enforce_zero_invariants "$POST_ROLLBACK_JSON" "post-rollback"
   fi
@@ -270,7 +354,11 @@ cat > "$REPORT_FILE" <<REPORT
 - Artifacts directory: ${ARTIFACTS_DIR}
 - Generated rollback snapshot path: ${GENERATED_ROLLBACK_FILE}
 - Pre-check JSON report: ${PRECHECK_JSON}
+- Dry-run backfill JSON report: ${DRYRUN_JSON}
 - Post-apply JSON report: ${POST_APPLY_JSON}
+- Post-apply backfill JSON report: ${POST_APPLY_BACKFILL_JSON}
+- Rollback dry-run JSON report: ${ROLLBACK_DRYRUN_JSON}
+- Rollback apply JSON report: ${ROLLBACK_APPLY_JSON}
 - Post-rollback JSON report: ${POST_ROLLBACK_JSON}
 - Effective rollback source: ${ROLLBACK_FILE}
 - Apply step enabled: ${RUN_APPLY}
@@ -283,6 +371,7 @@ cat > "$REPORT_FILE" <<REPORT
 - Fail on regression: ${FAIL_ON_REGRESSION}
 - Require zero invariants after apply: ${REQUIRE_ZERO_POST_APPLY}
 - Require zero invariants after rollback: ${REQUIRE_ZERO_POST_ROLLBACK}
+- Require report artifacts: ${REQUIRE_REPORT_ARTIFACTS}
 
 ## Generated logs
 
@@ -292,6 +381,10 @@ $(for f in "$ARTIFACTS_DIR"/${TS}_*.log; do
 done)
 REPORT
 
+append_backfill_summary "Backfill dry-run summary" "$DRYRUN_JSON"
+append_backfill_summary "Backfill apply summary" "$POST_APPLY_BACKFILL_JSON"
+append_backfill_summary "Rollback dry-run summary" "$ROLLBACK_DRYRUN_JSON"
+append_backfill_summary "Rollback apply summary" "$ROLLBACK_APPLY_JSON"
 append_invariant_summary "Invariant diff: pre-check vs post-apply" "$PRECHECK_JSON" "$POST_APPLY_JSON"
 append_invariant_summary "Invariant diff: pre-check vs post-rollback" "$PRECHECK_JSON" "$POST_ROLLBACK_JSON"
 

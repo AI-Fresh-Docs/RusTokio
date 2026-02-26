@@ -411,12 +411,16 @@
 - [x] AuthContext получает permissions только из relation-resolver.
 - [x] JWT role-claim не влияет на authorization decision.
 - [x] Внедрена инвалидация permission-cache при изменениях ролей.
-- [ ] Проверено поведение long-lived sessions после изменения прав.
+- [x] Проверено поведение long-lived sessions после изменения прав (добавлен модульный regression-test `role_assignment_operations_invalidate_cached_permissions` в `rustok-rbac::RuntimePermissionResolver`, подтверждающий инвалидацию permission-cache и применение обновлённых прав в рамках активного session-context).
 
 ### 9.5 Фаза 4 — Data migration
 
 - [x] Подготовлен idempotent backfill-script (cleanup `target=rbac-backfill` + helper `scripts/rbac_relation_staging.sh`).
 - [ ] Выполнен dry-run с отчётом расхождений.
+  - [x] Автоматизирована генерация dry-run отчёта (`cleanup target=rbac-backfill report_file=...` + `scripts/rbac_relation_staging.sh` сохраняет `rbac_backfill_dry_run_*.json` и summary в stage-report).
+  - [x] Автоматизирована генерация rollback dry-run/apply отчётов (`cleanup target=rbac-backfill-rollback report_file=...` + `scripts/rbac_relation_staging.sh` сохраняет `rbac_backfill_rollback_*.json` и summary в stage-report).
+  - [x] Для CI/staging добавлен строгий artifact-gate: `scripts/rbac_relation_staging.sh --require-report-artifacts` (fail-fast, если ожидаемые JSON-артефакты отчётов отсутствуют после каждого включённого этапа).
+  - [x] Добавлен smoke-test helper `scripts/test_rbac_relation_staging.sh` (fake `cargo loco task`) для локальной проверки generation/gating/summary без внешних зависимостей.
 - [ ] Выполнен backfill на staging.
 - [ ] Выполнен post-check целостности.
 - [~] Подготовлен rollback-план (CLI rollback target + snapshot-файл), проверка на staging в работе.
