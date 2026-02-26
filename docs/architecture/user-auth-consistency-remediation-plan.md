@@ -210,6 +210,19 @@ Gate перед выкладкой:
 - Staging parity report: сравнение REST/GraphQL результатов для `create_user`, `confirm_reset`/`reset_password`, `change_password`.
 - Security review checklist: подтверждение инварианта «password reset => revoke all active sessions» и отсутствие bypass по inactive user.
 
+Шаблон фиксации результатов gate (заполняется перед релизом):
+
+| Gate | Артефакт | Статус | Evidence | Owner | Дата |
+| --- | --- | --- | --- | --- | --- |
+| Integration | `cargo test -p rustok-server auth_lifecycle` + auth integration suite | Pending | TBD | Platform foundation | TBD |
+| REST/GraphQL parity | staging scenario report (`create_user`, `confirm_reset`/`reset_password`, `change_password`) | Pending | TBD | Platform foundation | TBD |
+| Security review | checklist по reset/change-password + inactive-user bypass | Pending | TBD | Platform foundation + security reviewer | TBD |
+
+Текущий статус исполнения gate в ветке:
+
+- Integration run attempted, but environment cannot resolve crates.io index (`CONNECT tunnel failed, response 403`), поэтому результат зафиксировать пока нельзя.
+- Staging parity и security review остаются pending до запуска полного pre-release прогона.
+
 Текущий прогресс по gate:
 
 - Кодовые и документационные задачи Phases A-C завершены (см. раздел 5).

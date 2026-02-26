@@ -22,5 +22,4 @@
 
 - Auth/error contracts: `AuthLifecycleService` использует типизированные ошибки (`AuthLifecycleError`), а REST/GraphQL делают единообразный transport-specific mapping без дублирования строковых веток.
 
-- Auth/release gates (Phase D): перед выкатом auth-lifecycle изменений фиксируем 3 артефакта — integration report (`cargo test -p rustok-server auth_lifecycle` + auth integration suite), staging parity report для REST/GraphQL и security checklist по reset/change-password.
-- Auth/rollback: при stop-the-line откатываем release-artifact, выполняем soft-revoke сессий через `sessions.revoked_at`, затем подтверждаем parity REST/GraphQL на staging и документируем postmortem.
+- Auth rollout controls: канонические release gates, stop-the-line условия и rollback-процедура ведутся централизованно в `docs/architecture/user-auth-consistency-remediation-plan.md` (раздел 8), этот README хранит только краткий changelog.
