@@ -119,6 +119,7 @@ mod tests {
         role_ids: Vec<uuid::Uuid>,
         tenant_role_ids: Vec<uuid::Uuid>,
         permissions: Vec<Permission>,
+        fail_load: bool,
     }
 
     #[derive(Debug, Clone, PartialEq, Eq)]
@@ -200,6 +201,9 @@ mod tests {
             &self,
             _user_id: &uuid::Uuid,
         ) -> Result<Vec<uuid::Uuid>, Self::Error> {
+            if self.fail_load {
+                return Err(StubStoreError::Load);
+            }
             Ok(self.role_ids.clone())
         }
 
@@ -264,6 +268,7 @@ mod tests {
                 role_ids: vec![role_id],
                 tenant_role_ids: vec![role_id],
                 permissions: vec![Permission::USERS_READ],
+                fail_load: false,
             },
             StubCache::default(),
             StubAssignmentStore::default(),
@@ -291,6 +296,7 @@ mod tests {
                 role_ids: vec![],
                 tenant_role_ids: vec![],
                 permissions: vec![],
+                fail_load: false,
             },
             StubCache::default(),
             assignment_store,
@@ -322,6 +328,7 @@ mod tests {
                     role_ids: vec![],
                     tenant_role_ids: vec![],
                     permissions: vec![],
+                    fail_load: false,
                 },
                 StubCache::default(),
                 StubAssignmentStore {
@@ -341,6 +348,30 @@ mod tests {
         assert_eq!(
             result.err(),
             Some(ResolverError::Assignment(StubAssignmentError::Assign))
+        );
+    }
+
+    #[tokio::test]
+    async fn relation_store_error_is_mapped_to_runtime_resolver_error_type() {
+        let resolver: RuntimePermissionResolver<_, _, _, ResolverError> =
+            RuntimePermissionResolver::new(
+                StubStore {
+                    role_ids: vec![],
+                    tenant_role_ids: vec![],
+                    permissions: vec![],
+                    fail_load: true,
+                },
+                StubCache::default(),
+                StubAssignmentStore::default(),
+            );
+
+        let result = resolver
+            .resolve_permissions(&uuid::Uuid::new_v4(), &uuid::Uuid::new_v4())
+            .await;
+
+        assert_eq!(
+            result.err(),
+            Some(ResolverError::Store(StubStoreError::Load))
         );
     }
 }
