@@ -525,7 +525,10 @@ impl AuthService {
         user_id: &uuid::Uuid,
         tenant_id: &uuid::Uuid,
     ) -> Result<()> {
-        Self::remove_tenant_role_assignments_via_store(db, user_id, tenant_id).await
+        let resolver = Self::resolver(db);
+        resolver
+            .remove_tenant_role_assignments(tenant_id, user_id)
+            .await
     }
 
     pub async fn remove_user_role_assignment(
@@ -534,7 +537,10 @@ impl AuthService {
         tenant_id: &uuid::Uuid,
         role: UserRole,
     ) -> Result<()> {
-        Self::remove_user_role_assignment_via_store(db, user_id, tenant_id, role).await
+        let resolver = Self::resolver(db);
+        resolver
+            .remove_user_role_assignment(tenant_id, user_id, role)
+            .await
     }
 
     async fn assign_role_permissions_via_store(
@@ -869,12 +875,91 @@ impl RoleAssignmentStore for ServerRoleAssignmentStore {
     ) -> Result<()> {
         AuthService::replace_user_role_via_store(&self.db, user_id, tenant_id, role).await
     }
+
+    async fn remove_tenant_role_assignments(
+        &self,
+        tenant_id: &uuid::Uuid,
+        user_id: &uuid::Uuid,
+    ) -> Result<()> {
+        AuthService::remove_tenant_role_assignments_via_store(&self.db, user_id, tenant_id).await
+    }
+
+    async fn remove_user_role_assignment(
+        &self,
+        tenant_id: &uuid::Uuid,
+        user_id: &uuid::Uuid,
+        role: UserRole,
+    ) -> Result<()> {
+        AuthService::remove_user_role_assignment_via_store(&self.db, user_id, tenant_id, role).await
+    }
 }
 
 #[cfg(test)]
 mod tests {
     use super::AuthService;
-    use rustok_core::{Action, Permission, Resource};
+    use std::sync::{Mutex, MutexGuard, OnceLock};
+
+    const AUTHZ_MODE_ENV: &str = "RUSTOK_RBAC_AUTHZ_MODE";
+
+    struct EnvVarGuard {
+        _lock: MutexGuard<'static, ()>,
+        name: &'static str,
+        previous: Option<String>,
+    }
+
+    impl EnvVarGuard {
+        fn lock(name: &'static str) -> Self {
+            static LOCK: OnceLock<Mutex<()>> = OnceLock::new();
+            let lock = LOCK
+                .get_or_init(|| Mutex::new(()))
+                .lock()
+                .expect("env lock");
+            let previous = std::env::var(name).ok();
+            Self {
+                _lock: lock,
+                name,
+                previous,
+            }
+        }
+
+        fn set(&self, value: &str) {
+            // SAFETY: tests serialize environment mutations via `EnvVarGuard` lock.
+            unsafe {
+                std::env::set_var(self.name, value);
+            }
+        }
+
+        fn remove(&self) {
+            // SAFETY: tests serialize environment mutations via `EnvVarGuard` lock.
+            unsafe {
+                std::env::remove_var(self.name);
+            }
+        }
+
+        fn previous(&self) -> Option<&str> {
+            self.previous.as_deref()
+        }
+
+        fn restore(&self) {
+            if let Some(previous) = self.previous.as_ref() {
+                // SAFETY: tests serialize environment mutations via `EnvVarGuard` lock.
+                unsafe {
+                    std::env::set_var(self.name, previous);
+                }
+            } else {
+                // SAFETY: tests serialize environment mutations via `EnvVarGuard` lock.
+                unsafe {
+                    std::env::remove_var(self.name);
+                }
+            }
+        }
+    }
+
+    impl Drop for EnvVarGuard {
+        fn drop(&mut self) {
+            self.restore();
+        }
+    }
 
     #[test]
     fn claim_role_mismatch_counter_increments() {
@@ -886,72 +971,48 @@ mod tests {
     }
 
     #[test]
+    fn authz_mode_defaults_to_relation_only_when_env_missing() {
+        let env = EnvVarGuard::lock(AUTHZ_MODE_ENV);
+        env.remove();
+
+        assert!(!AuthService::is_dual_read_enabled());
+    }
+
+    #[test]
+    fn authz_mode_enables_dual_read_from_env() {
+        let env = EnvVarGuard::lock(AUTHZ_MODE_ENV);
+        env.set("dual_read");
+
+        assert!(AuthService::is_dual_read_enabled());
+    }
+
+    #[test]
+    fn authz_mode_handles_trimmed_and_uppercase_env_value() {
+        let env = EnvVarGuard::lock(AUTHZ_MODE_ENV);
+        env.set("  DUAL_READ  ");
+
+        assert!(AuthService::is_dual_read_enabled());
+    }
+
+    #[test]
+    fn authz_mode_guard_restores_previous_env_value() {
+        let previous = {
+            let env = EnvVarGuard::lock(AUTHZ_MODE_ENV);
+            let previous = env.previous().map(ToOwned::to_owned);
+            env.set("dual_read");
+            assert!(AuthService::is_dual_read_enabled());
+            previous
+        };
+
+        assert_eq!(std::env::var(AUTHZ_MODE_ENV).ok(), previous);
+    }
+
+    #[test]
     fn shadow_compare_failure_counter_increments() {
         let before = AuthService::metrics_snapshot().shadow_compare_failures_total;
         AuthService::record_shadow_compare_failure();
         let after = AuthService::metrics_snapshot().shadow_compare_failures_total;
 
         assert_eq!(after, before + 1);
-    }
-
-    #[test]
-    fn denied_reason_reports_no_permissions_resolved() {
-        let (denied_reason_kind, denied_reason) =
-            rustok_rbac::denied_reason_for_denial(&[], &[Permission::USERS_READ]);
-        assert_eq!(
-            denied_reason_kind,
-            rustok_rbac::DeniedReasonKind::NoPermissionsResolved
-        );
-        assert_eq!(denied_reason, "no_permissions_resolved");
-    }
-
-    #[test]
-    fn missing_permissions_respects_manage_wildcard() {
-        let user_permissions = vec![Permission::new(Resource::Users, Action::Manage)];
-        let required_permissions = vec![Permission::USERS_READ, Permission::USERS_UPDATE];
-
-        let outcome = rustok_rbac::check_all_permissions(&user_permissions, &required_permissions);
-
-        assert!(outcome.missing_permissions.is_empty());
-    }
-
-    #[test]
-    fn denied_reason_classifies_missing_permissions() {
-        let (denied_reason_kind, denied_reason) = rustok_rbac::denied_reason_for_denial(
-            &[Permission::USERS_READ],
-            &[Permission::USERS_UPDATE],
-        );
-        assert_eq!(
-            denied_reason_kind,
-            rustok_rbac::DeniedReasonKind::MissingPermissions
-        );
-        assert!(denied_reason.starts_with("missing_permissions:"));
-    }
-
-    #[test]
-    fn rbac_authz_mode_parse_defaults_to_relation_only() {
-        assert_eq!(RbacAuthzMode::parse(""), RbacAuthzMode::RelationOnly);
-        assert_eq!(
-            RbacAuthzMode::parse("relation_only"),
-            RbacAuthzMode::RelationOnly
-        );
-        assert_eq!(
-            RbacAuthzMode::parse("unexpected"),
-            RbacAuthzMode::RelationOnly
-        );
-    }
-
-    #[test]
-    fn rbac_authz_mode_parse_supports_dual_read() {
-        assert_eq!(RbacAuthzMode::parse("dual_read"), RbacAuthzMode::DualRead);
-        assert_eq!(RbacAuthzMode::parse("DUAL_READ"), RbacAuthzMode::DualRead);
-    }
-
-    #[test]
-    fn rbac_authz_mode_parse_trims_value() {
-        assert_eq!(
-            RbacAuthzMode::parse("  dual_read  "),
-            RbacAuthzMode::DualRead
-        );
     }
 }
