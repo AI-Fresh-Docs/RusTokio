@@ -1,7 +1,7 @@
 # План устранения косяков в user/auth логике (без миграции RBAC)
 
 - Дата: 2026-02-26
-- Статус: Draft (execution plan)
+- Статус: In progress (Phase D release gates pending)
 - Область: `apps/server` (REST + GraphQL auth), `apps/server/docs`, `docs/architecture/*`
 - Граница плана: этот документ **не дублирует RBAC migration** и не заменяет `rbac-relation-migration-plan.md`. Здесь фиксируем только косяки user/auth потоков, которые нужно закрыть до/параллельно RBAC cutover.
 
@@ -203,6 +203,11 @@ Gate перед выкладкой:
 - [ ] Integration tests из раздела 6 проходят.
 - [ ] REST/GraphQL parity проверена на staging.
 - [ ] Security review по reset/change-password закрыт.
+
+Текущий прогресс по gate:
+
+- Кодовые и документационные задачи Phases A-C завершены (см. раздел 5).
+- Phase D остаётся открытой до фиксации результатов integration/staging/security проверок.
 
 Stop-the-line условия:
 
