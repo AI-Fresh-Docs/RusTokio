@@ -33,6 +33,18 @@ pub trait RelationPermissionStore {
     ) -> Result<Vec<Permission>, Self::Error>;
 }
 
+#[async_trait::async_trait]
+pub trait PermissionCache {
+    async fn get(&self, tenant_id: &uuid::Uuid, user_id: &uuid::Uuid) -> Option<Vec<Permission>>;
+
+    async fn insert(
+        &self,
+        tenant_id: &uuid::Uuid,
+        user_id: &uuid::Uuid,
+        permissions: Vec<Permission>,
+    );
+}
+
 pub async fn resolve_permissions_from_relations<S: RelationPermissionStore>(
     store: &S,
     tenant_id: &uuid::Uuid,
@@ -57,16 +69,83 @@ pub async fn resolve_permissions_from_relations<S: RelationPermissionStore>(
     Ok(normalize_permissions(permissions))
 }
 
+pub async fn resolve_permissions_with_cache<S, C>(
+    store: &S,
+    cache: &C,
+    tenant_id: &uuid::Uuid,
+    user_id: &uuid::Uuid,
+) -> Result<crate::PermissionResolution, S::Error>
+where
+    S: RelationPermissionStore,
+    C: PermissionCache,
+{
+    if let Some(cached_permissions) = cache.get(tenant_id, user_id).await {
+        return Ok(crate::PermissionResolution {
+            permissions: cached_permissions,
+            cache_hit: true,
+        });
+    }
+
+    let resolved_permissions =
+        resolve_permissions_from_relations(store, tenant_id, user_id).await?;
+    cache
+        .insert(tenant_id, user_id, resolved_permissions.clone())
+        .await;
+
+    Ok(crate::PermissionResolution {
+        permissions: resolved_permissions,
+        cache_hit: false,
+    })
+}
+
 #[cfg(test)]
 mod tests {
-    use super::{resolve_permissions_from_relations, RelationPermissionStore};
+    use super::{
+        resolve_permissions_from_relations, resolve_permissions_with_cache, PermissionCache,
+        RelationPermissionStore,
+    };
     use async_trait::async_trait;
     use rustok_core::Permission;
+    use std::collections::HashMap;
+    use std::sync::Arc;
+    use tokio::sync::Mutex;
 
     struct StubStore {
         role_ids: Vec<uuid::Uuid>,
         tenant_role_ids: Vec<uuid::Uuid>,
         permissions: Vec<Permission>,
+    }
+
+    #[derive(Default)]
+    struct StubCache {
+        values: Arc<Mutex<HashMap<(uuid::Uuid, uuid::Uuid), Vec<Permission>>>>,
+    }
+
+    #[async_trait]
+    impl PermissionCache for StubCache {
+        async fn get(
+            &self,
+            tenant_id: &uuid::Uuid,
+            user_id: &uuid::Uuid,
+        ) -> Option<Vec<Permission>> {
+            self.values
+                .lock()
+                .await
+                .get(&(*tenant_id, *user_id))
+                .cloned()
+        }
+
+        async fn insert(
+            &self,
+            tenant_id: &uuid::Uuid,
+            user_id: &uuid::Uuid,
+            permissions: Vec<Permission>,
+        ) {
+            self.values
+                .lock()
+                .await
+                .insert((*tenant_id, *user_id), permissions);
+        }
     }
 
     #[async_trait]
@@ -165,5 +244,29 @@ mod tests {
         .unwrap();
 
         assert_eq!(resolved, vec![Permission::USERS_READ]);
+    }
+
+    #[tokio::test]
+    async fn resolve_permissions_with_cache_reports_hit_on_second_lookup() {
+        let role_id = uuid::Uuid::new_v4();
+        let tenant_id = uuid::Uuid::new_v4();
+        let user_id = uuid::Uuid::new_v4();
+        let store = StubStore {
+            role_ids: vec![role_id],
+            tenant_role_ids: vec![role_id],
+            permissions: vec![Permission::USERS_READ],
+        };
+        let cache = StubCache::default();
+
+        let first = resolve_permissions_with_cache(&store, &cache, &tenant_id, &user_id)
+            .await
+            .unwrap();
+        let second = resolve_permissions_with_cache(&store, &cache, &tenant_id, &user_id)
+            .await
+            .unwrap();
+
+        assert!(!first.cache_hit);
+        assert!(second.cache_hit);
+        assert_eq!(second.permissions, vec![Permission::USERS_READ]);
     }
 }
