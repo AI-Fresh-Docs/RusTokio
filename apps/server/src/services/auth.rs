@@ -1,11 +1,13 @@
 use loco_rs::prelude::*;
+use moka::future::Cache;
+use once_cell::sync::Lazy;
 use sea_orm::{
     sea_query::OnConflict, ActiveModelTrait, ActiveValue, ColumnTrait, DatabaseConnection,
     EntityTrait, QueryFilter,
 };
 use std::collections::HashSet;
 use std::fmt::Write;
-use std::time::Instant;
+use std::time::{Duration, Instant};
 use tracing::{debug, warn};
 
 use rustok_core::{Action, Permission, Rbac, Resource, UserRole};
@@ -13,6 +15,14 @@ use rustok_core::{Action, Permission, Rbac, Resource, UserRole};
 use crate::models::_entities::{permissions, role_permissions, roles, user_roles};
 
 pub struct AuthService;
+
+static USER_PERMISSION_CACHE: Lazy<Cache<(uuid::Uuid, uuid::Uuid), Vec<Permission>>> =
+    Lazy::new(|| {
+        Cache::builder()
+            .max_capacity(20_000)
+            .time_to_live(Duration::from_secs(60))
+            .build()
+    });
 
 impl AuthService {
     fn has_effective_permission(
@@ -58,6 +68,16 @@ impl AuthService {
         }
 
         reason
+    }
+
+    fn cache_key(tenant_id: &uuid::Uuid, user_id: &uuid::Uuid) -> (uuid::Uuid, uuid::Uuid) {
+        (*tenant_id, *user_id)
+    }
+
+    pub async fn invalidate_user_permissions_cache(tenant_id: &uuid::Uuid, user_id: &uuid::Uuid) {
+        USER_PERMISSION_CACHE
+            .invalidate(&Self::cache_key(tenant_id, user_id))
+            .await;
     }
 
     pub async fn has_permission(
@@ -196,6 +216,45 @@ impl AuthService {
         tenant_id: &uuid::Uuid,
         user_id: &uuid::Uuid,
     ) -> Result<Vec<Permission>> {
+        let started_at = Instant::now();
+        let cache_key = Self::cache_key(tenant_id, user_id);
+
+        if let Some(cached_permissions) = USER_PERMISSION_CACHE.get(&cache_key).await {
+            debug!(
+                tenant_id = %tenant_id,
+                user_id = %user_id,
+                cache_hit = true,
+                permissions_count = cached_permissions.len(),
+                latency_ms = started_at.elapsed().as_millis(),
+                "rbac resolver permission lookup"
+            );
+
+            return Ok(cached_permissions);
+        }
+
+        let resolved_permissions =
+            Self::load_user_permissions_from_db(db, tenant_id, user_id).await?;
+        USER_PERMISSION_CACHE
+            .insert(cache_key, resolved_permissions.clone())
+            .await;
+
+        debug!(
+            tenant_id = %tenant_id,
+            user_id = %user_id,
+            cache_hit = false,
+            permissions_count = resolved_permissions.len(),
+            latency_ms = started_at.elapsed().as_millis(),
+            "rbac resolver permission lookup"
+        );
+
+        Ok(resolved_permissions)
+    }
+
+    async fn load_user_permissions_from_db(
+        db: &DatabaseConnection,
+        tenant_id: &uuid::Uuid,
+        user_id: &uuid::Uuid,
+    ) -> Result<Vec<Permission>> {
         let user_role_models = user_roles::Entity::find()
             .filter(user_roles::Column::UserId.eq(*user_id))
             .all(db)
@@ -301,6 +360,8 @@ impl AuthService {
             .await?;
         }
 
+        Self::invalidate_user_permissions_cache(tenant_id, user_id).await;
+
         Ok(())
     }
 
@@ -327,6 +388,8 @@ impl AuthService {
                 .exec(db)
                 .await?;
         }
+
+        Self::invalidate_user_permissions_cache(tenant_id, user_id).await;
 
         Self::assign_role_permissions(db, user_id, tenant_id, role).await
     }
@@ -418,5 +481,28 @@ impl AuthService {
             .one(db)
             .await?
             .ok_or_else(|| Error::InternalServerError("permission upsert failed".to_string()))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::AuthService;
+    use rustok_core::{Action, Permission, Resource};
+
+    #[test]
+    fn denied_reason_reports_no_permissions_resolved() {
+        let denied_reason = AuthService::denied_reason(&[], &[Permission::USERS_READ]);
+        assert_eq!(denied_reason, "no_permissions_resolved");
+    }
+
+    #[test]
+    fn missing_permissions_respects_manage_wildcard() {
+        let user_permissions = vec![Permission::new(Resource::Users, Action::Manage)];
+        let required_permissions = vec![Permission::USERS_READ, Permission::USERS_UPDATE];
+
+        let missing_permissions =
+            AuthService::missing_permissions(&user_permissions, &required_permissions);
+
+        assert!(missing_permissions.is_empty());
     }
 }

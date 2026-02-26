@@ -26,6 +26,7 @@
   - Назначение relation-ролей/пермишенов переведено на conflict-safe idempotent upsert (`ON CONFLICT DO NOTHING`) для устойчивости к конкурентным операциям.
   - Поле `User.can` в GraphQL переведено с role-based (`users.role`) на tenant-aware relation-проверку через `AuthService::has_permission`.
   - В `AuthService` добавлено базовое observability resolver-решений: structured logs для latency и причин deny в `has_permission/has_any_permission/has_all_permissions`.
+  - В `AuthService` добавлен in-memory permission cache (TTL 60s) с cache hit/miss observability и инвалидацией при изменении relation-ролей пользователя.
 - [~] **Фаза 3 — AuthContext и токены (начато):**
   - `CurrentUser.permissions` теперь резолвятся из relation-модели, а не из `users.role`.
   - Полный отказ от role-claim в policy-решениях ещё не завершён (есть оставшиеся role-based места).
@@ -36,7 +37,7 @@
 ### Что осталось приоритетно на ближайший шаг
 
 1. Добрать оставшиеся runtime-проверки, где `users.role` всё ещё влияет на policy scope в доменных сервисах.
-2. Добавить cache hit/miss observability для resolver-решений (latency/deny reasons уже добавлены).
+2. Добавить метрики cache hit/miss для resolver-решений (сейчас есть structured logs).
 3. Подготовить и согласовать ADR по final cutover (`relation-only`).
 
 ---
