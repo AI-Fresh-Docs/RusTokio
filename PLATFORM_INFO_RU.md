@@ -1,4 +1,4 @@
-# 🦀 RusToK — Краткая справка о платформе
+# <img src="assets/rustok-logo-512x512.png" width="48" align="center" /> RusToK — Краткая справка о платформе
 
 **Event-Driven Headless Platform на Rust**
 
@@ -111,9 +111,10 @@ RUSTOK_DEMO_MODE=1 trunk serve --open
 ```
 
 **URL после запуска:**
-- API: http://localhost:3000/api/graphql
-- Admin: http://localhost:8080
-- Storefront: http://localhost:3100
+
+- API: <http://localhost:3000/api/graphql>
+- Admin: <http://localhost:8080>
+- Storefront: <http://localhost:3100>
 
 ---
 
@@ -147,4 +148,4 @@ MIT License — см. [LICENSE](LICENSE)
 ---
 
 ⬆ [Наверх](#-rustok--краткая-справка-о-платформе)  
-🦀 Сделано с любовью к Rust
+<img src="assets/rustok-logo-32x32.png" width="16" align="center" /> Сделано с любовью к Rust
