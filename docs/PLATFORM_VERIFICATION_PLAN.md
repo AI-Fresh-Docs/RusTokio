@@ -392,15 +392,11 @@
 
 ### 6.2 Event Flow (Write Path)
 
-- [~] Domain service создаёт сущность + публикует DomainEvent в одной транзакции
+- [x] Domain service создаёт сущность + публикует DomainEvent в одной транзакции
   - [x] `rustok-content` (NodeService): корректно использует `publish_in_tx()`
   - [x] `rustok-commerce` (CatalogService, InventoryService, PricingService): корректно использует `publish_in_tx()`
-  - [!] `rustok-blog` (PostService): использует `event_bus.publish()` вместо `publish_in_tx()` — нарушение атомарности
-    - Файл: `crates/rustok-blog/src/services/post.rs` строки ~124, ~211, ~237, ~262, ~292
-    - Риск: событие может быть потеряно если `publish()` фейлится после commit DB-транзакции в NodeService
-  - [!] `rustok-forum` (TopicService, ReplyService, ModerationService): использует `event_bus.publish()` вместо `publish_in_tx()`
-    - Файлы: `crates/rustok-forum/src/services/topic.rs`, `reply.rs`, `moderation.rs`
-    - Те же риски потери событий
+  - [x] `rustok-blog` (PostService): исправлено — корректно использует `publish_in_tx()`
+  - [x] `rustok-forum` (TopicService, ReplyService, ModerationService): исправлено — корректно использует `publish_in_tx()`
 - [ ] `TransactionalEventBus::publish()` атомарно записывает в `sys_events`
 - [ ] `sys_events` имеет поля: id, event_type, payload (JSON), tenant_id, status, created_at, retries
 - [ ] Событие содержит `tenant_id` в payload
@@ -535,10 +531,7 @@
 - [x] `BlogModule::dependencies()` возвращает `&["content"]`
 - [x] `PostService` — CRUD для постов (обёртка над NodeService)
 - [x] State machine: Draft → Published → Archived
-- [!] Events: `PostCreated`, `PostPublished`, etc. — **публикуются через `event_bus.publish()` без транзакции**
-  - `PostService` передаёт `event_bus` в `NodeService` (который использует `publish_in_tx()`),
-    но сам дополнительно вызывает `self.event_bus.publish()` для Blog-специфичных событий вне транзакции
-  - Затронутые вызовы: post.rs строки ~124, ~211, ~237, ~262, ~292
+- [x] Events: `PostCreated`, `PostPublished`, etc. — исправлено, публикуются через `publish_in_tx()` внутри явной транзакции
 - [x] DTOs: `CreatePostInput`, `PostResponse`, `PostListItem`
 - [x] Поддержка i18n (locale.rs)
 - [ ] Миграции
@@ -552,8 +545,7 @@
 - [x] `TopicService` — CRUD для тем
 - [x] `ReplyService` — CRUD для ответов
 - [x] `CategoryService` — категории форума
-- [!] Events: `TopicCreated`, `ReplyCreated`, etc. — **публикуются через `event_bus.publish()` без транзакции**
-  - Затронутые файлы: `topic.rs`, `reply.rs`, `moderation.rs` (строки ~97, ~187, ~228, ~296)
+- [x] Events: `TopicCreated`, `ReplyCreated`, etc. — исправлено, публикуются через `publish_in_tx()` внутри явной транзакции
 - [x] DTOs: `CreateTopicInput`, `TopicResponse`, etc.
 - [x] Поддержка i18n (locale.rs)
 - [ ] Миграции
@@ -1257,13 +1249,9 @@
 - [ ] Проверка: каждый SeaORM entity имеет `tenant_id` поле
 
 #### Unsafe event publishing
-- [!] Поиск `publish(` без `_in_tx` в domain services
-  - `grep -rn "event_bus\.publish(" crates/rustok-*/src/services/` — найдены нарушения:
-    - `crates/rustok-blog/src/services/post.rs` — 5 вызовов `event_bus.publish()` вместо `publish_in_tx()`
-    - `crates/rustok-forum/src/services/moderation.rs` — 3 вызова
-    - `crates/rustok-forum/src/services/reply.rs` — 1 вызов
-    - `crates/rustok-forum/src/services/topic.rs` — 1 вызов (по паттерну)
-  - Требует исправления: заменить на `publish_in_tx()` с передачей транзакции
+- [x] Поиск `publish(` без `_in_tx` в domain services — нарушений не найдено
+  - `grep -rn "event_bus\.publish(" crates/rustok-*/src/services/` — нарушений нет
+  - Все сервисы (`PostService`, `TopicService`, `ReplyService`, `ModerationService`) корректно используют `publish_in_tx()`
 - [ ] Проверка: каждый DomainEvent в crates содержит `tenant_id` field
 
 #### Hardcoded secrets
@@ -1448,34 +1436,25 @@
 | № | Приоритет | Статус | Описание | Файлы | Фаза |
 |---|-----------|--------|----------|-------|------|
 | 1 | 🔴 Критический | ✅ Исправлено | `content` был помечен `required = true` в `modules.toml`, но `ContentModule::kind()` возвращает `ModuleKind::Optional`. Несоответствие приводило к ошибке `validate_registry_vs_manifest()` при старте. | `modules.toml` | 1.1 |
-| 2 | 🔴 Критический | ⏳ Ожидает исправления | `rustok-blog` и `rustok-forum` используют `event_bus.publish()` вместо `publish_in_tx()` — нарушение атомарности, возможна потеря событий при сбое после commit DB-транзакции. | `crates/rustok-blog/src/services/post.rs`, `crates/rustok-forum/src/services/{topic,reply,moderation}.rs` | 6.2, 7.3, 7.4 |
+| 2 | 🔴 Критический | ✅ Исправлено | `rustok-blog` и `rustok-forum` использовали `event_bus.publish()` вместо `publish_in_tx()` — нарушение атомарности. Исправлено: все сервисы (`PostService`, `TopicService`, `ReplyService`, `ModerationService`) переведены на `publish_in_tx()` с явной передачей транзакции. | `crates/rustok-blog/src/services/post.rs`, `crates/rustok-forum/src/services/{topic,reply,moderation}.rs` | 6.2, 7.3, 7.4 |
 | 3 | 🟡 Высокий | ✅ Исправлено | `iggy` версия `0.9.2` не существует на crates.io. CI-сборка падала. Исправлено на `0.9.0`. | `Cargo.toml`, `crates/rustok-iggy-connector/Cargo.toml` | 0.6 |
 
-### 21.1 Детали: Проблема #2 — Небезопасная публикация событий в blog/forum
+### 21.1 Детали: Проблема #2 — Небезопасная публикация событий в blog/forum (✅ ИСПРАВЛЕНО)
 
-**Корневая причина:**  
-`PostService` и `TopicService`/`ReplyService`/`ModerationService` принимают `TransactionalEventBus` и передают его в `NodeService` (который корректно использует `publish_in_tx()`). Но затем сами дополнительно вызывают `self.event_bus.publish()` для публикации модуль-специфичных событий (`BlogPostCreated`, `ForumTopicCreated`, etc.) — это происходит **вне транзакции**.
+**Была:**
+`PostService` и `TopicService`/`ReplyService`/`ModerationService` вызывали `self.event_bus.publish()` для публикации модуль-специфичных событий (`BlogPostCreated`, `ForumTopicCreated`, etc.) вне транзакции.
 
-**Риск:**
-1. `NodeService` выполняет операцию + `publish_in_tx()` в транзакции — всё атомарно.
-2. `PostService.create_post()` вызывает `NodeService.create_node()` (успешно).
-3. Затем вызывает `self.event_bus.publish(BlogPostCreated{...})` — это отдельная операция.
-4. Если шаг 3 фейлится — основные данные уже в БД, но blog-специфичное событие потеряно.
-
-**Рекомендуемое исправление:**
-- Рефакторинг: вместо делегирования в NodeService с последующим отдельным publish — 
-  использовать паттерн открытой транзакции: создать транзакцию в `PostService`, передать её в NodeService и в последующий `publish_in_tx()`.
-- Или: убрать дублирующие события в blog/forum — NodeService уже публикует `NodeCreated`/`NodeUpdated`/etc., а IndexService может слушать их напрямую.
+**Исправление:**
 
 **Чеклист исправления:**
-- [ ] Рефакторинг `PostService::create_post()` → `publish_in_tx()`
-- [ ] Рефакторинг `PostService::update_post()` → `publish_in_tx()`
-- [ ] Рефакторинг `PostService::publish_post()` → `publish_in_tx()`
-- [ ] Рефакторинг `PostService::unpublish_post()` → `publish_in_tx()`
-- [ ] Рефакторинг `PostService::delete_post()` → `publish_in_tx()`
-- [ ] Рефакторинг `TopicService` → `publish_in_tx()`
-- [ ] Рефакторинг `ReplyService::create_reply()` → `publish_in_tx()`
-- [ ] Рефакторинг `ModerationService` (3 вызова) → `publish_in_tx()`
+- [x] Рефакторинг `PostService::create_post()` → `publish_in_tx()`
+- [x] Рефакторинг `PostService::update_post()` → `publish_in_tx()`
+- [x] Рефакторинг `PostService::publish_post()` → `publish_in_tx()`
+- [x] Рефакторинг `PostService::unpublish_post()` → `publish_in_tx()`
+- [x] Рефакторинг `PostService::delete_post()` → `publish_in_tx()`
+- [x] Рефакторинг `TopicService` → `publish_in_tx()`
+- [x] Рефакторинг `ReplyService::create_reply()` → `publish_in_tx()`
+- [x] Рефакторинг `ModerationService` (3 вызова) → `publish_in_tx()`
 - [ ] Добавить integration тест: проверить что BlogPostCreated публикуется атомарно
 
 ---
