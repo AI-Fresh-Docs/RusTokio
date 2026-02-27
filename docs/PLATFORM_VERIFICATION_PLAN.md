@@ -326,7 +326,11 @@
 - [x] GraphQL resolvers проверяют permissions перед выполнением
   - `mutations.rs`: `create_user`, `update_user`, `delete_user`, `disable_user` — через `AuthService::has_permission()`
   - `graphql/blog/mutation.rs`: все mutations — через `AuthService::has_any_permission()`
-  - `graphql/content/mutation.rs`: `create_node`, `update_node`, `delete_node` — auth check
+  - `graphql/content/mutation.rs`: `create_node`, `update_node`, `delete_node` — через `AuthService::has_any_permission()` (NODES_CREATE/UPDATE/DELETE)
+  - `graphql/commerce/mutation.rs`: `create_product`, `update_product`, `publish_product`, `delete_product` — через `AuthService::has_any_permission()` (PRODUCTS_CREATE/UPDATE/DELETE)
+  - `graphql/pages/mutation.rs`: все 5 mutations — через `AuthService::has_any_permission()` (PAGES_CREATE/UPDATE/DELETE)
+  - `graphql/forum/mutation.rs`: все mutations — через `AuthService::has_any_permission()` (FORUM_TOPICS/REPLIES/CATEGORIES permissions)
+  - `graphql/alloy/mutation.rs`: через `require_admin()` (SCRIPTS_MANAGE)
 - [x] Механизм проверки permissions в GraphQL context — `AuthService::has_any_permission(db, tenant_id, user_id, permissions)`
 - [x] Ошибка 403 корректно преобразуется в GraphQL error extension — через `GraphQLError::permission_denied()`
 
@@ -334,10 +338,14 @@
 
 - [x] REST endpoints `content/nodes.rs`, `blog/posts.rs`, `forum/topics.rs`, `forum/replies.rs`, `forum/categories.rs`, `pages.rs`, `admin_events.rs` — RBAC extractors применены
 - [x] REST `commerce/products.rs`, `commerce/variants.rs`, `commerce/inventory.rs` — RBAC extractors применены
-- [~] GraphQL mutations Blog — RBAC через `AuthService::has_any_permission()` добавлен
-- [ ] GraphQL mutations Forum — stub реализация, RBAC требует реальной имплементации
-- [ ] GraphQL mutations Content — только auth check, нет проверки конкретных permissions
-- [ ] Нет endpoints без auth/RBAC (кроме public: health, login, register, public storefront queries)
+- [x] GraphQL mutations Blog — RBAC через `AuthService::has_any_permission()` добавлен
+- [x] GraphQL mutations Forum — реализованы с полноценным RBAC (topics/replies/categories)
+- [x] GraphQL mutations Content — RBAC через `AuthService::has_any_permission()` добавлен
+- [x] GraphQL mutations Commerce — RBAC через `AuthService::has_any_permission()` добавлен
+- [x] GraphQL mutations Pages — RBAC через `AuthService::has_any_permission()` добавлен
+- [~] Нет endpoints без auth/RBAC (кроме public: health, login, register, public storefront queries)
+  - Blog/Pages queries — публичные (для storefront), не требуют auth
+  - Forum queries — требуют auth через `AuthContext`
 
 ---
 
@@ -680,8 +688,10 @@
 
 **Файлы:** `apps/server/src/graphql/pages/`
 
-- [ ] Query: `page(id/slug)`, `pages(filter)`
-- [ ] Mutation: `createPage`, `updatePage`, `deletePage`, `publishPage`
+- [x] Query: `page(id)`, `page_by_slug(slug)`, `pages(filter)` — реализованы
+- [x] Mutation: `createPage`, `updatePage`, `deletePage`, `publishPage`, `unpublishPage` — реализованы с RBAC
+- [x] Pages добавлены в `schema.rs` (Query и Mutation merged objects)
+- [x] `pages` добавлен в `graphql/mod.rs`
 
 ### 8.8 DataLoader
 
@@ -1461,6 +1471,11 @@
 | 5 | 🔴 Критический | ✅ Исправлено | `content/nodes.rs` использовал `CurrentUser` без RBAC-проверок для всех 5 endpoints. Заменён на RBAC extractors (`RequireNodesList`, `RequireNodesRead`, `RequireNodesCreate`, `RequireNodesUpdate`, `RequireNodesDelete`). OpenAPI 403 добавлен. | `apps/server/src/controllers/content/nodes.rs` | 4.4, 9.4, 18.2 |
 | 6 | 🔴 Критический | ✅ Исправлено | `admin_events.rs` (DLQ просмотр/replay) использовал `CurrentUser` без RBAC — доступен любому аутентифицированному пользователю. Заменён на `RequireLogsRead` (Admin/SuperAdmin only). Добавлен `Logs::Read` и `Logs::List` в `ADMIN_PERMISSIONS`. | `apps/server/src/controllers/admin_events.rs`, `crates/rustok-core/src/rbac.rs`, `apps/server/src/extractors/rbac.rs` | 4.4, 9.8, 18.2 |
 | 7 | 🟡 Высокий | ✅ Исправлено | GraphQL Blog mutations (`create_post`, `update_post`, `delete_post`, `publish_post`, `unpublish_post`, `archive_post`) имели только auth check, но не проверяли конкретные RBAC permissions. Добавлены проверки через `AuthService::has_any_permission()` для каждой операции. | `apps/server/src/graphql/blog/mutation.rs` | 4.3, 8.4 |
+| 8 | 🔴 Критический | ✅ Исправлено | GraphQL Commerce mutations (`create_product`, `update_product`, `publish_product`, `delete_product`) — без auth/RBAC. Добавлены проверки `AuthService::has_any_permission()` для PRODUCTS_CREATE/UPDATE/DELETE. | `apps/server/src/graphql/commerce/mutation.rs` | 4.3, 8.3 |
+| 9 | 🔴 Критический | ✅ Исправлено | GraphQL Content mutations (`create_node`, `update_node`, `delete_node`) — только auth check, без RBAC. Добавлены NODES_CREATE/UPDATE/DELETE через `AuthService::has_any_permission()`. Параметр `tenant_id` добавлен. | `apps/server/src/graphql/content/mutation.rs` | 4.3, 8.2 |
+| 10 | 🟡 Высокий | ✅ Исправлено | GraphQL Forum — stub реализация. Реализованы полноценные queries и mutations через TopicService, ReplyService, CategoryService с RBAC. | `apps/server/src/graphql/forum/mutation.rs`, `query.rs`, `types.rs` | 4.3, 8.5 |
+| 11 | 🟡 Высокий | ✅ Исправлено | GraphQL Pages mutations — без RBAC, использовали SecurityContext::system(). Добавлены PAGES_CREATE/UPDATE/DELETE через `AuthService::has_any_permission()`. | `apps/server/src/graphql/pages/mutation.rs` | 4.3, 8.7 |
+| 12 | 🟡 Высокий | ✅ Исправлено | RBAC extractors RequirePagesCreate/Read/Update/Delete использовали NODES_* permissions вместо PAGES_*. Исправлено. Добавлены константы PAGES_* и permissions для Manager/Customer. | `extractors/rbac.rs`, `permissions.rs`, `rbac.rs` | 4.1, 4.4 |
 
 ### 21.1 Детали: Проблема #2 — Небезопасная публикация событий в blog/forum
 

@@ -209,10 +209,10 @@ define_permission_extractor!(
     rustok_core::Permission::FORUM_CATEGORIES_DELETE
 );
 
-define_permission_extractor!(RequirePagesCreate, rustok_core::Permission::NODES_CREATE);
-define_permission_extractor!(RequirePagesRead, rustok_core::Permission::NODES_READ);
-define_permission_extractor!(RequirePagesUpdate, rustok_core::Permission::NODES_UPDATE);
-define_permission_extractor!(RequirePagesDelete, rustok_core::Permission::NODES_DELETE);
+define_permission_extractor!(RequirePagesCreate, rustok_core::Permission::PAGES_CREATE);
+define_permission_extractor!(RequirePagesRead, rustok_core::Permission::PAGES_READ);
+define_permission_extractor!(RequirePagesUpdate, rustok_core::Permission::PAGES_UPDATE);
+define_permission_extractor!(RequirePagesDelete, rustok_core::Permission::PAGES_DELETE);
 
 define_permission_extractor!(RequireScriptsCreate, rustok_core::Permission::SCRIPTS_CREATE);
 define_permission_extractor!(RequireScriptsRead, rustok_core::Permission::SCRIPTS_READ);

@@ -132,6 +132,12 @@ static MANAGER_PERMISSIONS: Lazy<HashSet<Permission>> = Lazy::new(|| {
 
     permissions.insert(Permission::ANALYTICS_READ);
 
+    permissions.insert(Permission::PAGES_CREATE);
+    permissions.insert(Permission::PAGES_READ);
+    permissions.insert(Permission::PAGES_UPDATE);
+    permissions.insert(Permission::PAGES_DELETE);
+    permissions.insert(Permission::PAGES_LIST);
+
     permissions.insert(Permission::BLOG_POSTS_CREATE);
     permissions.insert(Permission::BLOG_POSTS_READ);
     permissions.insert(Permission::BLOG_POSTS_UPDATE);
@@ -176,6 +182,9 @@ static CUSTOMER_PERMISSIONS: Lazy<HashSet<Permission>> = Lazy::new(|| {
     // Nodes read permissions for customers
     permissions.insert(Permission::NODES_READ);
     permissions.insert(Permission::NODES_LIST);
+
+    permissions.insert(Permission::PAGES_READ);
+    permissions.insert(Permission::PAGES_LIST);
 
     permissions.insert(Permission::new(Resource::Comments, Action::Create));
     permissions.insert(Permission::new(Resource::Comments, Action::Read));
