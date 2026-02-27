@@ -1257,7 +1257,7 @@
 - [ ] Проверка: каждый SeaORM entity имеет `tenant_id` поле
 
 #### Unsafe event publishing
-- [!] Поиск `publish(` без `_in_tx` в domain services
+- [x] Поиск `publish(` без `_in_tx` в domain services — исправлено
   - `grep -rn "event_bus\.publish(" crates/rustok-*/src/services/` — найдены нарушения:
     - `crates/rustok-blog/src/services/post.rs` — 5 вызовов `event_bus.publish()` вместо `publish_in_tx()`
     - `crates/rustok-forum/src/services/moderation.rs` — 3 вызова
@@ -1448,7 +1448,7 @@
 | № | Приоритет | Статус | Описание | Файлы | Фаза |
 |---|-----------|--------|----------|-------|------|
 | 1 | 🔴 Критический | ✅ Исправлено | `content` был помечен `required = true` в `modules.toml`, но `ContentModule::kind()` возвращает `ModuleKind::Optional`. Несоответствие приводило к ошибке `validate_registry_vs_manifest()` при старте. | `modules.toml` | 1.1 |
-| 2 | 🔴 Критический | ⏳ Ожидает исправления | `rustok-blog` и `rustok-forum` используют `event_bus.publish()` вместо `publish_in_tx()` — нарушение атомарности, возможна потеря событий при сбое после commit DB-транзакции. | `crates/rustok-blog/src/services/post.rs`, `crates/rustok-forum/src/services/{topic,reply,moderation}.rs` | 6.2, 7.3, 7.4 |
+| 2 | 🔴 Критический | ✅ Исправлено | `rustok-blog` и `rustok-forum` используют `event_bus.publish()` вместо `publish_in_tx()` — нарушение атомарности, возможна потеря событий при сбое после commit DB-транзакции. | `crates/rustok-blog/src/services/post.rs`, `crates/rustok-forum/src/services/{topic,reply,moderation}.rs` | 6.2, 7.3, 7.4 |
 | 3 | 🟡 Высокий | ✅ Исправлено | `iggy` версия `0.9.2` не существует на crates.io. CI-сборка падала. Исправлено на `0.9.0`. | `Cargo.toml`, `crates/rustok-iggy-connector/Cargo.toml` | 0.6 |
 
 ### 21.1 Детали: Проблема #2 — Небезопасная публикация событий в blog/forum
@@ -1468,15 +1468,16 @@
 - Или: убрать дублирующие события в blog/forum — NodeService уже публикует `NodeCreated`/`NodeUpdated`/etc., а IndexService может слушать их напрямую.
 
 **Чеклист исправления:**
-- [ ] Рефакторинг `PostService::create_post()` → `publish_in_tx()`
-- [ ] Рефакторинг `PostService::update_post()` → `publish_in_tx()`
-- [ ] Рефакторинг `PostService::publish_post()` → `publish_in_tx()`
-- [ ] Рефакторинг `PostService::unpublish_post()` → `publish_in_tx()`
-- [ ] Рефакторинг `PostService::delete_post()` → `publish_in_tx()`
-- [ ] Рефакторинг `TopicService` → `publish_in_tx()`
-- [ ] Рефакторинг `ReplyService::create_reply()` → `publish_in_tx()`
-- [ ] Рефакторинг `ModerationService` (3 вызова) → `publish_in_tx()`
-- [ ] Добавить integration тест: проверить что BlogPostCreated публикуется атомарно
+- [x] Рефакторинг `PostService::create_post()` → `publish_in_tx()`
+- [x] Рефакторинг `PostService::update_post()` → `publish_in_tx()`
+- [x] Рефакторинг `PostService::publish_post()` → `publish_in_tx()`
+- [x] Рефакторинг `PostService::unpublish_post()` → `publish_in_tx()`
+- [x] Рефакторинг `PostService::delete_post()` → `publish_in_tx()`
+- [x] Рефакторинг `TopicService` → `publish_in_tx()`
+- [x] Рефакторинг `ReplyService::create_reply()` → `publish_in_tx()`
+- [x] Рефакторинг `ModerationService` (3 вызова) → `publish_in_tx()`
+- [x] Добавить integration тест: проверить что BlogPostCreated публикуется атомарно
+**Статус:** ✅ Исправлено. Все сервисы blog и forum теперь используют `publish_in_tx()` для публикации событий в рамках транзакции БД, обеспечивая атомарность операций.
 
 ---
 
