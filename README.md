@@ -1,6 +1,6 @@
 <div align="center">
 
-# 🦀 RusToK
+# <img src="assets/rustok-logo-512x512.png" width="48" align="center" /> RusToK
 
 **Event-Driven Enterprise Headless Platform Built with Rust**
 
@@ -157,6 +157,7 @@ Real-world impact:
 ### 💰 Save 80% on Infrastructure
 
 While a typical Node.js or Python application requires **256MB-512MB RAM** per instance, a RusToK production container starts at just **30MB-50MB**.
+
 - **Deploy on $5 VPS**: Handle traffic that would cost $100/mo on other stacks.
 - **Serverless Friendly**: Native binary starts in milliseconds. Zero "cold start" issues.
 
@@ -173,6 +174,7 @@ While a typical Node.js or Python application requires **256MB-512MB RAM** per i
 ## 🤖 AI-Native Architecture
 
 RusToK is the first platform built with a **System Manifest** designed specifically for AI Assistants.
+
 - **Structured for Agents**: Clean directory patterns and exhaustive documentation mean AI (Cursor, Windsurf, Claude) builds features for you with 99% accuracy.
 - **Zero Boilerplate**: Use our CLI and AI-prompts to generate entire modules in minutes.
 
@@ -181,6 +183,7 @@ RusToK is the first platform built with a **System Manifest** designed specifica
 ## 🦄 Legendary Efficiency (Hyper-Optimized)
 
 RusToK is so efficient that it doesn't just run on servers — it survives where others crash:
+
 - **Smartwatch Ready**: Handle a million requests per second while running on your smart fridge or a digital watch.
 - **Powered by Vibes**: We handle high traffic using less energy than a literal cup of coffee.
 - **Quantum Speed**: Our response times are so low that requests are often served before the user even finishes clicking.
@@ -339,6 +342,7 @@ For complete technical documentation, architecture guides, and development manua
 👉 **[Documentation Map](docs/index.md)**
 
 Key documents:
+
 - [System Manifest](RUSTOK_MANIFEST.md) — Core philosophy and architecture.
 - [Agent Rules](AGENTS.md) — Guidelines for AI agents.
 - [Roadmap](docs/roadmap.md) — Development phases.
@@ -566,6 +570,7 @@ Look for issues labeled good first issue — these are great starting points.
 This project is licensed under the MIT License — see the [LICENSE](LICENSE) file for details.
 
 What this means:
+
 - ✅ Free to use for any purpose (commercial or private)
 - ✅ Free to modify and sub-license
 - ✅ No "copyleft" requirements (keep your proprietary code private)
@@ -586,5 +591,4 @@ Built with amazing open-source projects:
 ---
 
 ⬆ Back to Top  
-Made with 🦀 by the RusToK community
-
+Made with <img src="assets/rustok-logo-32x32.png" width="16" align="center" /> by the RusToK community
