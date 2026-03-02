@@ -1,27 +1,33 @@
-# storefront
+# RusToK Leptos Storefront
 
-## Назначение
-`apps/storefront` — модуль/приложение RusToK. Здесь находится его код и корневая документация.
+`apps/storefront` — Leptos SSR витрина RusToK (Rust-first вариант storefront).
+
+## Роль в платформе
+
+- SSR storefront для витринных сценариев;
+- параллельная реализация к `apps/next-frontend` для технологического паритета;
+- проверка Rust UI/SSR пайплайна в единой платформе.
+
+## Архитектурный контур
+
+- entrypoint: `src/main.rs`
+- модульные расширения витрины: `src/modules/*` (registry/slots)
+- стили: Tailwind + статическая сборка `static/app.css`
+
+## Библиотеки
+
+- `leptos`, `leptos_router` — UI и SSR маршрутизация
+- `axum`, `tokio` — HTTP сервер
+- внутренние crates: `leptos-auth`, `leptos-graphql`, `leptos-table`, `leptos-hook-form`, `leptos-zod`, `leptos-zustand`
+- util crates: `leptos-shadcn-pagination`, `leptos_i18n`, `leptos-next-metadata`, `leptos_query`
 
 ## Взаимодействие
-- apps/server (API)
-- crates/rustok-commerce и crates/rustok-content через backend
-- apps/admin (общая экосистема UI)
+
+- `apps/server` (API)
+- доменные `crates/rustok-*` через backend
+- общий UI-контур с `apps/admin` / `apps/next-frontend`
 
 ## Документация
-- Локальная документация: `./docs/`
-- Общая документация платформы: `/docs`
 
-## Паспорт компонента
-- **Роль в системе:** Leptos storefront-приложение (альтернативная/внутренняя витрина).
-- **Основные данные/ответственность:** бизнес-логика и API данного компонента; структура кода и документации в корне компонента.
-- **Взаимодействует с:**
-  - apps/server (API)
-  - crates/rustok-commerce и rustok-content через backend
-  - apps/admin (единый контур управления)
-- **Точки входа:**
-  - `apps/storefront/src/main.rs`
-  - `apps/storefront/src/pages/*`
-- **Локальная документация:** `./docs/`
-- **Глобальная документация платформы:** `/docs/`
-
+- Платформенный контекст: `docs/UI/storefront.md`
+- Общая карта: `docs/index.md`

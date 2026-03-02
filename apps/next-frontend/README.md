@@ -1,55 +1,48 @@
-# RusToK Next.js Storefront
+# RusToK Next Storefront
 
-Скелет витрины (storefront) на Next.js (App Router) с shadcn/ui и локализацией.
+`apps/next-frontend` — Next.js витрина RusToK, синхронизированная по архитектурным принципам с админками.
 
-## Быстрый старт
+## Роль в платформе
 
-```bash
-npm install
-npm run dev
-```
+- клиентская storefront-витрина (каталог, промо, контентные блоки);
+- React/Next.js реализация параллельно с `apps/storefront` (Leptos SSR);
+- площадка для переиспользования общих frontend-контрактов (`leptos-*`, UI workspace).
 
-## Основные библиотеки
+## FSD ориентир
 
-- Next.js + React
-- TailwindCSS + shadcn/ui
-- React Query
-- Zod
-- Next SEO
-- next-intl (ru/en)
+- `src/app/*` — маршруты и композиция страниц;
+- `src/modules/*` — подключаемые модульные секции витрины;
+- `src/shared/*` — shared-level интеграции и утилиты;
+- `src/components/*` — UI primitives/локальные компоненты.
 
-## Расширенный стандартный стек
+Ключевой принцип: не дублировать transport/auth код по страницам — интеграции держать в `src/shared/lib/*`.
 
-- Auth: next-auth
-- State: zustand
-- GraphQL: graphql-request
-- REST/OpenAPI: openapi-fetch
-- Tables: @tanstack/react-table
-- Dates: date-fns
-- Analytics: posthog-js
-- Monitoring: @sentry/nextjs
-- Notifications: react-hot-toast
+## Библиотеки и контракты
 
+### Базовый стек
+
+- `next`, `react`, `typescript`
+- `tailwindcss` + shadcn/ui
+- `next-intl` (локализация)
+
+### Внутренние пакеты (паритет с админками)
+
+- `leptos-graphql/next` — GraphQL endpoint + tenant/auth headers;
+- `leptos-auth/next` — клиентский auth/session контракт;
+- `leptos-hook-form/next`, `leptos-zod/next`, `leptos-zustand/next`, `leptos-table/next` — shared типы и расширение контрактов.
+
+### FSD gateway в приложении
+
+- `src/shared/lib/graphql.ts` — `storefrontGraphql(...)` и реэкспорт GraphQL контрактов;
+- `src/shared/lib/auth.ts` — реэкспорт auth-хелперов/типов.
 
 ## Взаимодействие
-- apps/server (витринный API)
-- crates/rustok-commerce (доменные данные через backend)
-- crates/rustok-content (контент через backend)
+
+- `apps/server` (витринный API)
+- `crates/rustok-commerce`, `crates/rustok-content` через backend
+- `UI/next` и `UI/docs/api-contracts.md` для UI-паритета
 
 ## Документация
-- Локальная документация: `./docs/`
-- Общая документация платформы: `/docs`
 
-## Паспорт компонента
-- **Роль в системе:** Next.js storefront для клиентской витрины и пользовательских сценариев.
-- **Основные данные/ответственность:** бизнес-логика и API данного компонента; структура кода и документации в корне компонента.
-- **Взаимодействует с:**
-  - apps/server (витринный API)
-  - crates/rustok-commerce и rustok-content через backend
-  - общая дизайн-система с apps/admin
-- **Точки входа:**
-  - `apps/next-frontend/app/*`
-  - `apps/next-frontend/components/*`
-- **Локальная документация:** `./docs/`
-- **Глобальная документация платформы:** `/docs/`
-
+- Локальная: `apps/next-frontend/docs/README.md`
+- Центральная: `docs/UI/storefront.md`, `docs/index.md`
