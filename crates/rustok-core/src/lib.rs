@@ -12,6 +12,7 @@ pub mod metrics;
 pub mod migrations;
 pub mod module;
 pub mod permissions;
+pub mod platform;
 pub mod rbac;
 pub mod registry;
 pub mod resilience;
@@ -78,6 +79,9 @@ pub use typed_error::{
     DomainError, ErrorCategory, ErrorCode, ErrorResponseBody, IntoTypedResult, TypedResult,
 };
 pub use types::{UserRole, UserStatus};
+pub use platform::{
+    DetectionConfidence, DetectionMethod, DetectionResult, Platform, PlatformDetector,
+};
 pub use utils::{
     all, any, base64_decode, base64_encode, capitalize, chunk, collect_results, dedup, filter_map,
     find_first, format_duration, get_or_default, group_by, hex_decode, hex_encode, html_escape,
@@ -106,6 +110,7 @@ pub mod prelude {
     pub use crate::resilience::{CircuitBreaker, CircuitBreakerConfig, CircuitBreakerError};
     pub use crate::typed_error::{DomainError, ErrorCode, TypedResult};
     pub use crate::types::{UserRole, UserStatus};
+    pub use crate::platform::{DetectionConfidence, DetectionMethod, Platform, PlatformDetector};
     #[cfg(feature = "redis-cache")]
     pub use crate::RedisCacheBackend;
     pub use crate::{AppContext, CacheBackend, CacheStats, InMemoryCacheBackend, SearchBackend};
