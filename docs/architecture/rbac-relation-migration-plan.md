@@ -572,3 +572,70 @@
   - denied/error rate
   - latency p95/p99
   - tenant-specific anomalies
+
+---
+
+## 13. Операционный runbook MVP-cutover (фазы 4–5)
+
+Раздел фиксирует минимально необходимый, повторяемый сценарий для staged rehearsal и production cutover.
+
+### 13.1 Staging rehearsal (обязателен перед go-live)
+
+1. Подготовить директорию артефактов (пример: `artifacts/rbac-staging/<date>`).
+2. Прогнать полный цикл:
+   - dry-run backfill,
+   - apply backfill,
+   - post-check целостности,
+   - rollback dry-run,
+   - rollback apply (на тестовых данных/снэпшоте).
+3. На каждом этапе требовать наличие JSON-отчёта (`--require-report-artifacts`).
+4. Сформировать stage-report (markdown) с итоговыми инвариантами.
+
+Критерий прохождения rehearsal:
+
+- все шаги завершены без fail-fast по артефактам,
+- нет роста `orphan_*` и `users_without_roles_total` после apply,
+- rollback-цикл подтверждён на staging (в том же rehearsal-окне).
+
+### 13.2 Production dual-read baseline
+
+1. Включить dual-read в production с feature-flag.
+2. Выдержать окно наблюдения (минимум 24 часа, целевое 72 часа+).
+3. Снять baseline helper-скриптом и сохранить json/markdown артефакты в `artifacts/rbac-cutover/<date>`.
+4. Проверить gate:
+   - `mismatch_delta == 0` в целевом окне,
+   - decision volume не ниже порога (`--min-decision-delta`),
+   - нет аномального роста 401/403 и latency p95/p99.
+
+### 13.3 Go / No-Go решение для relation-only
+
+Решение принимается только при выполнении всех условий:
+
+- MVP-блокер 1 закрыт (staged rehearsal complete + отчёты).
+- MVP-блокер 2 закрыт (ADR final cutover согласован).
+- MVP-блокер 3 закрыт (dual-read baseline complete).
+- QA и on-call подтверждают readiness по runbook.
+
+Если хотя бы одно условие не выполнено — фиксируется **No-Go**, переключение relation-only откладывается.
+
+### 13.4 Обязательная структура cutover-отчёта
+
+Каждый релизный цикл cutover должен завершаться единым отчётом (release-notes/runbook append) с 5 блоками:
+
+1. **Scope:** tenant-охват, версия, feature-flag state.
+2. **Data health:** значения `users_without_roles_total`, `orphan_user_roles_total`, `orphan_role_permissions_total` до/после.
+3. **Decision health:** mismatch trend, deny/error trend, latency p95/p99.
+4. **Инциденты:** любые отклонения, ручные интервенции, rollback-шаги (если были).
+5. **Решение:** Go/No-Go + ответственные и timestamp.
+
+---
+
+## 14. Post-MVP backlog (вне текущего cutover scope)
+
+Ниже — задачи, которые не блокируют relation-only switch, но должны быть запланированы после стабилизации:
+
+1. Укрепить module boundary: завершить перенос policy/use-case API в `crates/rustok-rbac` и упростить server adapters.
+2. Сократить временные feature-flags и удалить fallback-код после окна наблюдения.
+3. Уточнить долгосрочную судьбу `users.role` отдельным ADR (удаление vs derived-only).
+4. Консолидировать observability dashboard (RBAC migration + steady-state RBAC ops).
+5. Обновить onboarding docs для backend/on-call с финальной relation-only моделью.
