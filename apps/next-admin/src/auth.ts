@@ -50,22 +50,22 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
   callbacks: {
     jwt({ token, user }) {
       if (user) {
-        token.id = user.id;
-        token.role = (user as any).role;
-        token.status = (user as any).status;
-        token.tenantSlug = (user as any).tenantSlug;
-        token.tenantId = (user as any).tenantId;
-        token.rustokToken = (user as any).rustokToken;
+        token.id = user.id ?? '';
+        token.role = user.role;
+        token.status = user.status;
+        token.tenantSlug = user.tenantSlug;
+        token.tenantId = user.tenantId;
+        token.rustokToken = user.rustokToken;
       }
       return token;
     },
     session({ session, token }) {
-      session.user.id = token.id as string;
-      session.user.role = token.role as string;
-      session.user.status = token.status as string;
-      session.user.tenantSlug = token.tenantSlug as string | null;
-      session.user.tenantId = token.tenantId as string | null;
-      session.user.rustokToken = token.rustokToken as string;
+      session.user.id = token.id;
+      session.user.role = token.role;
+      session.user.status = token.status;
+      session.user.tenantSlug = token.tenantSlug;
+      session.user.tenantId = token.tenantId;
+      session.user.rustokToken = token.rustokToken;
       return session;
     }
   },
