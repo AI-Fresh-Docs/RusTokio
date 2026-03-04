@@ -3,7 +3,7 @@ use loco_rs::prelude::*;
 
 use crate::auth::{encode_password_reset_token, AuthConfig};
 use crate::context::TenantContext;
-use crate::graphql::errors::GraphQLError;
+use crate::graphql::errors::{ErrorCode, GraphQLError};
 use crate::models::users;
 use crate::services::auth_lifecycle::{AuthLifecycleError, AuthLifecycleService};
 use crate::services::email::{EmailService, PasswordResetEmail, PasswordResetEmailSender};
@@ -14,27 +14,25 @@ use super::types::*;
 
 const DEFAULT_RESET_TOKEN_TTL_SECS: u64 = 15 * 60;
 
+fn unauthenticated_auth_error(message: &str) -> FieldError {
+    use async_graphql::ErrorExtensions;
+
+    FieldError::new(message).extend_with(|_, e| {
+        e.set("code", ErrorCode::Unauthenticated.as_str());
+    })
+}
+
 fn map_auth_lifecycle_error(error: AuthLifecycleError) -> FieldError {
     match error {
         AuthLifecycleError::EmailAlreadyExists => FieldError::new("Email already exists"),
-        AuthLifecycleError::InvalidCredentials => {
-            <FieldError as GraphQLError>::unauthorized("Invalid credentials")
-        }
-        AuthLifecycleError::UserInactive => {
-            <FieldError as GraphQLError>::unauthorized("User is inactive")
-        }
+        AuthLifecycleError::InvalidCredentials => unauthenticated_auth_error("Invalid credentials"),
+        AuthLifecycleError::UserInactive => unauthenticated_auth_error("User is inactive"),
         AuthLifecycleError::InvalidRefreshToken => {
-            <FieldError as GraphQLError>::unauthorized("Invalid refresh token")
+            unauthenticated_auth_error("Invalid refresh token")
         }
-        AuthLifecycleError::SessionExpired => {
-            <FieldError as GraphQLError>::unauthorized("Session expired")
-        }
-        AuthLifecycleError::UserNotFound => {
-            <FieldError as GraphQLError>::unauthorized("User not found")
-        }
-        AuthLifecycleError::InvalidResetToken => {
-            <FieldError as GraphQLError>::unauthorized("Invalid reset token")
-        }
+        AuthLifecycleError::SessionExpired => unauthenticated_auth_error("Session expired"),
+        AuthLifecycleError::UserNotFound => unauthenticated_auth_error("User not found"),
+        AuthLifecycleError::InvalidResetToken => unauthenticated_auth_error("Invalid reset token"),
         AuthLifecycleError::Internal(err) => {
             <FieldError as GraphQLError>::internal_error(&err.to_string())
         }

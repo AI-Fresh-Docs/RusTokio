@@ -19,7 +19,6 @@ impl ErrorCode {
 
 pub trait GraphQLError {
     fn unauthenticated() -> FieldError;
-    fn unauthorized(message: &str) -> FieldError;
     fn permission_denied(message: &str) -> FieldError;
     fn internal_error(message: &str) -> FieldError;
 }
@@ -27,12 +26,6 @@ pub trait GraphQLError {
 impl GraphQLError for FieldError {
     fn unauthenticated() -> FieldError {
         FieldError::new("Authentication required").extend_with(|_, e| {
-            e.set("code", ErrorCode::Unauthenticated.as_str());
-        })
-    }
-
-    fn unauthorized(message: &str) -> FieldError {
-        FieldError::new(message).extend_with(|_, e| {
             e.set("code", ErrorCode::Unauthenticated.as_str());
         })
     }
