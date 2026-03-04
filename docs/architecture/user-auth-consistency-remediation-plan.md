@@ -252,7 +252,7 @@ Gate перед выкладкой:
 - Rollout controls и rollback-инструкция добавлены в `apps/server/docs/README.md`.
 - Метрики rollout-периода из раздела 7 (`auth_password_reset_sessions_revoked_total`, `auth_change_password_sessions_revoked_total`, `auth_flow_inconsistency_total`, `auth_login_inactive_user_attempt_total`) публикуются через `/metrics`.
 - Расширенный локальный auth-срез также пройден: `cargo test -p rustok-server auth` (51/51), включая transport mappings и service-level инварианты.
-- Расширенный локальный auth-срез также пройден: `cargo test -p rustok-server auth` (48/48), включая transport mappings и service-level инварианты.
+- Инвариант users-permissions из раздела 6 зафиксирован отдельным service-level тестом `user_permissions_are_consistent_for_same_role_across_creation_paths`.
 - Unit coverage для инварианта из раздела 6 (повторный reset на уже отозванных сессиях) расширено: повторный вызов не добавляет новых revoked session.
 - Добавлен service-level тест на idempotency revoke-механизма: повторный `revoke_user_sessions` для того же `tenant+user` возвращает `0` новых revoke и не меняет уже отозванные сессии.
 - Добавлен service-level тест позитивного reset use-case: `reset_password_and_revoke_sessions` обновляет пароль, отзывает все активные сессии пользователя и увеличивает `auth_password_reset_sessions_revoked_total` на число реально отозванных сессий.
