@@ -39,11 +39,12 @@
 - Build pipeline: `BuildService::request_build` now publishes `BuildRequested` via configurable `BuildEventPublisher`; `EventBusBuildEventPublisher` maps it to `DomainEvent::BuildRequested`, while default noop publisher logs skipped dispatch when no runtime wiring is provided.
 - Auth/session lifecycle: GraphQL `sign_out`, `change_password`, `reset_password` теперь используют soft-revoke через `sessions.revoked_at` (вместо hard delete) и выровнены по поведению с REST (`sign_out` отзывает только текущую сессию, `change_password` — все остальные, `reset_password` — все активные).
 
-- Auth/lifecycle extraction: REST handlers и GraphQL mutations для `register/sign_in`, `login/sign_in`, `refresh`, `change_password`, `reset_password` теперь маршрутизируют бизнес-логику через общий `AuthLifecycleService` (transport adapters остаются тонкими).
+- Auth/lifecycle extraction: REST handlers и GraphQL mutations для `register/sign_in`, `login/sign_in`, `refresh`, `change_password`, `reset_password`, `update_profile` теперь маршрутизируют бизнес-логику через общий `AuthLifecycleService` (transport adapters остаются тонкими).
 
 - Auth/observability: `/metrics` публикует auth lifecycle counters `auth_password_reset_sessions_revoked_total`, `auth_change_password_sessions_revoked_total`, `auth_flow_inconsistency_total`, `auth_login_inactive_user_attempt_total`; первые два счётчика отражают количество реально отозванных сессий (rows affected), а счётчики ведутся в `AuthLifecycleService` для rollout-периода remediation-плана.
 
 - Auth/error contracts: `AuthLifecycleService` использует типизированные ошибки (`AuthLifecycleError`), а REST/GraphQL делают единообразный transport-specific mapping без дублирования строковых веток.
 
-- Auth rollout controls: канонические release gates, stop-the-line условия и rollback-процедура ведутся централизованно в `docs/architecture/user-auth-consistency-remediation-plan.md` (раздел 8), этот README хранит только краткий changelog.
+- Auth rollout controls: канонические release gates, stop-the-line условия и rollback-процедура ведутся централизованно в `docs/architecture/api.md` (раздел «Auth lifecycle consistency и release-gate»); remediation backlog закрыт, в релизах используется operational handoff через `scripts/auth_release_gate.sh --require-all-gates`.
+- Auth rollout controls: helper `scripts/auth_release_gate.sh` автоматизирует сбор локального integration evidence (`cargo test -p rustok-server auth_lifecycle` + `cargo test -p rustok-server auth`), всегда формирует markdown gate-report с полями для parity/security evidence и завершает прогон с non-zero exit code при падении любого локального integration auth-среза.
 - RBAC/seed consistency: `seed_user` теперь вызывает `AuthService::assign_role_permissions` после создания пользователя, гарантируя наличие `user_roles` для всех seed-пользователей (dev bootstrap).
