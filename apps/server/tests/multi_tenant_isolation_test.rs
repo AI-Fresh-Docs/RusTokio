@@ -5,7 +5,25 @@ use rustok_content::dto::{BodyInput, CreateNodeInput, ListNodesFilter, NodeTrans
 use rustok_content::services::NodeService;
 use rustok_core::{SecurityContext, UserRole};
 use rustok_test_utils::{db::setup_test_db_with_migrations, events::mock_transactional_event_bus};
+use sea_orm::{ConnectionTrait, DatabaseConnection, DbBackend, Statement};
 use uuid::Uuid;
+
+async fn insert_tenant(db: &DatabaseConnection, tenant_id: Uuid, slug: &str) {
+    db.execute(Statement::from_sql_and_values(
+        DbBackend::Sqlite,
+        "INSERT INTO tenants (id, name, slug, settings, default_locale, is_active) VALUES (?, ?, ?, ?, ?, ?)",
+        [
+            tenant_id.into(),
+            format!("Tenant {slug}").into(),
+            slug.into(),
+            serde_json::json!({}).into(),
+            "en".into(),
+            true.into(),
+        ],
+    ))
+    .await
+    .expect("tenant should be inserted");
+}
 
 fn build_post_input(title: &str, slug: &str) -> CreateNodeInput {
     CreateNodeInput {
@@ -40,6 +58,8 @@ async fn list_nodes_is_scoped_by_tenant() {
 
     let tenant1_id = Uuid::new_v4();
     let tenant2_id = Uuid::new_v4();
+    insert_tenant(&db, tenant1_id, "tenant-1").await;
+    insert_tenant(&db, tenant2_id, "tenant-2").await;
     let user_id = Uuid::new_v4();
     let security = SecurityContext::new(UserRole::Admin, Some(user_id));
 
@@ -98,6 +118,8 @@ async fn get_by_slug_is_scoped_by_tenant() {
 
     let tenant1_id = Uuid::new_v4();
     let tenant2_id = Uuid::new_v4();
+    insert_tenant(&db, tenant1_id, "tenant-1").await;
+    insert_tenant(&db, tenant2_id, "tenant-2").await;
     let user_id = Uuid::new_v4();
     let security = SecurityContext::new(UserRole::Admin, Some(user_id));
 
