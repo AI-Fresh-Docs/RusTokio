@@ -157,6 +157,7 @@ REST/GraphQL должны вызывать этот сервис, оставая
   - [x] refresh
   - [x] reset flows
   - [x] change_password
+  - [x] update_profile
 - [x] Унифицировать маппинг ошибок (REST status codes и GraphQL errors).
 - [x] Выравнять session invalidation semantics между REST и GraphQL для `sign_out`/`change_password`/`reset_password` (soft-revoke через `revoked_at`).
 
@@ -258,6 +259,7 @@ Gate перед выкладкой:
 - Добавлены unit-checks для transport error contracts `UserInactive` и `InvalidResetToken` (единый mapping в unauthorized), чтобы удерживать parity REST/GraphQL по негативным auth-сценариям.
 - Добавлены service-level тесты для негативных auth-сценариев: `login` для inactive user инкрементирует `auth_login_inactive_user_attempt_total`, `confirm_password_reset` отвергает невалидный token payload как `InvalidResetToken`.
 - Добавлен service-level тест на стабильный error contract для duplicate email: повторный `create_user` в рамках tenant возвращает `EmailAlreadyExists` (без transport-зависимой вариативности).
+- `update_profile` для REST и GraphQL переведён на `AuthLifecycleService`: tenant-scope проверка и нормализация `name` (trim + blank => `None`) теперь единообразны для всех transport-слоёв.
 - Добавлен service-level тест по status-контракту `create_user`: при отсутствии `status` применяется `Active`, при явном `Inactive` значение сохраняется без transport-зависимых отклонений.
 - Добавлен service-level тест на tenant-scoped uniqueness contract: одинаковый email может существовать в разных tenant, что фиксирует expected behavior для multi-tenant entrypoints и предотвращает ложные cross-tenant конфликты при `create_user`.
 - Добавлен service-level parity-тест users-permissions для одной роли (`Manager`) между двумя путями создания пользователя (через `AuthLifecycleService::create_user` и legacy insert + `AuthService::replace_user_role`): итоговый набор разрешений совпадает.

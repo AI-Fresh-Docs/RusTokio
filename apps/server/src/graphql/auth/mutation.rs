@@ -1,6 +1,5 @@
 use async_graphql::{Context, FieldError, Object, Result};
 use loco_rs::prelude::*;
-use sea_orm::{ActiveModelTrait, ColumnTrait, EntityTrait, QueryFilter, Set};
 
 use crate::auth::{encode_password_reset_token, AuthConfig};
 use crate::context::TenantContext;
@@ -189,26 +188,10 @@ impl AuthMutation {
             .map_err(|_| <FieldError as GraphQLError>::unauthenticated())?;
         let tenant = ctx.data::<TenantContext>()?;
 
-        let user = users::Entity::find_by_id(auth.user_id)
-            .filter(crate::models::_entities::users::Column::TenantId.eq(tenant.id))
-            .one(&app_ctx.db)
-            .await
-            .map_err(|e| <FieldError as GraphQLError>::internal_error(&e.to_string()))?
-            .ok_or_else(|| FieldError::new("User not found"))?;
-
-        let mut model: users::ActiveModel = user.into();
-        if let Some(name) = input.name {
-            model.name = Set(if name.trim().is_empty() {
-                None
-            } else {
-                Some(name.trim().to_string())
-            });
-        }
-
-        let updated = model
-            .update(&app_ctx.db)
-            .await
-            .map_err(|e| <FieldError as GraphQLError>::internal_error(&e.to_string()))?;
+        let updated =
+            AuthLifecycleService::update_profile(app_ctx, tenant.id, auth.user_id, input.name)
+                .await
+                .map_err(map_auth_lifecycle_error)?;
 
         Ok(AuthUser {
             id: updated.id.to_string(),
