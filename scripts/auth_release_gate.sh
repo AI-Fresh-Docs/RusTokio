@@ -31,6 +31,7 @@ PARITY_REPORT=""
 SECURITY_SIGNOFF=""
 REQUIRE_ALL_GATES="false"
 CARGO_BIN="${RUSTOK_CARGO_BIN:-cargo}"
+LOCAL_TEST_FAILURE="false"
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
@@ -71,12 +72,14 @@ if [[ "$SKIP_LOCAL_TESTS" != "true" ]]; then
   if ! "$CARGO_BIN" test -p rustok-server auth_lifecycle >"$AUTH_LIFECYCLE_LOG" 2>&1; then
     integration_status="Failed"
     integration_note="auth_lifecycle suite failed (see log)"
+    LOCAL_TEST_FAILURE="true"
   fi
 
   if [[ "$integration_status" == "Done" ]]; then
     if ! "$CARGO_BIN" test -p rustok-server auth >"$AUTH_LOG" 2>&1; then
       integration_status="Failed"
       integration_note="auth suite failed (see log)"
+      LOCAL_TEST_FAILURE="true"
     fi
   fi
 fi
@@ -128,6 +131,12 @@ cat > "$REPORT_FILE" <<REPORT
 2. Ensure security checklist/sign-off is attached before release.
 3. Use --require-all-gates in pre-release automation to enforce go/no-go.
 REPORT
+
+if [[ "$LOCAL_TEST_FAILURE" == "true" ]]; then
+  echo "Integration gate failed: local auth test suite failed." >&2
+  echo "Report: $REPORT_FILE"
+  exit 1
+fi
 
 if [[ "$REQUIRE_ALL_GATES" == "true" ]]; then
   if [[ "$integration_status" != "Done" || "$parity_status" != "Done" || "$security_status" != "Done" ]]; then

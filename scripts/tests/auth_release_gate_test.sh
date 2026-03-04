@@ -102,6 +102,21 @@ test_require_all_gates_passes_with_evidence_files() {
   pass "require-all-gates passes with parity and security evidence"
 }
 
+test_local_test_failure_exits_non_zero() {
+  local tmp
+  tmp="$(mktemp -d)"
+  make_mock_cargo "$tmp"
+
+  set +e
+  MOCK_FAIL_AUTH_LIFECYCLE=1 RUSTOK_CARGO_BIN="$tmp/mock-cargo" "$SCRIPT" --artifacts-dir "$tmp/artifacts" >"$tmp/out.log" 2>&1
+  local code=$?
+  set -e
+
+  [[ $code -eq 1 ]] || fail "expected non-zero exit when local integration tests fail"
+  rg -q 'Integration gate failed: local auth test suite failed.' "$tmp/out.log" || fail "missing local failure message"
+  pass "local test failure returns non-zero and reports integration failure"
+}
+
 test_skip_local_tests_marks_integration_pending() {
   local tmp
   tmp="$(mktemp -d)"
@@ -120,5 +135,6 @@ test_default_run_marks_pending_external_gates
 test_require_all_gates_fails_when_external_evidence_missing
 test_require_all_gates_passes_with_evidence_files
 test_skip_local_tests_marks_integration_pending
+test_local_test_failure_exits_non_zero
 
 echo "auth_release_gate tests passed"
