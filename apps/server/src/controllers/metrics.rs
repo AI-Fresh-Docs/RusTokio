@@ -180,13 +180,11 @@ rustok_rbac_claim_role_mismatch_total {claim_role_mismatch_total}\n\
 rustok_rbac_decision_mismatch_total {decision_mismatch_total}\n\
 rustok_rbac_shadow_compare_failures_total {shadow_compare_failures_total}\n\
 rbac_engine_decisions_total {engine_decisions_total}\n\
-rustok_rbac_engine_decisions_total {engine_decisions_total}\n\
 rustok_rbac_engine_decisions_relation_total {engine_decisions_relation_total}\n\
 rustok_rbac_engine_decisions_casbin_total {engine_decisions_casbin_total}\n\
 rbac_engine_mismatch_total {engine_mismatch_total}\n\
 rustok_rbac_engine_mismatch_total {engine_mismatch_total}\n\
 rbac_engine_eval_duration_ms {engine_eval_duration_ms_total}\n\
-rustok_rbac_engine_eval_duration_ms {engine_eval_duration_ms_total}\n\
 rustok_rbac_engine_eval_duration_ms_total {engine_eval_duration_ms_total}\n\
 rustok_rbac_engine_eval_duration_samples {engine_eval_duration_samples}\n\
 rustok_rbac_users_without_roles_total {users_without_roles_total}\n\
@@ -230,6 +228,16 @@ mod tests {
     use crate::services::auth::AuthService;
     use crate::services::auth_lifecycle::AuthLifecycleService;
 
+    fn assert_metric_line(payload: &str, metric_name: &str) {
+        let has_exact_line = payload.lines().any(|line| {
+            line.starts_with(metric_name) && line.as_bytes().get(metric_name.len()) == Some(&b' ')
+        });
+        assert!(
+            has_exact_line,
+            "metric line `{metric_name}` not found in payload: {payload}"
+        );
+    }
+
     #[test]
     fn rbac_metrics_include_claim_role_mismatch_counter() {
         let payload = format_rbac_metrics(AuthService::metrics_snapshot(), 0, 0, 0);
@@ -257,16 +265,14 @@ mod tests {
     #[test]
     fn rbac_metrics_include_engine_decision_and_latency_counters() {
         let payload = format_rbac_metrics(AuthService::metrics_snapshot(), 0, 0, 0);
-        assert!(payload.contains("rbac_engine_decisions_total"));
-        assert!(payload.contains("rustok_rbac_engine_decisions_total"));
-        assert!(payload.contains("rustok_rbac_engine_decisions_relation_total"));
-        assert!(payload.contains("rustok_rbac_engine_decisions_casbin_total"));
-        assert!(payload.contains("rbac_engine_mismatch_total"));
-        assert!(payload.contains("rustok_rbac_engine_mismatch_total"));
-        assert!(payload.contains("rbac_engine_eval_duration_ms"));
-        assert!(payload.contains("rustok_rbac_engine_eval_duration_ms"));
-        assert!(payload.contains("rustok_rbac_engine_eval_duration_ms_total"));
-        assert!(payload.contains("rustok_rbac_engine_eval_duration_samples"));
+        assert_metric_line(&payload, "rbac_engine_decisions_total");
+        assert_metric_line(&payload, "rustok_rbac_engine_decisions_relation_total");
+        assert_metric_line(&payload, "rustok_rbac_engine_decisions_casbin_total");
+        assert_metric_line(&payload, "rbac_engine_mismatch_total");
+        assert_metric_line(&payload, "rustok_rbac_engine_mismatch_total");
+        assert_metric_line(&payload, "rbac_engine_eval_duration_ms");
+        assert_metric_line(&payload, "rustok_rbac_engine_eval_duration_ms_total");
+        assert_metric_line(&payload, "rustok_rbac_engine_eval_duration_samples");
     }
 
     #[test]
