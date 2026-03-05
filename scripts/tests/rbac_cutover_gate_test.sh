@@ -92,6 +92,7 @@ test_passes_with_custom_decision_output() {
   [[ -f "$out_file" ]] || fail "expected custom decision output file"
   [[ -f "$out_json" ]] || fail "expected custom decision json output file"
   rg -q -- "- decision: go" "$out_file" || fail "expected go decision in custom output"
+  rg -q -- "- decision_volume_source: total_decisions_delta" "$out_file" || fail "expected decision_volume_source in custom markdown output"
   rg -q "auth_gate_report:" "$out_file" || fail "expected auth gate path in custom output"
   python - "$out_json" <<'PY' || fail "expected custom decision json payload"
 import json
@@ -100,6 +101,8 @@ with open(sys.argv[1], 'r', encoding='utf-8') as fh:
     payload = json.load(fh)
 if payload.get('decision') != 'go':
     raise SystemExit('decision must be go')
+if payload.get('decision_volume_source') != 'total_decisions_delta':
+    raise SystemExit('decision_volume_source must be total_decisions_delta')
 if 'auth_gate_report' not in payload:
     raise SystemExit('auth_gate_report must be present')
 PY
@@ -363,7 +366,10 @@ test_fails_when_decision_volume_keys_disagree() {
 JSON
 
   set +e
-  "$SCRIPT"     --staging-artifacts-dir "$tmp/staging"     --cutover-artifacts-dir "$tmp/cutover"     --auth-gate-report "$tmp/auth/auth_release_gate_20260305.md" >"$tmp/out.log" 2>&1
+  "$SCRIPT" \
+    --staging-artifacts-dir "$tmp/staging" \
+    --cutover-artifacts-dir "$tmp/cutover" \
+    --auth-gate-report "$tmp/auth/auth_release_gate_20260305.md" >"$tmp/out.log" 2>&1
   code=$?
   set -e
 
@@ -382,7 +388,10 @@ test_fails_when_permission_checks_total_delta_non_integer() {
 JSON
 
   set +e
-  "$SCRIPT"     --staging-artifacts-dir "$tmp/staging"     --cutover-artifacts-dir "$tmp/cutover"     --auth-gate-report "$tmp/auth/auth_release_gate_20260305.md" >"$tmp/out.log" 2>&1
+  "$SCRIPT" \
+    --staging-artifacts-dir "$tmp/staging" \
+    --cutover-artifacts-dir "$tmp/cutover" \
+    --auth-gate-report "$tmp/auth/auth_release_gate_20260305.md" >"$tmp/out.log" 2>&1
   code=$?
   set -e
 
