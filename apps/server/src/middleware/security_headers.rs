@@ -1,3 +1,4 @@
+use axum::http::HeaderValue;
 /// Security Headers Middleware
 ///
 /// Adds OWASP-recommended security response headers to every HTTP response:
@@ -10,7 +11,7 @@
 /// - `Strict-Transport-Security` — enforces HTTPS (only in production)
 ///
 /// Mounted globally in `app.rs::after_routes()` via `axum::middleware::from_fn`.
-use axum::{extract::Request, http::HeaderValue, middleware::Next, response::Response};
+use axum::{extract::Request, middleware::Next, response::Response};
 
 /// Default CSP for API server: no HTML rendering, only JSON/GraphQL responses.
 /// Allows same-origin fetch only; blocks everything else.

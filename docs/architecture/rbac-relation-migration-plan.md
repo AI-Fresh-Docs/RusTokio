@@ -674,7 +674,7 @@
 
 - [x] Подготовлен foundation для staged rollout в `crates/rustok-rbac`: режимы `casbin_shadow` / `casbin_only` и алиасы feature-flags (`RUSTOK_RBAC_CASBIN_SHADOW_ENABLED`, `RUSTOK_RBAC_CASBIN_ENFORCEMENT_ENABLED`) добавлены в `RbacAuthzMode`.
 - [x] Добавлен tenant-aware baseline `casbin_model.conf` и экспорт helper `default_casbin_model()` как стартовый артефакт этапа C0.
-- [ ] Shadow-resolver (`CasbinPermissionResolver`) и production parity-metrics (`rbac_engine_mismatch_total`) ещё не внедрены в runtime wiring (этап C1/C2).
+- [~] Shadow-path для Casbin parity подключён в runtime checks `AuthService::{has_permission,has_any_permission,has_all_permissions}` под режимом `RUSTOK_RBAC_AUTHZ_MODE=casbin_shadow`: сравнение выполняется через `rustok-rbac::evaluate_casbin_shadow` (matcher-compatible in-module evaluator), публикуются метрики `rustok_rbac_engine_decisions_relation_total`, `rustok_rbac_engine_decisions_casbin_total`, `rustok_rbac_engine_mismatch_total`, `rustok_rbac_engine_eval_duration_{ms_total,samples}`, mismatch логируется событием `rbac_engine_mismatch` с обязательными полями (`tenant_id`, `user_id`, `resource`, `action`, `relation_decision`, `casbin_decision`); полноценный `CasbinPermissionResolver` с persistent adapter/wiring остаётся следующим шагом C1/C2.
 
 ### 15.1 Точка старта (когда начинаем переход)
 
@@ -1083,3 +1083,93 @@ RBAC-WEEKLY-STATUS:
 3. Статус в section 0, section 11.1, section 16 и section 21 не конфликтует между собой.
 
 Если хотя бы один пункт не выполнен — статус плана на неделю: **at risk**, и переключение в следующий этап запрещено.
+
+---
+
+## 24. Ready-to-run checklist для следующего исполнения (операционный минимум на 1 неделю)
+
+Чтобы команда могла продолжить работу без дополнительной декомпозиции, ниже фиксируется «чеклист запуска», привязанный к PR-A/PR-B/PR-C.
+
+### 24.1 День 1 — закрытие PR-A (C0)
+
+1. Подготовить ADR draft и пройти review у platform + security.
+2. Зафиксировать финальные названия feature-flags (shadow/enforcement/fallback).
+3. Добавить в ADR таблицу rollback-действий (кто, где, за сколько минут).
+
+**Готово, если:**
+- ADR merged,
+- в section 11.1 MVP-блокер 2 обновлён,
+- в section 16 добавлен `RBAC-CASBIN-UPDATE: phase=C0`.
+
+### 24.2 День 2–3 — закрытие PR-B (C1)
+
+1. Подключить shadow path в runtime wiring без изменения active decision.
+2. Прокинуть метрики и structured logs в observability stack.
+3. Проверить fail-closed семантику на synthetic сценариях `resolver-error`.
+
+**Готово, если:**
+- relation остаётся active,
+- mismatch/latency видны в dashboard,
+- есть артефакт `shadow-smoke.md` с timestamp и owner.
+
+### 24.3 День 4–5 — подготовка PR-C (C2 prep)
+
+1. Запустить staging parity окно минимум на 24 часа.
+2. Собрать baseline артефакты (`baseline.json`, `baseline.md`, `gate-decision.md`).
+3. Оформить предварительное решение `go/no-go` с указанием причины.
+
+**Готово, если:**
+- артефакты присутствуют и валидны,
+- расчёт threshold из section 22.3 приложен в отчёте,
+- статус section 0/11.1/16/21 синхронизирован.
+
+---
+
+## 25. Definition of Ready для production dual-engine окна (C3)
+
+C3 можно открывать только если одновременно выполнены все пункты:
+
+1. `C0` принят (ADR утверждён, rollback-гейт зафиксирован).
+2. `C1` завершён (shadow path стабилен, telemetry без пробелов).
+3. `C2` завершён (staging parity отчёт и formal gate decision опубликованы).
+4. On-call получил короткий runbook-briefing и подтвердил readiness.
+5. Release manager назначил окно переключения и incident commander на период наблюдения.
+
+Если любой пункт не выполнен — решение автоматически `No-Go`.
+
+---
+
+## 26. Шаблон записи для gate-decision.md (единый формат)
+
+```md
+# RBAC Gate Decision
+
+- date: <YYYY-MM-DD>
+- phase: <C2|C3|C4>
+- decision: <go|no-go>
+- owner: <role/team>
+
+## Metrics snapshot
+- engine_mismatch_total: <value>
+- decision_volume_delta: <value>
+- latency_p95_delta: <value>
+- latency_p99_delta: <value>
+- 401_403_rate_delta: <value>
+
+## Evidence
+- baseline_json: artifacts/rbac-cutover/<date>/baseline.json
+- baseline_md: artifacts/rbac-cutover/<date>/baseline.md
+- mismatch_sample: artifacts/rbac-cutover/<date>/mismatch-sample.jsonl
+
+## Notes
+- summary: <short>
+- rollback_readiness: <ready|not-ready>
+
+## Corrective action (required for no-go)
+- root_cause: <...>
+- owner: <...>
+- target_date: <...>
+- verification_step: <...>
+```
+
+Этот шаблон обязателен для C2/C3/C4, чтобы исключить несопоставимые форматы решений между релизными окнами.
