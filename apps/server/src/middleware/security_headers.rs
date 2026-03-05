@@ -59,10 +59,7 @@ pub async fn security_headers(request: Request, next: Next) -> Response {
 
     // Strict-Transport-Security — only in production (HTTPS)
     if std::env::var("RUSTOK_HTTPS").as_deref() == Ok("true") {
-        headers.insert(
-            "strict-transport-security",
-            HeaderValue::from_static(HSTS),
-        );
+        headers.insert("strict-transport-security", HeaderValue::from_static(HSTS));
     }
 
     response
