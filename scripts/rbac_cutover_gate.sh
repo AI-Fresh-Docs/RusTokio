@@ -255,6 +255,11 @@ fi
 decision_volume_delta="${decision_volume_fields[0]}"
 decision_volume_source="${decision_volume_fields[1]}"
 
+if [[ "$decision_volume_source" != "total_decisions_delta" && "$decision_volume_source" != "permission_checks_total_delta" ]]; then
+  echo "unexpected decision-volume source from parser: $decision_volume_source" >&2
+  exit 1
+fi
+
 echo "RBAC cutover gate: PASS"
 echo "- staging_ts: $stage_ts"
 echo "- staging_report: $stage_report"
@@ -267,6 +272,7 @@ echo "- baseline_ts: $cutover_ts"
 echo "- baseline_md: $cutover_md"
 echo "- baseline_json: $cutover_json"
 echo "- auth_gate_report: $AUTH_GATE_REPORT"
+echo "- decision_volume_source: $decision_volume_source"
 echo "- decision_output: $DECISION_OUTPUT"
 echo "- decision_json_output: $DECISION_JSON_OUTPUT"
 

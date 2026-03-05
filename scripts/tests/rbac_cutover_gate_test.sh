@@ -52,6 +52,7 @@ test_passes_with_required_artifacts() {
     --auth-gate-report "$tmp/auth/auth_release_gate_20260305.md" >"$tmp/out.log" 2>&1
 
   rg -q "RBAC cutover gate: PASS" "$tmp/out.log" || fail "expected PASS output"
+  rg -q "decision_volume_source: total_decisions_delta" "$tmp/out.log" || fail "expected decision volume source in stdout"
   rg -q "decision_output:" "$tmp/out.log" || fail "expected decision output path in stdout"
   rg -q "decision_json_output:" "$tmp/out.log" || fail "expected decision json output path in stdout"
   [[ -f "$tmp/cutover/gate-decision.md" ]] || fail "expected default gate markdown decision artifact"
