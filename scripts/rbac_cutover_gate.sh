@@ -216,12 +216,28 @@ for key in ('mismatch_delta', 'shadow_compare_failures_delta'):
     if value != 0:
         raise SystemExit(f"baseline field must be 0 before relation-only cutover: {key}={value}")
 
-if not isinstance(payload.get('total_decisions_delta'), int):
-    decision_volume_delta = payload.get('permission_checks_total_delta')
-else:
-    decision_volume_delta = payload.get('total_decisions_delta')
+total_decisions_delta = payload.get('total_decisions_delta')
+permission_checks_total_delta = payload.get('permission_checks_total_delta')
 
-if not isinstance(decision_volume_delta, int):
+if total_decisions_delta is not None and not isinstance(total_decisions_delta, int):
+    raise SystemExit('baseline field must be integer when present: total_decisions_delta')
+
+if permission_checks_total_delta is not None and not isinstance(permission_checks_total_delta, int):
+    raise SystemExit('baseline field must be integer when present: permission_checks_total_delta')
+
+if isinstance(total_decisions_delta, int) and isinstance(permission_checks_total_delta, int):
+    if total_decisions_delta != permission_checks_total_delta:
+        raise SystemExit(
+            'baseline decision volume keys must match when both present: '
+            f'total_decisions_delta={total_decisions_delta}, '
+            f'permission_checks_total_delta={permission_checks_total_delta}'
+        )
+
+if isinstance(total_decisions_delta, int):
+    decision_volume_delta = total_decisions_delta
+elif isinstance(permission_checks_total_delta, int):
+    decision_volume_delta = permission_checks_total_delta
+else:
     raise SystemExit('baseline field must be integer: total_decisions_delta or permission_checks_total_delta')
 
 print(decision_volume_delta)

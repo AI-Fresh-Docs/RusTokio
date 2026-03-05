@@ -324,6 +324,45 @@ JSON
   pass "gate fails when both decision volume keys are missing"
 }
 
+
+test_fails_when_decision_volume_keys_disagree() {
+  local tmp
+  tmp="$(mktemp -d)"
+  make_artifacts "$tmp"
+
+  cat > "$tmp/cutover/rbac_cutover_baseline_20260305T020202Z.json" <<'JSON'
+{"gate_status":"pass","mismatch_delta":0,"shadow_compare_failures_delta":0,"total_decisions_delta":10,"permission_checks_total_delta":14}
+JSON
+
+  set +e
+  "$SCRIPT"     --staging-artifacts-dir "$tmp/staging"     --cutover-artifacts-dir "$tmp/cutover"     --auth-gate-report "$tmp/auth/auth_release_gate_20260305.md" >"$tmp/out.log" 2>&1
+  code=$?
+  set -e
+
+  [[ "$code" -ne 0 ]] || fail "expected non-zero exit when decision volume keys disagree"
+  rg -q "baseline decision volume keys must match when both present" "$tmp/out.log" || fail "expected disagreeing decision volume keys message"
+  pass "gate fails when decision volume keys disagree"
+}
+
+test_fails_when_permission_checks_total_delta_non_integer() {
+  local tmp
+  tmp="$(mktemp -d)"
+  make_artifacts "$tmp"
+
+  cat > "$tmp/cutover/rbac_cutover_baseline_20260305T020202Z.json" <<'JSON'
+{"gate_status":"pass","mismatch_delta":0,"shadow_compare_failures_delta":0,"permission_checks_total_delta":"14"}
+JSON
+
+  set +e
+  "$SCRIPT"     --staging-artifacts-dir "$tmp/staging"     --cutover-artifacts-dir "$tmp/cutover"     --auth-gate-report "$tmp/auth/auth_release_gate_20260305.md" >"$tmp/out.log" 2>&1
+  code=$?
+  set -e
+
+  [[ "$code" -ne 0 ]] || fail "expected non-zero exit when permission_checks_total_delta is non-integer"
+  rg -q "baseline field must be integer when present: permission_checks_total_delta" "$tmp/out.log" || fail "expected permission_checks_total_delta integer validation message"
+  pass "gate fails when permission_checks_total_delta is non-integer"
+}
+
 test_fails_without_required_flag() {
   local tmp
   tmp="$(mktemp -d)"
@@ -352,6 +391,8 @@ test_fails_when_cutover_bundle_timestamp_mismatch
 test_fails_when_mismatch_delta_nonzero
 test_passes_with_permission_checks_total_delta_key
 test_fails_when_decision_volume_key_missing
+test_fails_when_decision_volume_keys_disagree
+test_fails_when_permission_checks_total_delta_non_integer
 test_fails_without_required_flag
 
 echo "All rbac_cutover_gate.sh tests passed."
