@@ -72,6 +72,38 @@ test_passes_with_explicit_timestamps() {
   pass "gate passes with explicit stage/cutover timestamps"
 }
 
+test_fails_on_invalid_explicit_stage_ts_format() {
+  local tmp
+  tmp="$(mktemp -d)"
+  make_artifacts "$tmp"
+
+  set +e
+  "$SCRIPT"     --staging-artifacts-dir "$tmp/staging"     --cutover-artifacts-dir "$tmp/cutover"     --auth-gate-report "$tmp/auth/auth_release_gate_20260305.md"     --stage-ts bad-ts >"$tmp/out.log" 2>&1
+  code=$?
+  set -e
+
+  [[ "$code" -ne 0 ]] || fail "expected non-zero exit for invalid stage ts format"
+  rg -q "Invalid stage timestamp format" "$tmp/out.log" || fail "expected invalid stage ts message"
+  pass "gate fails on invalid explicit stage ts format"
+}
+
+
+test_fails_on_invalid_explicit_cutover_ts_format() {
+  local tmp
+  tmp="$(mktemp -d)"
+  make_artifacts "$tmp"
+
+  set +e
+  "$SCRIPT"     --staging-artifacts-dir "$tmp/staging"     --cutover-artifacts-dir "$tmp/cutover"     --auth-gate-report "$tmp/auth/auth_release_gate_20260305.md"     --cutover-ts 2026-03-05 >"$tmp/out.log" 2>&1
+  code=$?
+  set -e
+
+  [[ "$code" -ne 0 ]] || fail "expected non-zero exit for invalid cutover ts format"
+  rg -q "Invalid cutover timestamp format" "$tmp/out.log" || fail "expected invalid cutover ts message"
+  pass "gate fails on invalid explicit cutover ts format"
+}
+
+
 test_fails_when_auth_gate_report_missing() {
   local tmp
   tmp="$(mktemp -d)"
@@ -213,6 +245,8 @@ test_fails_without_required_flag() {
 
 test_passes_with_required_artifacts
 test_passes_with_explicit_timestamps
+test_fails_on_invalid_explicit_stage_ts_format
+test_fails_on_invalid_explicit_cutover_ts_format
 test_fails_when_auth_gate_report_missing
 test_fails_when_baseline_not_pass
 test_fails_when_post_rollback_invariants_nonzero

@@ -10,8 +10,8 @@ Options:
   --staging-artifacts-dir <dir>   Directory with rbac_relation_staging artifacts (default: artifacts/rbac-staging)
   --cutover-artifacts-dir <dir>   Directory with rbac_cutover_baseline artifacts (default: artifacts/rbac-cutover)
   --auth-gate-report <file>       Path to auth_release_gate report artifact (required)
-  --stage-ts <ts>                 Use explicit staging rehearsal timestamp instead of latest
-  --cutover-ts <ts>               Use explicit cutover baseline timestamp instead of latest
+  --stage-ts <ts>                 Use explicit staging rehearsal timestamp instead of latest (format: YYYYMMDDTHHMMSSZ)
+  --cutover-ts <ts>               Use explicit cutover baseline timestamp instead of latest (format: YYYYMMDDTHHMMSSZ)
   --help                          Show this message
 
 Gate checks:
@@ -84,6 +84,15 @@ extract_ts() {
   return 1
 }
 
+validate_ts() {
+  local ts="$1"
+  local label="$2"
+  if [[ ! "$ts" =~ ^[0-9]{8}T[0-9]{6}Z$ ]]; then
+    echo "Invalid ${label} timestamp format: ${ts} (expected YYYYMMDDTHHMMSSZ)." >&2
+    exit 1
+  fi
+}
+
 if [[ ! -d "$STAGING_ARTIFACTS_DIR" ]]; then
   echo "Staging artifacts directory does not exist: $STAGING_ARTIFACTS_DIR" >&2
   exit 1
@@ -95,6 +104,7 @@ fi
 
 if [[ -n "$STAGE_TS" ]]; then
   stage_ts="$STAGE_TS"
+  validate_ts "$stage_ts" "stage"
   stage_report="$STAGING_ARTIFACTS_DIR/rbac_relation_stage_report_${stage_ts}.md"
 else
   stage_report="$(latest_file "$STAGING_ARTIFACTS_DIR" 'rbac_relation_stage_report_*.md')"
@@ -104,6 +114,7 @@ else
     echo "Could not extract timestamp from staging report: $stage_report" >&2
     exit 1
   fi
+  validate_ts "$stage_ts" "stage"
 fi
 
 stage_pre_json="$STAGING_ARTIFACTS_DIR/rbac_report_pre_${stage_ts}.json"
@@ -121,6 +132,7 @@ require_file "$stage_post_rollback_json" "staging post-rollback JSON (same times
 
 if [[ -n "$CUTOVER_TS" ]]; then
   cutover_ts="$CUTOVER_TS"
+  validate_ts "$cutover_ts" "cutover"
   cutover_md="$CUTOVER_ARTIFACTS_DIR/rbac_cutover_baseline_${cutover_ts}.md"
 else
   cutover_md="$(latest_file "$CUTOVER_ARTIFACTS_DIR" 'rbac_cutover_baseline_*.md')"
@@ -130,6 +142,7 @@ else
     echo "Could not extract timestamp from cutover baseline markdown: $cutover_md" >&2
     exit 1
   fi
+  validate_ts "$cutover_ts" "cutover"
 fi
 cutover_json="$CUTOVER_ARTIFACTS_DIR/rbac_cutover_baseline_${cutover_ts}.json"
 
