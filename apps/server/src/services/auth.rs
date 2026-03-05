@@ -194,10 +194,14 @@ impl AuthService {
 
         if casbin_shadow.decision.mismatch() {
             Self::record_engine_mismatch();
+            let shadow_check_mode = shadow_check.as_str();
+            let checked_permissions_total = casbin_shadow.checked_permissions_total();
             for permission in casbin_shadow.checked_permissions {
                 warn!(
                     tenant_id = %tenant_id,
                     user_id = %user_id,
+                    shadow_check = shadow_check_mode,
+                    checked_permissions_total,
                     resource = %permission.resource,
                     action = %permission.action,
                     relation_decision = casbin_shadow.decision.relation_allowed,

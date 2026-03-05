@@ -7,6 +7,12 @@ pub struct CasbinShadowComparison {
     pub checked_permissions: Vec<Permission>,
 }
 
+impl CasbinShadowComparison {
+    pub fn checked_permissions_total(&self) -> usize {
+        self.checked_permissions.len()
+    }
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct CasbinShadowDecision {
     pub relation_allowed: bool,
@@ -168,5 +174,6 @@ mod tests {
             comparison.checked_permissions,
             vec![Permission::USERS_READ, Permission::USERS_UPDATE]
         );
+        assert_eq!(comparison.checked_permissions_total(), 2);
     }
 }
