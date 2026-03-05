@@ -335,6 +335,34 @@ mod tests {
     }
 
     #[test]
+    fn relation_dual_read_alias_has_priority_over_relation_enforcement_alias() {
+        let _lock = env_lock();
+        let mode_env = EnvVarGuard::capture(AUTHZ_MODE_ENV);
+        mode_env.remove();
+
+        let relation_enforcement_alias = EnvVarGuard::capture(RELATION_ENFORCEMENT_FLAG_ALIASES[0]);
+        relation_enforcement_alias.set("true");
+        let dual_alias = EnvVarGuard::capture(RELATION_DUAL_READ_FLAG_ALIASES[0]);
+        dual_alias.set("true");
+
+        assert_eq!(RbacAuthzMode::from_env(), RbacAuthzMode::DualRead);
+    }
+
+    #[test]
+    fn ignores_disabled_alias_values() {
+        let _lock = env_lock();
+        let mode_env = EnvVarGuard::capture(AUTHZ_MODE_ENV);
+        mode_env.remove();
+
+        let disabled_relation_enforcement = EnvVarGuard::capture(RELATION_ENFORCEMENT_FLAG_ALIASES[0]);
+        disabled_relation_enforcement.set("false");
+        let enabled_fallback = EnvVarGuard::capture(LEGACY_ROLE_FALLBACK_FLAG_ALIASES[0]);
+        enabled_fallback.set("on");
+
+        assert_eq!(RbacAuthzMode::from_env(), RbacAuthzMode::DualRead);
+    }
+
+    #[test]
     fn casbin_enforcement_alias_has_priority_over_casbin_shadow_and_dual_read() {
         let _lock = env_lock();
         let mode_env = EnvVarGuard::capture(AUTHZ_MODE_ENV);
