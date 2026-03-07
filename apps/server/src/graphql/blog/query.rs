@@ -1,7 +1,8 @@
-use async_graphql::{Context, Object, Result};
+use async_graphql::{Context, Object};
 use sea_orm::DatabaseConnection;
 use uuid::Uuid;
 
+use crate::graphql::errors::{GraphQLError, GraphQLResult};
 use rustok_content::NodeService;
 use rustok_outbox::TransactionalEventBus;
 
@@ -12,7 +13,12 @@ pub struct BlogQuery;
 
 #[Object]
 impl BlogQuery {
-    async fn post(&self, ctx: &Context<'_>, tenant_id: Uuid, id: Uuid) -> Result<Option<GqlPost>> {
+    async fn post(
+        &self,
+        ctx: &Context<'_>,
+        tenant_id: Uuid,
+        id: Uuid,
+    ) -> GraphQLResult<Option<GqlPost>> {
         let db = ctx.data::<DatabaseConnection>()?;
         let event_bus = ctx.data::<TransactionalEventBus>()?;
 
@@ -20,7 +26,11 @@ impl BlogQuery {
         let node = match service.get_node(tenant_id, id).await {
             Ok(node) => node,
             Err(rustok_content::ContentError::NodeNotFound(_)) => return Ok(None),
-            Err(err) => return Err(async_graphql::Error::new(err.to_string())),
+            Err(err) => {
+                return Err(<async_graphql::FieldError as GraphQLError>::internal_error(
+                    &err.to_string(),
+                ));
+            }
         };
 
         if node.kind != "post" {
@@ -35,7 +45,7 @@ impl BlogQuery {
         ctx: &Context<'_>,
         tenant_id: Uuid,
         filter: Option<PostsFilter>,
-    ) -> Result<GqlPostList> {
+    ) -> GraphQLResult<GqlPostList> {
         let db = ctx.data::<DatabaseConnection>()?;
         let event_bus = ctx.data::<TransactionalEventBus>()?;
 

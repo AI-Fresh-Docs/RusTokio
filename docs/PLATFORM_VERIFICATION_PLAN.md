@@ -1433,8 +1433,8 @@
   - Искать: resolvers с прямыми DB-запросами внутри `async fn` для дочерних объектов
 - [x] `MergedObject` используется для модульной schema — `Query(RootQuery, AuthQuery, CommerceQuery, ContentQuery, BlogQuery, ForumQuery, AlloyQuery, PagesQuery)` и аналогичная Mutation в `schema.rs`
 - [~] Нет `String` errors в GraphQL — используются structured error extensions
-  - Есть structured errors через `GraphQLError`, но часть query/mutation/loaders всё ещё использует `async_graphql::Error::new(err.to_string())` и `err.to_string().into()`; требуется довести до единого формата
-  - `grep -rn "FieldError::new" apps/server/src/graphql/ --include="*.rs"`
+  - Structured errors через `GraphQLError` расширены кодами `UNAUTHENTICATED` / `PERMISSION_DENIED` / `INTERNAL_ERROR` / `NOT_FOUND` / `BAD_REQUEST`; дополнительно на них переведены `content/query.rs`, `blog/query.rs`, `pages/query.rs`. Остальные модули (`queries.rs`, `loaders.rs`, `alloy/*`, часть `mutation.rs`) ещё содержат `async_graphql::Error::new(err.to_string())` и `err.to_string().into()`
+  - `rg -n "Error::new\(|to_string\(\)\.into" apps/server/src/graphql`
 - [x] Каждый mutation имеет permission check (не полагается на «auth достаточно»)
   - Проверено по `apps/server/src/graphql/*/mutation.rs`: blog/content/commerce/forum/pages/alloy/auth mutations имеют явные permission/auth checks
 - [x] Каждый query с list возвращает paginated результат (не полную таблицу)

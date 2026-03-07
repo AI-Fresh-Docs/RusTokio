@@ -1,4 +1,4 @@
-use async_graphql::{Context, Object, Result};
+use async_graphql::{Context, Object};
 use sea_orm::DatabaseConnection;
 use uuid::Uuid;
 
@@ -6,6 +6,7 @@ use rustok_outbox::TransactionalEventBus;
 use rustok_pages::PageService;
 
 use crate::context::AuthContext;
+use crate::graphql::errors::{GraphQLError, GraphQLResult};
 use rustok_core::SecurityContext;
 
 use super::types::*;
@@ -15,7 +16,12 @@ pub struct PagesQuery;
 
 #[Object]
 impl PagesQuery {
-    async fn page(&self, ctx: &Context<'_>, tenant_id: Uuid, id: Uuid) -> Result<Option<GqlPage>> {
+    async fn page(
+        &self,
+        ctx: &Context<'_>,
+        tenant_id: Uuid,
+        id: Uuid,
+    ) -> GraphQLResult<Option<GqlPage>> {
         let db = ctx.data::<DatabaseConnection>()?;
         let event_bus = ctx.data::<TransactionalEventBus>()?;
         let security = auth_context_to_security(ctx);
@@ -24,7 +30,9 @@ impl PagesQuery {
         match service.get(tenant_id, security, id).await {
             Ok(page) => Ok(Some(page.into())),
             Err(rustok_pages::PagesError::PageNotFound(_)) => Ok(None),
-            Err(err) => Err(async_graphql::Error::new(err.to_string())),
+            Err(err) => Err(<async_graphql::FieldError as GraphQLError>::internal_error(
+                &err.to_string(),
+            )),
         }
     }
 
@@ -34,7 +42,7 @@ impl PagesQuery {
         tenant_id: Uuid,
         locale: String,
         slug: String,
-    ) -> Result<Option<GqlPage>> {
+    ) -> GraphQLResult<Option<GqlPage>> {
         let db = ctx.data::<DatabaseConnection>()?;
         let event_bus = ctx.data::<TransactionalEventBus>()?;
         let security = auth_context_to_security(ctx);
@@ -43,7 +51,9 @@ impl PagesQuery {
         let page = service
             .get_by_slug(tenant_id, security, &locale, &slug)
             .await
-            .map_err(|err| async_graphql::Error::new(err.to_string()))?;
+            .map_err(|err| {
+                <async_graphql::FieldError as GraphQLError>::internal_error(&err.to_string())
+            })?;
 
         Ok(page.map(Into::into))
     }
@@ -53,7 +63,7 @@ impl PagesQuery {
         ctx: &Context<'_>,
         tenant_id: Uuid,
         filter: Option<ListGqlPagesFilter>,
-    ) -> Result<GqlPageList> {
+    ) -> GraphQLResult<GqlPageList> {
         let db = ctx.data::<DatabaseConnection>()?;
         let event_bus = ctx.data::<TransactionalEventBus>()?;
         let security = auth_context_to_security(ctx);
@@ -79,7 +89,9 @@ impl PagesQuery {
                 },
             )
             .await
-            .map_err(|err| async_graphql::Error::new(err.to_string()))?;
+            .map_err(|err| {
+                <async_graphql::FieldError as GraphQLError>::internal_error(&err.to_string())
+            })?;
 
         Ok(GqlPageList {
             items: items.into_iter().map(Into::into).collect(),
