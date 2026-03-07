@@ -1458,12 +1458,15 @@
   - 204 No Content для DELETE — исправлено во всех controllers
   - 404 Not Found для отсутствующих ресурсов — через `Error::NotFound`
   - 422 Unprocessable Entity для validation errors (не 400)
-- [ ] Нет бизнес-логики в controllers — только вызов domain services
-- [ ] `loco_rs::Result` для error handling (не custom error types)
-- [ ] Все `CreateInput`/`UpdateInput` проходят через `validator::Validate`
-- [ ] Нет endpoints без пагинации в list-запросах
-- [ ] Rate limiting применён к auth endpoints (login, register, reset-password)
-- [ ] CORS middleware подключён с правильными origins
+- [~] Нет бизнес-логики в controllers — основные write-endpoints делегируют в domain services, но часть read/list handlers (`commerce/products.rs`, `commerce/variants.rs`, `commerce/inventory.rs`, `forum/categories.rs`) всё ещё содержит прямые SeaORM-запросы и сборку response DTO в controller-слое
+- [x] `loco_rs::Result` для error handling (не custom error types)
+- [~] Все `CreateInput`/`UpdateInput` проходят через `validator::Validate`
+  - Content и Commerce валидируются на уровне DTO/service; blog/forum/pages в основном опираются на `NodeService`, но transport-level audit показал, что единый `Validate` derive покрывает не все input-структуры
+- [~] Нет endpoints без пагинации в list-запросах
+  - Пагинация есть у commerce products, но list endpoints для content/blog/forum/categories/replies/variants пока возвращают plain `Vec<_>` без общей pagination envelope
+- [x] Rate limiting применён к auth endpoints (login, register, reset-password)
+- [~] CORS middleware подключён с правильными origins
+  - В dev используется permissive-конфигурация (`CorsLayer::very_permissive()`), production-specific allowlist требует отдельной настройки через env/config
 
 ### 19.14 REST ↔ GraphQL parity
 
