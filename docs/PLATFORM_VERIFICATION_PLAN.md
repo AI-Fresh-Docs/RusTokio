@@ -1433,16 +1433,16 @@
   - Искать: resolvers с прямыми DB-запросами внутри `async fn` для дочерних объектов
 - [x] `MergedObject` используется для модульной schema — `Query(RootQuery, AuthQuery, CommerceQuery, ContentQuery, BlogQuery, ForumQuery, AlloyQuery, PagesQuery)` и аналогичная Mutation в `schema.rs`
 - [~] Нет `String` errors в GraphQL — используются structured error extensions
-  - Есть structured errors через `GraphQLError`, но часть query/mutation/loaders всё ещё использует `async_graphql::Error::new(err.to_string())` и `err.to_string().into()`; требуется довести до единого формата
-  - `grep -rn "FieldError::new" apps/server/src/graphql/ --include="*.rs"`
+  - Structured errors через `GraphQLError` расширены кодами `UNAUTHENTICATED` / `PERMISSION_DENIED` / `INTERNAL_ERROR` / `NOT_FOUND` / `BAD_REQUEST`; дополнительно на них переведены `content/query.rs`, `blog/query.rs`, `pages/query.rs`, `queries.rs`, `loaders.rs`, `commerce/query.rs`. Остальные модули (`alloy/*`, часть `mutation.rs`, `types.rs`) ещё содержат `async_graphql::Error::new(err.to_string())`, `FieldError::new(...)` без унификации или `err.to_string().into()`
+  - `rg -n "Error::new\(|FieldError::new\(|to_string\(\)\.into" apps/server/src/graphql`
 - [x] Каждый mutation имеет permission check (не полагается на «auth достаточно»)
   - Проверено по `apps/server/src/graphql/*/mutation.rs`: blog/content/commerce/forum/pages/alloy/auth mutations имеют явные permission/auth checks
-- [~] Каждый query с list возвращает paginated результат (не полную таблицу)
-  - `users`, `products`, `pages`, `posts`, `nodes`, `scripts` используют pagination/page_info; дополнительно переведены `forum_categories`, `forum_topics`, `forum_replies` на connection-ответы с `page_info`. Непагинированными пока остаются `enabled_modules`, `tenant_modules`, `module_registry`, `recent_activity`, `scripts_for_event`
+- [x] Каждый query с list возвращает paginated результат (не полную таблицу)
+  - `users`, `products`, `pages`, `posts`, `nodes`, `scripts` используют pagination/page_info; дополнительно переведены `forum_categories`, `forum_topics`, `forum_replies`, `enabled_modules`, `tenant_modules`, `module_registry`, `scripts_for_event`, `recent_activity` на connection-ответы с `page_info`
 - [~] `context.data::<TenantContext>()` используется в каждом resolver (не пропущен)
-  - Часть resolvers опирается на аргумент `tenant_id`, а root/resolver-level multi-tenant queries используют `TenantContext`; единый паттерн ещё не везде соблюдён
+  - Root/resolver-level multi-tenant queries продолжают использовать `TenantContext`, но часть domain resolvers (`commerce`, `forum`, и др.) всё ещё принимает `tenant_id` как GraphQL-аргумент вместо единого context-driven паттерна
 - [~] Нет бизнес-логики в resolvers — только вызов domain services
-  - Основные mutation/resolver-ветки делегируют в сервисы, но в `commerce/query.rs` и частично `queries.rs` остаются прямые SeaORM-запросы и сборка response-моделей в resolver-слое
+  - Основные mutation/resolver-ветки делегируют в сервисы; в `queries.rs` transport-shaping и часть metrics-assembly дальше вынесены в shared GraphQL types (`UserConnection::from_users`, `ActivityConnection::from_users`, `DashboardStats::from_metrics`, `DashboardStatsMetrics::new`), а в `commerce/query.rs` часть product/detail и product-list shaping вынесена в `GqlProductData`/`GqlProduct::from_data` и `GqlProductListItemData`/`GqlProductListItem::from_data`. Но в `commerce/query.rs` и `queries.rs` всё ещё остаются прямые SeaORM-запросы и часть сборки response-моделей в resolver-слое
 - [x] Naming convention: queries — `camelCase`, mutations — `camelCase` с глаголом (`createProduct`, не `productCreate`)
   - Проверено по именам GraphQL-resolvers: `createProduct`, `updateNode`, `publishPost`, `pageBySlug`, `recentActivity`, `dashboardStats` и т.д.
 - [x] Subscription (если есть) использует WebSocket, не polling

@@ -1,9 +1,10 @@
 use std::collections::HashMap;
 
-use async_graphql::dataloader::Loader;
+use async_graphql::{dataloader::Loader, FieldError};
 use sea_orm::{ColumnTrait, DatabaseConnection, EntityTrait, QueryFilter};
 use uuid::Uuid;
 
+use crate::graphql::errors::GraphQLError;
 use crate::models::_entities::tenants;
 use rustok_content::entities::{self, body, node, node_translation};
 
@@ -21,7 +22,7 @@ impl TenantNameLoader {
 
 impl Loader<Uuid> for TenantNameLoader {
     type Value = String;
-    type Error = async_graphql::Error;
+    type Error = FieldError;
 
     fn load(
         &self,
@@ -36,7 +37,7 @@ impl Loader<Uuid> for TenantNameLoader {
                 .filter(tenants::Column::Id.is_in(keys))
                 .all(&db)
                 .await
-                .map_err(|err| async_graphql::Error::new(err.to_string()))?;
+                .map_err(|err| <FieldError as GraphQLError>::internal_error(&err.to_string()))?;
 
             Ok(tenants
                 .into_iter()
@@ -60,7 +61,7 @@ impl NodeLoader {
 
 impl Loader<Uuid> for NodeLoader {
     type Value = node::Model;
-    type Error = async_graphql::Error;
+    type Error = FieldError;
 
     fn load(
         &self,
@@ -75,7 +76,7 @@ impl Loader<Uuid> for NodeLoader {
                 .filter(node::Column::Id.is_in(keys))
                 .all(&db)
                 .await
-                .map_err(|err| async_graphql::Error::new(err.to_string()))?;
+                .map_err(|err| <FieldError as GraphQLError>::internal_error(&err.to_string()))?;
 
             Ok(nodes.into_iter().map(|node| (node.id, node)).collect())
         }
@@ -96,7 +97,7 @@ impl NodeTranslationLoader {
 
 impl Loader<Uuid> for NodeTranslationLoader {
     type Value = Vec<node_translation::Model>;
-    type Error = async_graphql::Error;
+    type Error = FieldError;
 
     fn load(
         &self,
@@ -111,7 +112,7 @@ impl Loader<Uuid> for NodeTranslationLoader {
                 .filter(node_translation::Column::NodeId.is_in(keys.clone()))
                 .all(&db)
                 .await
-                .map_err(|err| async_graphql::Error::new(err.to_string()))?;
+                .map_err(|err| <FieldError as GraphQLError>::internal_error(&err.to_string()))?;
 
             let mut result: HashMap<Uuid, Vec<node_translation::Model>> = HashMap::new();
 
@@ -146,7 +147,7 @@ impl NodeBodyLoader {
 
 impl Loader<Uuid> for NodeBodyLoader {
     type Value = Vec<body::Model>;
-    type Error = async_graphql::Error;
+    type Error = FieldError;
 
     fn load(
         &self,
@@ -161,7 +162,7 @@ impl Loader<Uuid> for NodeBodyLoader {
                 .filter(body::Column::NodeId.is_in(keys.clone()))
                 .all(&db)
                 .await
-                .map_err(|err| async_graphql::Error::new(err.to_string()))?;
+                .map_err(|err| <FieldError as GraphQLError>::internal_error(&err.to_string()))?;
 
             let mut result: HashMap<Uuid, Vec<body::Model>> = HashMap::new();
 

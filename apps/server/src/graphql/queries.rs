@@ -1,4 +1,4 @@
-use async_graphql::{Context, FieldError, Object, Result};
+use async_graphql::{Context, FieldError, Object};
 use chrono::{Duration, Utc};
 use sea_orm::{
     sea_query::Expr, ColumnTrait, Condition, EntityTrait, PaginatorTrait, QueryFilter, QueryOrder,
@@ -7,11 +7,12 @@ use sea_orm::{
 use std::collections::HashSet;
 
 use crate::context::{AuthContext, TenantContext};
-use crate::graphql::common::{encode_cursor, PageInfo, PaginationInput};
-use crate::graphql::errors::GraphQLError;
+use crate::graphql::errors::{GraphQLError, GraphQLResult};
+use crate::graphql::common::PaginationInput;
 use crate::graphql::types::{
-    ActivityItem, ActivityUser, DashboardStats, ModuleRegistryItem, Tenant, TenantModule, User,
-    UserConnection, UserEdge, UsersFilter,
+    ActivityConnection, ActivityItem, ActivityUser, DashboardStats, DashboardStatsMetrics,
+    EnabledModuleItem, EnabledModulesConnection, ModuleRegistryConnection, ModuleRegistryItem,
+    Tenant, TenantModule, TenantModuleConnection, User, UserConnection, UsersFilter,
 };
 use crate::models::_entities::tenant_modules::Column as TenantModulesColumn;
 use crate::models::_entities::tenant_modules::Entity as TenantModulesEntity;
@@ -55,7 +56,7 @@ impl RootQuery {
         env!("CARGO_PKG_VERSION")
     }
 
-    async fn current_tenant(&self, ctx: &Context<'_>) -> Result<Tenant> {
+    async fn current_tenant(&self, ctx: &Context<'_>) -> GraphQLResult<Tenant> {
         let tenant = ctx.data::<TenantContext>()?;
         Ok(Tenant {
             id: tenant.id,
@@ -64,26 +65,43 @@ impl RootQuery {
         })
     }
 
-    async fn enabled_modules(&self, ctx: &Context<'_>) -> Result<Vec<String>> {
+    async fn enabled_modules(
+        &self,
+        ctx: &Context<'_>,
+        #[graphql(default)] pagination: PaginationInput,
+    ) -> GraphQLResult<EnabledModulesConnection> {
         let app_ctx = ctx.data::<loco_rs::prelude::AppContext>()?;
         let tenant = ctx.data::<TenantContext>()?;
         let modules = TenantModulesEntity::find_enabled(&app_ctx.db, tenant.id)
             .await
-            .map_err(|err| err.to_string())?;
+            .map_err(|err| <FieldError as GraphQLError>::internal_error(&err.to_string()))?;
+        let (offset, limit) = pagination.normalize()?;
+        let total = modules.len() as i64;
+        let items = modules
+            .into_iter()
+            .skip(offset as usize)
+            .take(limit as usize)
+            .map(|module_slug| EnabledModuleItem { module_slug })
+            .collect();
 
-        Ok(modules)
+        Ok(EnabledModulesConnection::new(items, total, offset, limit))
     }
 
-    async fn module_registry(&self, ctx: &Context<'_>) -> Result<Vec<ModuleRegistryItem>> {
+    async fn module_registry(
+        &self,
+        ctx: &Context<'_>,
+        #[graphql(default)] pagination: PaginationInput,
+    ) -> GraphQLResult<ModuleRegistryConnection> {
         let app_ctx = ctx.data::<loco_rs::prelude::AppContext>()?;
         let tenant = ctx.data::<TenantContext>()?;
         let registry = ctx.data::<ModuleRegistry>()?;
         let enabled_modules = TenantModulesEntity::find_enabled(&app_ctx.db, tenant.id)
             .await
-            .map_err(|err| err.to_string())?;
+            .map_err(|err| <FieldError as GraphQLError>::internal_error(&err.to_string()))?;
         let enabled_set: HashSet<String> = enabled_modules.into_iter().collect();
+        let (offset, limit) = pagination.normalize()?;
 
-        Ok(registry
+        let modules: Vec<ModuleRegistryItem> = registry
             .list()
             .into_iter()
             .map(|module| ModuleRegistryItem {
@@ -103,29 +121,47 @@ impl RootQuery {
                     .map(|dependency| dependency.to_string())
                     .collect(),
             })
-            .collect())
+            .collect();
+        let total = modules.len() as i64;
+        let items = modules
+            .into_iter()
+            .skip(offset as usize)
+            .take(limit as usize)
+            .collect();
+
+        Ok(ModuleRegistryConnection::new(items, total, offset, limit))
     }
 
-    async fn tenant_modules(&self, ctx: &Context<'_>) -> Result<Vec<TenantModule>> {
+    async fn tenant_modules(
+        &self,
+        ctx: &Context<'_>,
+        #[graphql(default)] pagination: PaginationInput,
+    ) -> GraphQLResult<TenantModuleConnection> {
         let app_ctx = ctx.data::<loco_rs::prelude::AppContext>()?;
         let tenant = ctx.data::<TenantContext>()?;
         let modules = TenantModulesEntity::find()
             .filter(TenantModulesColumn::TenantId.eq(tenant.id))
             .all(&app_ctx.db)
             .await
-            .map_err(|err| err.to_string())?;
+            .map_err(|err| <FieldError as GraphQLError>::internal_error(&err.to_string()))?;
+        let (offset, limit) = pagination.normalize()?;
 
-        Ok(modules
+        let total = modules.len() as i64;
+        let items: Vec<TenantModule> = modules
             .into_iter()
             .map(|module| TenantModule {
                 module_slug: module.module_slug,
                 enabled: module.enabled,
                 settings: module.settings.to_string(),
             })
-            .collect())
+            .skip(offset as usize)
+            .take(limit as usize)
+            .collect();
+
+        Ok(TenantModuleConnection::new(items, total, offset, limit))
     }
 
-    async fn me(&self, ctx: &Context<'_>) -> Result<Option<User>> {
+    async fn me(&self, ctx: &Context<'_>) -> GraphQLResult<Option<User>> {
         let auth = match ctx.data_opt::<AuthContext>() {
             Some(auth) => auth,
             None => return Ok(None),
@@ -138,12 +174,12 @@ impl RootQuery {
             .filter(UsersColumn::TenantId.eq(tenant.id))
             .one(&app_ctx.db)
             .await
-            .map_err(|err| err.to_string())?;
+            .map_err(|err| <FieldError as GraphQLError>::internal_error(&err.to_string()))?;
 
         Ok(user.as_ref().map(User::from))
     }
 
-    async fn user(&self, ctx: &Context<'_>, id: uuid::Uuid) -> Result<Option<User>> {
+    async fn user(&self, ctx: &Context<'_>, id: uuid::Uuid) -> GraphQLResult<Option<User>> {
         let auth = ctx
             .data::<AuthContext>()
             .map_err(|_| <FieldError as GraphQLError>::unauthenticated())?;
@@ -180,7 +216,7 @@ impl RootQuery {
         #[graphql(default)] pagination: PaginationInput,
         filter: Option<UsersFilter>,
         search: Option<String>,
-    ) -> Result<UserConnection> {
+    ) -> GraphQLResult<UserConnection> {
         let auth = ctx
             .data::<AuthContext>()
             .map_err(|_| <FieldError as GraphQLError>::unauthenticated())?;
@@ -239,22 +275,10 @@ impl RootQuery {
             .await
             .map_err(|err| <FieldError as GraphQLError>::internal_error(&err.to_string()))?;
 
-        let edges = users
-            .iter()
-            .enumerate()
-            .map(|(index, user)| UserEdge {
-                node: User::from(user),
-                cursor: encode_cursor(offset + index as i64),
-            })
-            .collect();
-
-        Ok(UserConnection {
-            edges,
-            page_info: PageInfo::new(total, offset, limit),
-        })
+        Ok(UserConnection::from_users(&users, total, offset, limit))
     }
 
-    async fn dashboard_stats(&self, ctx: &Context<'_>) -> Result<DashboardStats> {
+    async fn dashboard_stats(&self, ctx: &Context<'_>) -> GraphQLResult<DashboardStats> {
         let app_ctx = ctx.data::<loco_rs::prelude::AppContext>()?;
         let tenant = ctx.data::<TenantContext>()?;
 
@@ -354,50 +378,48 @@ impl RootQuery {
             }
         }
 
-        Ok(DashboardStats {
+        Ok(DashboardStats::from_metrics(DashboardStatsMetrics::new(
             total_users,
             total_posts,
             total_orders,
             total_revenue,
-            users_change: calculate_percent_change(current_users, previous_users),
-            posts_change: calculate_percent_change(current_posts, previous_posts),
-            orders_change: calculate_percent_change(current_orders, previous_orders),
-            revenue_change: calculate_percent_change(current_revenue, previous_revenue),
-        })
+            calculate_percent_change(current_users, previous_users),
+            calculate_percent_change(current_posts, previous_posts),
+            calculate_percent_change(current_orders, previous_orders),
+            calculate_percent_change(current_revenue, previous_revenue),
+        )))
     }
 
     async fn recent_activity(
         &self,
         ctx: &Context<'_>,
-        #[graphql(default)] limit: i64,
-    ) -> Result<Vec<ActivityItem>> {
+        #[graphql(default)] pagination: PaginationInput,
+    ) -> GraphQLResult<ActivityConnection> {
         let app_ctx = ctx.data::<loco_rs::prelude::AppContext>()?;
         let tenant = ctx.data::<TenantContext>()?;
+        let (offset, limit) = pagination.normalize()?;
 
-        let limit = limit.clamp(1, 50);
+        let total = users::Entity::find()
+            .filter(UsersColumn::TenantId.eq(tenant.id))
+            .count(&app_ctx.db)
+            .await
+            .map_err(|err| <FieldError as GraphQLError>::internal_error(&err.to_string()))?
+            as i64;
 
         let recent_users = users::Entity::find()
             .filter(UsersColumn::TenantId.eq(tenant.id))
             .order_by_desc(UsersColumn::CreatedAt)
+            .offset(offset as u64)
             .limit(limit as u64)
             .all(&app_ctx.db)
             .await
             .map_err(|err| <FieldError as GraphQLError>::internal_error(&err.to_string()))?;
 
-        let activities = recent_users
-            .into_iter()
-            .map(|user| ActivityItem {
-                id: user.id.to_string(),
-                r#type: "user.created".to_string(),
-                description: format!("New user {} joined", user.email),
-                timestamp: user.created_at.to_rfc3339(),
-                user: Some(ActivityUser {
-                    id: user.id.to_string(),
-                    name: user.name,
-                }),
-            })
-            .collect();
-
-        Ok(activities)
+        Ok(ActivityConnection::from_users(
+            recent_users,
+            total,
+            offset,
+            limit,
+        ))
     }
 }

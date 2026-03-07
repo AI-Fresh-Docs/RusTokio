@@ -1,4 +1,6 @@
 use async_graphql::{Enum, InputObject, SimpleObject};
+
+use crate::graphql::connection::ListConnection;
 use uuid::Uuid;
 
 use rustok_commerce::dto;
@@ -34,6 +36,20 @@ impl From<GqlProductStatus> for rustok_commerce::entities::product::ProductStatu
     }
 }
 
+#[derive(Debug, Clone)]
+pub struct GqlProductData {
+    pub id: Uuid,
+    pub status: GqlProductStatus,
+    pub vendor: Option<String>,
+    pub product_type: Option<String>,
+    pub created_at: String,
+    pub updated_at: String,
+    pub published_at: Option<String>,
+    pub translations: Vec<GqlProductTranslation>,
+    pub options: Vec<GqlProductOption>,
+    pub variants: Vec<GqlVariant>,
+}
+
 #[derive(SimpleObject)]
 pub struct GqlProduct {
     pub id: Uuid,
@@ -46,6 +62,48 @@ pub struct GqlProduct {
     pub translations: Vec<GqlProductTranslation>,
     pub options: Vec<GqlProductOption>,
     pub variants: Vec<GqlVariant>,
+}
+
+impl GqlProduct {
+    pub fn from_data(data: GqlProductData) -> Self {
+        Self {
+            id: data.id,
+            status: data.status,
+            vendor: data.vendor,
+            product_type: data.product_type,
+            created_at: data.created_at,
+            updated_at: data.updated_at,
+            published_at: data.published_at,
+            translations: data.translations,
+            options: data.options,
+            variants: data.variants,
+        }
+    }
+}
+
+impl From<dto::ProductResponse> for GqlProductData {
+    fn from(product: dto::ProductResponse) -> Self {
+        Self {
+            id: product.id,
+            status: product.status.into(),
+            vendor: product.vendor,
+            product_type: product.product_type,
+            created_at: product.created_at.to_rfc3339(),
+            updated_at: product.updated_at.to_rfc3339(),
+            published_at: product.published_at.map(|value| value.to_rfc3339()),
+            translations: product
+                .translations
+                .into_iter()
+                .map(GqlProductTranslation::from)
+                .collect(),
+            options: product
+                .options
+                .into_iter()
+                .map(GqlProductOption::from)
+                .collect(),
+            variants: product.variants.into_iter().map(GqlVariant::from).collect(),
+        }
+    }
 }
 
 #[derive(SimpleObject)]
@@ -89,13 +147,16 @@ pub struct GqlPrice {
     pub on_sale: bool,
 }
 
-#[derive(SimpleObject)]
-pub struct GqlProductList {
-    pub items: Vec<GqlProductListItem>,
-    pub total: u64,
-    pub page: u64,
-    pub per_page: u64,
-    pub has_next: bool,
+pub type GqlProductConnection = ListConnection<GqlProductListItem>;
+
+#[derive(Debug, Clone)]
+pub struct GqlProductListItemData {
+    pub id: Uuid,
+    pub status: GqlProductStatus,
+    pub title: String,
+    pub handle: String,
+    pub vendor: Option<String>,
+    pub created_at: String,
 }
 
 #[derive(SimpleObject)]
@@ -106,6 +167,19 @@ pub struct GqlProductListItem {
     pub handle: String,
     pub vendor: Option<String>,
     pub created_at: String,
+}
+
+impl GqlProductListItem {
+    pub fn from_data(data: GqlProductListItemData) -> Self {
+        Self {
+            id: data.id,
+            status: data.status,
+            title: data.title,
+            handle: data.handle,
+            vendor: data.vendor,
+            created_at: data.created_at,
+        }
+    }
 }
 
 #[derive(InputObject)]
@@ -166,8 +240,6 @@ pub struct ProductsFilter {
     pub status: Option<GqlProductStatus>,
     pub vendor: Option<String>,
     pub search: Option<String>,
-    pub page: Option<u64>,
-    pub per_page: Option<u64>,
 }
 
 impl From<dto::ProductResponse> for GqlProduct {

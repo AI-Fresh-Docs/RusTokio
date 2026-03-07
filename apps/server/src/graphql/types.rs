@@ -5,7 +5,8 @@ use rustok_core::{Permission, UserRole, UserStatus};
 use std::str::FromStr;
 use uuid::Uuid;
 
-use crate::graphql::common::PageInfo;
+use crate::graphql::common::{encode_cursor, PageInfo};
+use crate::graphql::connection::ListConnection;
 use crate::graphql::loaders::TenantNameLoader;
 use crate::models::users;
 use crate::services::auth::AuthService;
@@ -135,6 +136,11 @@ pub struct TenantModule {
 }
 
 #[derive(SimpleObject, Clone)]
+pub struct EnabledModuleItem {
+    pub module_slug: String,
+}
+
+#[derive(SimpleObject, Clone)]
 pub struct DeleteUserPayload {
     pub success: bool,
 }
@@ -150,6 +156,10 @@ pub struct ModuleRegistryItem {
     pub dependencies: Vec<String>,
 }
 
+pub type EnabledModulesConnection = ListConnection<EnabledModuleItem>;
+pub type ModuleRegistryConnection = ListConnection<ModuleRegistryItem>;
+pub type TenantModuleConnection = ListConnection<TenantModule>;
+
 #[derive(SimpleObject, Debug, Clone)]
 pub struct UserEdge {
     pub node: User,
@@ -160,6 +170,24 @@ pub struct UserEdge {
 pub struct UserConnection {
     pub edges: Vec<UserEdge>,
     pub page_info: PageInfo,
+}
+
+impl UserConnection {
+    pub fn from_users(users: &[users::Model], total: i64, offset: i64, limit: i64) -> Self {
+        let edges = users
+            .iter()
+            .enumerate()
+            .map(|(index, user)| UserEdge {
+                node: User::from(user),
+                cursor: encode_cursor(offset + index as i64),
+            })
+            .collect();
+
+        Self {
+            edges,
+            page_info: PageInfo::new(total, offset, limit),
+        }
+    }
 }
 
 #[derive(SimpleObject, Clone)]
@@ -174,6 +202,66 @@ pub struct DashboardStats {
     pub revenue_change: f64,
 }
 
+impl DashboardStats {
+    pub fn from_metrics(metrics: DashboardStatsMetrics) -> Self {
+        Self {
+            total_users: metrics.total_users,
+            total_posts: metrics.total_posts,
+            total_orders: metrics.total_orders,
+            total_revenue: metrics.total_revenue,
+            users_change: metrics.users_change,
+            posts_change: metrics.posts_change,
+            orders_change: metrics.orders_change,
+            revenue_change: metrics.revenue_change,
+        }
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct DashboardStatsMetrics {
+    pub total_users: i64,
+    pub total_posts: i64,
+    pub total_orders: i64,
+    pub total_revenue: i64,
+    pub users_change: f64,
+    pub posts_change: f64,
+    pub orders_change: f64,
+    pub revenue_change: f64,
+}
+
+impl DashboardStatsMetrics {
+    pub fn new(
+        total_users: i64,
+        total_posts: i64,
+        total_orders: i64,
+        total_revenue: i64,
+        users_change: f64,
+        posts_change: f64,
+        orders_change: f64,
+        revenue_change: f64,
+    ) -> Self {
+        Self {
+            total_users,
+            total_posts,
+            total_orders,
+            total_revenue,
+            users_change,
+            posts_change,
+            orders_change,
+            revenue_change,
+        }
+    }
+}
+
+pub type ActivityConnection = ListConnection<ActivityItem>;
+
+impl ActivityConnection {
+    pub fn from_users(users: Vec<users::Model>, total: i64, offset: i64, limit: i64) -> Self {
+        let items = users.into_iter().map(ActivityItem::from).collect();
+        Self::new(items, total, offset, limit)
+    }
+}
+
 #[derive(SimpleObject, Clone)]
 pub struct ActivityItem {
     pub id: String,
@@ -181,6 +269,21 @@ pub struct ActivityItem {
     pub description: String,
     pub timestamp: String,
     pub user: Option<ActivityUser>,
+}
+
+impl From<users::Model> for ActivityItem {
+    fn from(user: users::Model) -> Self {
+        Self {
+            id: user.id.to_string(),
+            r#type: "user.created".to_string(),
+            description: format!("New user {} joined", user.email),
+            timestamp: user.created_at.to_rfc3339(),
+            user: Some(ActivityUser {
+                id: user.id.to_string(),
+                name: user.name,
+            }),
+        }
+    }
 }
 
 #[derive(SimpleObject, Clone)]

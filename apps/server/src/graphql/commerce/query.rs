@@ -1,7 +1,9 @@
-use async_graphql::{Context, Object, Result};
-use sea_orm::{ColumnTrait, EntityTrait, PaginatorTrait, QueryFilter, QueryOrder, QuerySelect};
+use async_graphql::{Context, FieldError, Object};
+use sea_orm::DatabaseConnection;
 use uuid::Uuid;
 
+use crate::graphql::common::PaginationInput;
+use crate::graphql::errors::{GraphQLError, GraphQLResult};
 use rustok_commerce::CatalogService;
 use rustok_outbox::TransactionalEventBus;
 
@@ -18,8 +20,8 @@ impl CommerceQuery {
         tenant_id: Uuid,
         id: Uuid,
         locale: Option<String>,
-    ) -> Result<Option<GqlProduct>> {
-        let db = ctx.data::<sea_orm::DatabaseConnection>()?;
+    ) -> GraphQLResult<Option<GqlProduct>> {
+        let db = ctx.data::<DatabaseConnection>()?;
         let event_bus = ctx.data::<TransactionalEventBus>()?;
         let locale = locale.unwrap_or_else(|| "en".to_string());
 
@@ -27,7 +29,9 @@ impl CommerceQuery {
         let product = match service.get_product(tenant_id, id).await {
             Ok(product) => product,
             Err(rustok_commerce::CommerceError::ProductNotFound(_)) => return Ok(None),
-            Err(err) => return Err(err.to_string().into()),
+            Err(err) => {
+                return Err(<FieldError as GraphQLError>::internal_error(&err.to_string()));
+            }
         };
 
         let filtered_translations = product
@@ -41,7 +45,7 @@ impl CommerceQuery {
             ..product
         };
 
-        Ok(Some(product.into()))
+        Ok(Some(GqlProduct::from_data(product.into())))
     }
 
     async fn products(
@@ -50,22 +54,20 @@ impl CommerceQuery {
         tenant_id: Uuid,
         locale: Option<String>,
         filter: Option<ProductsFilter>,
-    ) -> Result<GqlProductList> {
-        let db = ctx.data::<sea_orm::DatabaseConnection>()?;
+        #[graphql(default)] pagination: PaginationInput,
+    ) -> GraphQLResult<GqlProductConnection> {
+        let db = ctx.data::<DatabaseConnection>()?;
         let locale = locale.unwrap_or_else(|| "en".to_string());
         let filter = filter.unwrap_or(ProductsFilter {
             status: None,
             vendor: None,
             search: None,
-            page: Some(1),
-            per_page: Some(20),
         });
 
         use rustok_commerce::entities::{product, product_translation};
+        use sea_orm::{ColumnTrait, EntityTrait, PaginatorTrait, QueryFilter, QueryOrder, QuerySelect};
 
-        let page = filter.page.unwrap_or(1);
-        let per_page = filter.per_page.unwrap_or(20).min(100);
-        let offset = (page.saturating_sub(1)) * per_page;
+        let (offset, limit) = pagination.normalize()?;
 
         let mut query = product::Entity::find().filter(product::Column::TenantId.eq(tenant_id));
 
@@ -82,38 +84,39 @@ impl CommerceQuery {
                 .filter(product_translation::Column::Locale.eq(&locale))
                 .filter(product_translation::Column::Title.contains(search))
                 .all(db)
-                .await?
+                .await
+                .map_err(|err| <FieldError as GraphQLError>::internal_error(&err.to_string()))?
                 .into_iter()
                 .map(|translation| translation.product_id)
                 .collect();
 
             if search_ids.is_empty() {
-                return Ok(GqlProductList {
-                    items: Vec::new(),
-                    total: 0,
-                    page,
-                    per_page,
-                    has_next: false,
-                });
+                return Ok(GqlProductConnection::new(Vec::new(), 0, offset, limit));
             }
 
             query = query.filter(product::Column::Id.is_in(search_ids));
         }
 
-        let total = query.clone().count(db).await?;
+        let total = query
+            .clone()
+            .count(db)
+            .await
+            .map_err(|err| <FieldError as GraphQLError>::internal_error(&err.to_string()))? as i64;
         let products = query
             .order_by_desc(product::Column::CreatedAt)
-            .offset(offset)
-            .limit(per_page)
+            .offset(offset as u64)
+            .limit(limit as u64)
             .all(db)
-            .await?;
+            .await
+            .map_err(|err| <FieldError as GraphQLError>::internal_error(&err.to_string()))?;
 
         let product_ids: Vec<Uuid> = products.iter().map(|product| product.id).collect();
         let translations = product_translation::Entity::find()
             .filter(product_translation::Column::ProductId.is_in(product_ids))
             .filter(product_translation::Column::Locale.eq(&locale))
             .all(db)
-            .await?;
+            .await
+            .map_err(|err| <FieldError as GraphQLError>::internal_error(&err.to_string()))?;
 
         let translation_map: std::collections::HashMap<Uuid, _> = translations
             .into_iter()
@@ -124,7 +127,7 @@ impl CommerceQuery {
             .into_iter()
             .map(|product| {
                 let translation = translation_map.get(&product.id);
-                GqlProductListItem {
+                GqlProductListItemData {
                     id: product.id,
                     status: product.status.into(),
                     title: translation
@@ -137,14 +140,9 @@ impl CommerceQuery {
                     created_at: product.created_at.to_rfc3339(),
                 }
             })
+            .map(GqlProductListItem::from_data)
             .collect();
 
-        Ok(GqlProductList {
-            items,
-            total,
-            page,
-            per_page,
-            has_next: page * per_page < total,
-        })
+        Ok(GqlProductConnection::new(items, total, offset, limit))
     }
 }

@@ -8,6 +8,7 @@ use super::{
     require_admin, AlloyState, GqlEventType, GqlScript, GqlScriptConnection, GqlScriptStatus,
 };
 use crate::graphql::common::PaginationInput;
+use crate::graphql::connection::ListConnection;
 
 #[derive(Default)]
 pub struct AlloyQuery;
@@ -65,7 +66,8 @@ impl AlloyQuery {
         ctx: &Context<'_>,
         entity_type: String,
         event: GqlEventType,
-    ) -> Result<Vec<GqlScript>> {
+        #[graphql(default)] pagination: PaginationInput,
+    ) -> Result<ListConnection<GqlScript>> {
         require_admin(ctx).await?;
         let state = ctx.data::<AlloyState>()?;
         let scripts = state
@@ -76,7 +78,15 @@ impl AlloyQuery {
             })
             .await
             .map_err(|err| async_graphql::Error::new(err.to_string()))?;
+        let (offset, limit) = pagination.normalize()?;
+        let total = scripts.len() as i64;
+        let items = scripts
+            .into_iter()
+            .skip(offset as usize)
+            .take(limit as usize)
+            .map(GqlScript::from)
+            .collect();
 
-        Ok(scripts.into_iter().map(GqlScript::from).collect())
+        Ok(ListConnection::new(items, total, offset, limit))
     }
 }

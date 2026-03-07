@@ -1,8 +1,9 @@
-use async_graphql::{Context, Object, Result};
+use async_graphql::{Context, Object};
 use sea_orm::DatabaseConnection;
 use uuid::Uuid;
 
 use crate::context::AuthContext;
+use crate::graphql::errors::{GraphQLError, GraphQLResult};
 use rustok_content::NodeService;
 use rustok_core::{SecurityContext, UserRole};
 use rustok_outbox::TransactionalEventBus;
@@ -14,15 +15,22 @@ pub struct ContentQuery;
 
 #[Object]
 impl ContentQuery {
-    async fn node(&self, ctx: &Context<'_>, tenant_id: Uuid, id: Uuid) -> Result<Option<GqlNode>> {
+    async fn node(
+        &self,
+        ctx: &Context<'_>,
+        tenant_id: Uuid,
+        id: Uuid,
+    ) -> GraphQLResult<Option<GqlNode>> {
         let db = ctx.data::<DatabaseConnection>()?;
         let event_bus = ctx.data::<TransactionalEventBus>()?;
 
         let service = NodeService::new(db.clone(), event_bus.clone());
         match service.get_node(tenant_id, id).await {
-            Ok(node) => Ok(Some(node.into())), // GqlNode implements From<NodeResponse>
+            Ok(node) => Ok(Some(node.into())),
             Err(rustok_content::ContentError::NodeNotFound(_)) => Ok(None),
-            Err(err) => Err(async_graphql::Error::new(err.to_string())),
+            Err(err) => Err(<async_graphql::FieldError as GraphQLError>::internal_error(
+                &err.to_string(),
+            )),
         }
     }
 
@@ -31,7 +39,7 @@ impl ContentQuery {
         ctx: &Context<'_>,
         tenant_id: Uuid,
         filter: Option<NodesFilter>,
-    ) -> Result<GqlNodeList> {
+    ) -> GraphQLResult<GqlNodeList> {
         let db = ctx.data::<DatabaseConnection>()?;
         let event_bus = ctx.data::<TransactionalEventBus>()?;
 
