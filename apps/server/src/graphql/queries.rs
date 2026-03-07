@@ -7,11 +7,11 @@ use sea_orm::{
 use std::collections::HashSet;
 
 use crate::context::{AuthContext, TenantContext};
-use crate::graphql::common::{encode_cursor, PageInfo, PaginationInput};
+use crate::graphql::common::PaginationInput;
 use crate::graphql::errors::GraphQLError;
 use crate::graphql::types::{
     ActivityItem, ActivityUser, DashboardStats, EnabledModuleItem, ModuleRegistryItem, Tenant,
-    TenantModule, User, UserConnection, UserEdge, UsersFilter,
+    TenantModule, User, UserConnection, UsersFilter,
 };
 use crate::models::_entities::tenant_modules::Column as TenantModulesColumn;
 use crate::models::_entities::tenant_modules::Entity as TenantModulesEntity;
@@ -274,19 +274,7 @@ impl RootQuery {
             .await
             .map_err(|err| <FieldError as GraphQLError>::internal_error(&err.to_string()))?;
 
-        let edges = users
-            .iter()
-            .enumerate()
-            .map(|(index, user)| UserEdge {
-                node: User::from(user),
-                cursor: encode_cursor(offset + index as i64),
-            })
-            .collect();
-
-        Ok(UserConnection {
-            edges,
-            page_info: PageInfo::new(total, offset, limit),
-        })
+        Ok(UserConnection::from_users(&users, total, offset, limit))
     }
 
     async fn dashboard_stats(&self, ctx: &Context<'_>) -> Result<DashboardStats> {

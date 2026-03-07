@@ -5,7 +5,7 @@ use rustok_core::{Permission, UserRole, UserStatus};
 use std::str::FromStr;
 use uuid::Uuid;
 
-use crate::graphql::common::PageInfo;
+use crate::graphql::common::{encode_cursor, PageInfo};
 use crate::graphql::connection::ListConnection;
 use crate::graphql::loaders::TenantNameLoader;
 use crate::models::users;
@@ -170,6 +170,24 @@ pub struct UserEdge {
 pub struct UserConnection {
     pub edges: Vec<UserEdge>,
     pub page_info: PageInfo,
+}
+
+impl UserConnection {
+    pub fn from_users(users: &[users::Model], total: i64, offset: i64, limit: i64) -> Self {
+        let edges = users
+            .iter()
+            .enumerate()
+            .map(|(index, user)| UserEdge {
+                node: User::from(user),
+                cursor: encode_cursor(offset + index as i64),
+            })
+            .collect();
+
+        Self {
+            edges,
+            page_info: PageInfo::new(total, offset, limit),
+        }
+    }
 }
 
 #[derive(SimpleObject, Clone)]
