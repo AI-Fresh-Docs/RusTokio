@@ -86,28 +86,28 @@
 
 - [x] `iggy` версия исправлена: `0.9.2` → `0.9.0` (crates.io не имел 0.9.2)
   - Исправлено в `Cargo.toml` (workspace) и `crates/rustok-iggy-connector/Cargo.toml`
-- [ ] `cargo update` не приводит к конфликтам версий
+- [x] `cargo update` не приводит к конфликтам версий — проверено
 - [x] `Cargo.lock` зафиксирован в git — удалён из `.gitignore` (теперь tracked для бинарных приложений как рекомендовано Cargo docs). Junction `node_modules` → `apps/next-admin/node_modules` создан в корне для Turbopack.
 
 ### 0.3 Каждый crate компилируется независимо
 
-- [ ] `rustok-core`
-- [ ] `rustok-events`
-- [ ] `rustok-outbox`
-- [ ] `rustok-tenant`
-- [ ] `rustok-rbac`
-- [ ] `rustok-index`
-- [ ] `rustok-content`
-- [ ] `rustok-commerce`
-- [ ] `rustok-blog`
-- [ ] `rustok-forum`
-- [ ] `rustok-pages`
-- [ ] `alloy-scripting`
-- [ ] `rustok-telemetry`
-- [ ] `rustok-iggy`
-- [ ] `rustok-iggy-connector`
-- [ ] `rustok-mcp`
-- [ ] `rustok-test-utils`
+- [x] `rustok-core` — компилируется
+- [x] `rustok-events` — компилируется
+- [x] `rustok-outbox` — компилируется
+- [x] `rustok-tenant` — компилируется
+- [x] `rustok-rbac` — компилируется
+- [x] `rustok-index` — компилируется
+- [x] `rustok-content` — компилируется
+- [x] `rustok-commerce` — компилируется
+- [x] `rustok-blog` — компилируется
+- [x] `rustok-forum` — компилируется
+- [x] `rustok-pages` — компилируется
+- [x] `alloy-scripting` — компилируется
+- [x] `rustok-telemetry` — компилируется
+- [x] `rustok-iggy` — компилируется
+- [x] `rustok-iggy-connector` — компилируется
+- [x] `rustok-mcp` — компилируется
+- [x] `rustok-test-utils` — компилируется
 
 ### 0.4 Frontend builds
 
@@ -1263,7 +1263,7 @@
 
 - [x] Нет SQL-запросов без `WHERE tenant_id = ?` — все SELECT с tenant_id filter (Phase 19.1 audit подтвердил)
 - [x] Нет GraphQL resolvers, возвращающих данные без tenant filter — все resolvers передают tenant_id в services
-- [ ] Тест на cross-tenant access существует и проходит — тест не реализован
+- [x] Тест на cross-tenant access существует и проходит — `apps/server/tests/multi_tenant_isolation_test.rs`
 
 ### 18.4 Input Validation
 
