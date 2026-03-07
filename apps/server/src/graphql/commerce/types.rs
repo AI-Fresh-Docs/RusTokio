@@ -93,6 +93,16 @@ pub struct GqlPrice {
 
 pub type GqlProductConnection = ListConnection<GqlProductListItem>;
 
+#[derive(Debug, Clone)]
+pub struct GqlProductListItemData {
+    pub id: Uuid,
+    pub status: GqlProductStatus,
+    pub title: String,
+    pub handle: String,
+    pub vendor: Option<String>,
+    pub created_at: String,
+}
+
 #[derive(SimpleObject)]
 pub struct GqlProductListItem {
     pub id: Uuid,
@@ -101,6 +111,19 @@ pub struct GqlProductListItem {
     pub handle: String,
     pub vendor: Option<String>,
     pub created_at: String,
+}
+
+impl GqlProductListItem {
+    pub fn from_data(data: GqlProductListItemData) -> Self {
+        Self {
+            id: data.id,
+            status: data.status,
+            title: data.title,
+            handle: data.handle,
+            vendor: data.vendor,
+            created_at: data.created_at,
+        }
+    }
 }
 
 #[derive(InputObject)]

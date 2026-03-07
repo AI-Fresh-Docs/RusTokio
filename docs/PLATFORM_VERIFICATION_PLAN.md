@@ -1442,7 +1442,7 @@
 - [~] `context.data::<TenantContext>()` используется в каждом resolver (не пропущен)
   - Root/resolver-level multi-tenant queries продолжают использовать `TenantContext`, но часть domain resolvers (`commerce`, `forum`, и др.) всё ещё принимает `tenant_id` как GraphQL-аргумент вместо единого context-driven паттерна
 - [~] Нет бизнес-логики в resolvers — только вызов domain services
-  - Основные mutation/resolver-ветки делегируют в сервисы; в `queries.rs` transport-shaping и часть metrics-assembly дальше вынесены в shared GraphQL types (`UserConnection::from_users`, `ActivityConnection::from_users`, `DashboardStats::from_metrics`, `DashboardStatsMetrics::new`). Но в `commerce/query.rs` и `queries.rs` всё ещё остаются прямые SeaORM-запросы и часть сборки response-моделей в resolver-слое
+  - Основные mutation/resolver-ветки делегируют в сервисы; в `queries.rs` transport-shaping и часть metrics-assembly дальше вынесены в shared GraphQL types (`UserConnection::from_users`, `ActivityConnection::from_users`, `DashboardStats::from_metrics`, `DashboardStatsMetrics::new`), а в `commerce/query.rs` часть product-list shaping вынесена в `GqlProductListItemData`/`GqlProductListItem::from_data`. Но в `commerce/query.rs` и `queries.rs` всё ещё остаются прямые SeaORM-запросы и часть сборки response-моделей в resolver-слое
 - [x] Naming convention: queries — `camelCase`, mutations — `camelCase` с глаголом (`createProduct`, не `productCreate`)
   - Проверено по именам GraphQL-resolvers: `createProduct`, `updateNode`, `publishPost`, `pageBySlug`, `recentActivity`, `dashboardStats` и т.д.
 - [x] Subscription (если есть) использует WebSocket, не polling

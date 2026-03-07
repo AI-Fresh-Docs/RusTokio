@@ -118,7 +118,7 @@ impl CommerceQuery {
             .into_iter()
             .map(|product| {
                 let translation = translation_map.get(&product.id);
-                GqlProductListItem {
+                GqlProductListItemData {
                     id: product.id,
                     status: product.status.into(),
                     title: translation
@@ -131,6 +131,7 @@ impl CommerceQuery {
                     created_at: product.created_at.to_rfc3339(),
                 }
             })
+            .map(GqlProductListItem::from_data)
             .collect();
 
         Ok(GqlProductConnection::new(items, total, offset, limit))
