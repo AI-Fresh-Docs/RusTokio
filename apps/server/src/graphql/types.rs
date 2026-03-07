@@ -6,6 +6,7 @@ use std::str::FromStr;
 use uuid::Uuid;
 
 use crate::graphql::common::PageInfo;
+use crate::graphql::connection::ListConnection;
 use crate::graphql::loaders::TenantNameLoader;
 use crate::models::users;
 use crate::services::auth::AuthService;
@@ -149,6 +150,10 @@ pub struct ModuleRegistryItem {
     pub enabled: bool,
     pub dependencies: Vec<String>,
 }
+
+pub type EnabledModulesConnection = ListConnection<String>;
+pub type ModuleRegistryConnection = ListConnection<ModuleRegistryItem>;
+pub type TenantModuleConnection = ListConnection<TenantModule>;
 
 #[derive(SimpleObject, Debug, Clone)]
 pub struct UserEdge {

@@ -64,17 +64,32 @@ impl RootQuery {
         })
     }
 
-    async fn enabled_modules(&self, ctx: &Context<'_>) -> Result<Vec<String>> {
+    async fn enabled_modules(
+        &self,
+        ctx: &Context<'_>,
+        #[graphql(default)] pagination: PaginationInput,
+    ) -> Result<EnabledModulesConnection> {
         let app_ctx = ctx.data::<loco_rs::prelude::AppContext>()?;
         let tenant = ctx.data::<TenantContext>()?;
         let modules = TenantModulesEntity::find_enabled(&app_ctx.db, tenant.id)
             .await
             .map_err(|err| err.to_string())?;
+        let (offset, limit) = pagination.normalize()?;
+        let total = modules.len() as i64;
+        let items = modules
+            .into_iter()
+            .skip(offset as usize)
+            .take(limit as usize)
+            .collect();
 
-        Ok(modules)
+        Ok(EnabledModulesConnection::new(items, total, offset, limit))
     }
 
-    async fn module_registry(&self, ctx: &Context<'_>) -> Result<Vec<ModuleRegistryItem>> {
+    async fn module_registry(
+        &self,
+        ctx: &Context<'_>,
+        #[graphql(default)] pagination: PaginationInput,
+    ) -> Result<ModuleRegistryConnection> {
         let app_ctx = ctx.data::<loco_rs::prelude::AppContext>()?;
         let tenant = ctx.data::<TenantContext>()?;
         let registry = ctx.data::<ModuleRegistry>()?;
@@ -82,8 +97,9 @@ impl RootQuery {
             .await
             .map_err(|err| err.to_string())?;
         let enabled_set: HashSet<String> = enabled_modules.into_iter().collect();
+        let (offset, limit) = pagination.normalize()?;
 
-        Ok(registry
+        let modules: Vec<ModuleRegistryItem> = registry
             .list()
             .into_iter()
             .map(|module| ModuleRegistryItem {
@@ -103,10 +119,22 @@ impl RootQuery {
                     .map(|dependency| dependency.to_string())
                     .collect(),
             })
-            .collect())
+            .collect();
+        let total = modules.len() as i64;
+        let items = modules
+            .into_iter()
+            .skip(offset as usize)
+            .take(limit as usize)
+            .collect();
+
+        Ok(ModuleRegistryConnection::new(items, total, offset, limit))
     }
 
-    async fn tenant_modules(&self, ctx: &Context<'_>) -> Result<Vec<TenantModule>> {
+    async fn tenant_modules(
+        &self,
+        ctx: &Context<'_>,
+        #[graphql(default)] pagination: PaginationInput,
+    ) -> Result<TenantModuleConnection> {
         let app_ctx = ctx.data::<loco_rs::prelude::AppContext>()?;
         let tenant = ctx.data::<TenantContext>()?;
         let modules = TenantModulesEntity::find()
@@ -114,15 +142,21 @@ impl RootQuery {
             .all(&app_ctx.db)
             .await
             .map_err(|err| err.to_string())?;
+        let (offset, limit) = pagination.normalize()?;
 
-        Ok(modules
+        let total = modules.len() as i64;
+        let items: Vec<TenantModule> = modules
             .into_iter()
             .map(|module| TenantModule {
                 module_slug: module.module_slug,
                 enabled: module.enabled,
                 settings: module.settings.to_string(),
             })
-            .collect())
+            .skip(offset as usize)
+            .take(limit as usize)
+            .collect();
+
+        Ok(TenantModuleConnection::new(items, total, offset, limit))
     }
 
     async fn me(&self, ctx: &Context<'_>) -> Result<Option<User>> {
