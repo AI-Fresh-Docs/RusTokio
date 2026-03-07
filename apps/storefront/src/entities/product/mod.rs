@@ -1,3 +1,4 @@
+use crate::shared::ui::UiButton;
 use leptos::prelude::*;
 use serde::{Deserialize, Serialize};
 
@@ -27,9 +28,9 @@ pub fn ProductCard(
                 <p class="text-sm text-muted-foreground">{product.description}</p>
                 <div class="flex items-center justify-between pt-1">
                     <span class="text-lg font-semibold text-foreground">{product.price}</span>
-                    <crate::shared::ui::ui_button class="px-3 py-1.5 text-sm">
+                    <UiButton class="px-3 py-1.5 text-sm">
                         {cta_view}
-                    </crate::shared::ui::ui_button>
+                    </UiButton>
                 </div>
             </div>
         </div>

@@ -1,4 +1,4 @@
-use crate::shared::ui::ui_button;
+use crate::shared::ui::UiButton;
 use leptos::prelude::*;
 
 #[component]
@@ -44,9 +44,11 @@ pub fn Header(
                             </ul>
                         </details>
                     </div>
-                    <ui_button class="px-4 py-1.5 text-sm" attr:href="#catalog">
-                        {cta_primary}
-                    </ui_button>
+                    <a href="#catalog">
+                        <UiButton class="px-4 py-1.5 text-sm">
+                            {cta_primary}
+                        </UiButton>
+                    </a>
                 </div>
             </div>
         </header>
