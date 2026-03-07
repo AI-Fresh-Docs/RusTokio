@@ -202,7 +202,41 @@ pub struct DashboardStats {
     pub revenue_change: f64,
 }
 
+impl DashboardStats {
+    pub fn from_metrics(metrics: DashboardStatsMetrics) -> Self {
+        Self {
+            total_users: metrics.total_users,
+            total_posts: metrics.total_posts,
+            total_orders: metrics.total_orders,
+            total_revenue: metrics.total_revenue,
+            users_change: metrics.users_change,
+            posts_change: metrics.posts_change,
+            orders_change: metrics.orders_change,
+            revenue_change: metrics.revenue_change,
+        }
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct DashboardStatsMetrics {
+    pub total_users: i64,
+    pub total_posts: i64,
+    pub total_orders: i64,
+    pub total_revenue: i64,
+    pub users_change: f64,
+    pub posts_change: f64,
+    pub orders_change: f64,
+    pub revenue_change: f64,
+}
+
 pub type ActivityConnection = ListConnection<ActivityItem>;
+
+impl ActivityConnection {
+    pub fn from_users(users: Vec<users::Model>, total: i64, offset: i64, limit: i64) -> Self {
+        let items = users.into_iter().map(ActivityItem::from).collect();
+        Self::new(items, total, offset, limit)
+    }
+}
 
 #[derive(SimpleObject, Clone)]
 pub struct ActivityItem {
@@ -211,6 +245,21 @@ pub struct ActivityItem {
     pub description: String,
     pub timestamp: String,
     pub user: Option<ActivityUser>,
+}
+
+impl From<users::Model> for ActivityItem {
+    fn from(user: users::Model) -> Self {
+        Self {
+            id: user.id.to_string(),
+            r#type: "user.created".to_string(),
+            description: format!("New user {} joined", user.email),
+            timestamp: user.created_at.to_rfc3339(),
+            user: Some(ActivityUser {
+                id: user.id.to_string(),
+                name: user.name,
+            }),
+        }
+    }
 }
 
 #[derive(SimpleObject, Clone)]

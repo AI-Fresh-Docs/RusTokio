@@ -10,7 +10,7 @@ use crate::context::{AuthContext, TenantContext};
 use crate::graphql::common::PaginationInput;
 use crate::graphql::errors::GraphQLError;
 use crate::graphql::types::{
-    ActivityItem, ActivityUser, DashboardStats, EnabledModuleItem, ModuleRegistryItem, Tenant,
+    DashboardStats, DashboardStatsMetrics, EnabledModuleItem, ModuleRegistryItem, Tenant,
     TenantModule, User, UserConnection, UsersFilter,
 };
 use crate::models::_entities::tenant_modules::Column as TenantModulesColumn;
@@ -377,7 +377,7 @@ impl RootQuery {
             }
         }
 
-        Ok(DashboardStats {
+        Ok(DashboardStats::from_metrics(DashboardStatsMetrics {
             total_users,
             total_posts,
             total_orders,
@@ -386,7 +386,7 @@ impl RootQuery {
             posts_change: calculate_percent_change(current_posts, previous_posts),
             orders_change: calculate_percent_change(current_orders, previous_orders),
             revenue_change: calculate_percent_change(current_revenue, previous_revenue),
-        })
+        }))
     }
 
     async fn recent_activity(
@@ -414,20 +414,11 @@ impl RootQuery {
             .await
             .map_err(|err| <FieldError as GraphQLError>::internal_error(&err.to_string()))?;
 
-        let activities = recent_users
-            .into_iter()
-            .map(|user| ActivityItem {
-                id: user.id.to_string(),
-                r#type: "user.created".to_string(),
-                description: format!("New user {} joined", user.email),
-                timestamp: user.created_at.to_rfc3339(),
-                user: Some(ActivityUser {
-                    id: user.id.to_string(),
-                    name: user.name,
-                }),
-            })
-            .collect();
-
-        Ok(ActivityConnection::new(activities, total, offset, limit))
+        Ok(ActivityConnection::from_users(
+            recent_users,
+            total,
+            offset,
+            limit,
+        ))
     }
 }
