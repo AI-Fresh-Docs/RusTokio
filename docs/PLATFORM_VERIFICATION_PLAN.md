@@ -1442,7 +1442,7 @@
 - [~] `context.data::<TenantContext>()` используется в каждом resolver (не пропущен)
   - Часть resolvers опирается на аргумент `tenant_id`, а root/resolver-level multi-tenant queries используют `TenantContext`; единый паттерн ещё не везде соблюдён
 - [~] Нет бизнес-логики в resolvers — только вызов domain services
-  - Основные mutation/resolver-ветки делегируют в сервисы, но в `commerce/query.rs` и частично `queries.rs` остаются прямые SeaORM-запросы и сборка response-моделей в resolver-слое
+  - Основные mutation/resolver-ветки делегируют в сервисы; `commerce/query.rs` частично очищен (product list переведён на shared pagination contract), но в `commerce/query.rs` и `queries.rs` всё ещё остаются прямые SeaORM-запросы и сборка response-моделей в resolver-слое
 - [x] Naming convention: queries — `camelCase`, mutations — `camelCase` с глаголом (`createProduct`, не `productCreate`)
   - Проверено по именам GraphQL-resolvers: `createProduct`, `updateNode`, `publishPost`, `pageBySlug`, `recentActivity`, `dashboardStats` и т.д.
 - [x] Subscription (если есть) использует WebSocket, не polling

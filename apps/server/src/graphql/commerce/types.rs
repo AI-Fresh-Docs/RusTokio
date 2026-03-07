@@ -1,4 +1,6 @@
 use async_graphql::{Enum, InputObject, SimpleObject};
+
+use crate::graphql::connection::ListConnection;
 use uuid::Uuid;
 
 use rustok_commerce::dto;
@@ -89,14 +91,7 @@ pub struct GqlPrice {
     pub on_sale: bool,
 }
 
-#[derive(SimpleObject)]
-pub struct GqlProductList {
-    pub items: Vec<GqlProductListItem>,
-    pub total: u64,
-    pub page: u64,
-    pub per_page: u64,
-    pub has_next: bool,
-}
+pub type GqlProductConnection = ListConnection<GqlProductListItem>;
 
 #[derive(SimpleObject)]
 pub struct GqlProductListItem {
@@ -166,8 +161,6 @@ pub struct ProductsFilter {
     pub status: Option<GqlProductStatus>,
     pub vendor: Option<String>,
     pub search: Option<String>,
-    pub page: Option<u64>,
-    pub per_page: Option<u64>,
 }
 
 impl From<dto::ProductResponse> for GqlProduct {

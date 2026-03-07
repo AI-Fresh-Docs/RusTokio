@@ -1,11 +1,11 @@
 use async_graphql::{Context, Object, Result};
-use sea_orm::{ColumnTrait, EntityTrait, PaginatorTrait, QueryFilter, QueryOrder, QuerySelect};
 use uuid::Uuid;
 
 use rustok_commerce::CatalogService;
 use rustok_outbox::TransactionalEventBus;
 
 use super::types::*;
+use crate::graphql::common::PaginationInput;
 
 #[derive(Default)]
 pub struct CommerceQuery;
@@ -50,22 +50,22 @@ impl CommerceQuery {
         tenant_id: Uuid,
         locale: Option<String>,
         filter: Option<ProductsFilter>,
-    ) -> Result<GqlProductList> {
+        #[graphql(default)] pagination: PaginationInput,
+    ) -> Result<GqlProductConnection> {
         let db = ctx.data::<sea_orm::DatabaseConnection>()?;
         let locale = locale.unwrap_or_else(|| "en".to_string());
         let filter = filter.unwrap_or(ProductsFilter {
             status: None,
             vendor: None,
             search: None,
-            page: Some(1),
-            per_page: Some(20),
         });
 
         use rustok_commerce::entities::{product, product_translation};
+        use sea_orm::{
+            ColumnTrait, EntityTrait, PaginatorTrait, QueryFilter, QueryOrder, QuerySelect,
+        };
 
-        let page = filter.page.unwrap_or(1);
-        let per_page = filter.per_page.unwrap_or(20).min(100);
-        let offset = (page.saturating_sub(1)) * per_page;
+        let (offset, limit) = pagination.normalize()?;
 
         let mut query = product::Entity::find().filter(product::Column::TenantId.eq(tenant_id));
 
@@ -88,23 +88,17 @@ impl CommerceQuery {
                 .collect();
 
             if search_ids.is_empty() {
-                return Ok(GqlProductList {
-                    items: Vec::new(),
-                    total: 0,
-                    page,
-                    per_page,
-                    has_next: false,
-                });
+                return Ok(GqlProductConnection::new(Vec::new(), 0, offset, limit));
             }
 
             query = query.filter(product::Column::Id.is_in(search_ids));
         }
 
-        let total = query.clone().count(db).await?;
+        let total = query.clone().count(db).await? as i64;
         let products = query
             .order_by_desc(product::Column::CreatedAt)
-            .offset(offset)
-            .limit(per_page)
+            .offset(offset as u64)
+            .limit(limit as u64)
             .all(db)
             .await?;
 
@@ -139,12 +133,6 @@ impl CommerceQuery {
             })
             .collect();
 
-        Ok(GqlProductList {
-            items,
-            total,
-            page,
-            per_page,
-            has_next: page * per_page < total,
-        })
+        Ok(GqlProductConnection::new(items, total, offset, limit))
     }
 }
