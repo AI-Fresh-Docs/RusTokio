@@ -377,16 +377,16 @@ impl RootQuery {
             }
         }
 
-        Ok(DashboardStats::from_metrics(DashboardStatsMetrics {
+        Ok(DashboardStats::from_metrics(DashboardStatsMetrics::new(
             total_users,
             total_posts,
             total_orders,
             total_revenue,
-            users_change: calculate_percent_change(current_users, previous_users),
-            posts_change: calculate_percent_change(current_posts, previous_posts),
-            orders_change: calculate_percent_change(current_orders, previous_orders),
-            revenue_change: calculate_percent_change(current_revenue, previous_revenue),
-        }))
+            calculate_percent_change(current_users, previous_users),
+            calculate_percent_change(current_posts, previous_posts),
+            calculate_percent_change(current_orders, previous_orders),
+            calculate_percent_change(current_revenue, previous_revenue),
+        )))
     }
 
     async fn recent_activity(

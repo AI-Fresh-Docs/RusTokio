@@ -229,6 +229,30 @@ pub struct DashboardStatsMetrics {
     pub revenue_change: f64,
 }
 
+impl DashboardStatsMetrics {
+    pub fn new(
+        total_users: i64,
+        total_posts: i64,
+        total_orders: i64,
+        total_revenue: i64,
+        users_change: f64,
+        posts_change: f64,
+        orders_change: f64,
+        revenue_change: f64,
+    ) -> Self {
+        Self {
+            total_users,
+            total_posts,
+            total_orders,
+            total_revenue,
+            users_change,
+            posts_change,
+            orders_change,
+            revenue_change,
+        }
+    }
+}
+
 pub type ActivityConnection = ListConnection<ActivityItem>;
 
 impl ActivityConnection {
