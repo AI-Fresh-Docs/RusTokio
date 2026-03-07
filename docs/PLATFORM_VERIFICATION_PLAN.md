@@ -1440,7 +1440,7 @@
 - [x] Каждый query с list возвращает paginated результат (не полную таблицу)
   - `users`, `products`, `pages`, `posts`, `nodes`, `scripts` используют pagination/page_info; дополнительно переведены `forum_categories`, `forum_topics`, `forum_replies`, `enabled_modules`, `tenant_modules`, `module_registry`, `scripts_for_event`, `recent_activity` на connection-ответы с `page_info`
 - [~] `context.data::<TenantContext>()` используется в каждом resolver (не пропущен)
-  - Часть resolvers опирается на аргумент `tenant_id`, а root/resolver-level multi-tenant queries используют `TenantContext`; единый паттерн ещё не везде соблюдён
+  - Root/resolver-level multi-tenant queries продолжают использовать `TenantContext`, но часть domain resolvers (`commerce`, `forum`, и др.) всё ещё принимает `tenant_id` как GraphQL-аргумент вместо единого context-driven паттерна
 - [~] Нет бизнес-логики в resolvers — только вызов domain services
   - Основные mutation/resolver-ветки делегируют в сервисы; `commerce/query.rs` частично очищен (product list переведён на shared pagination contract), но в `commerce/query.rs` и `queries.rs` всё ещё остаются прямые SeaORM-запросы и сборка response-моделей в resolver-слое
 - [x] Naming convention: queries — `camelCase`, mutations — `camelCase` с глаголом (`createProduct`, не `productCreate`)

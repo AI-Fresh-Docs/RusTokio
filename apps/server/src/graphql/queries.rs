@@ -10,8 +10,8 @@ use crate::context::{AuthContext, TenantContext};
 use crate::graphql::common::{encode_cursor, PageInfo, PaginationInput};
 use crate::graphql::errors::GraphQLError;
 use crate::graphql::types::{
-    ActivityItem, ActivityUser, DashboardStats, ModuleRegistryItem, Tenant, TenantModule, User,
-    UserConnection, UserEdge, UsersFilter,
+    ActivityItem, ActivityUser, DashboardStats, EnabledModuleItem, ModuleRegistryItem, Tenant,
+    TenantModule, User, UserConnection, UserEdge, UsersFilter,
 };
 use crate::models::_entities::tenant_modules::Column as TenantModulesColumn;
 use crate::models::_entities::tenant_modules::Entity as TenantModulesEntity;
@@ -80,6 +80,7 @@ impl RootQuery {
             .into_iter()
             .skip(offset as usize)
             .take(limit as usize)
+            .map(|module_slug| EnabledModuleItem { module_slug })
             .collect();
 
         Ok(EnabledModulesConnection::new(items, total, offset, limit))

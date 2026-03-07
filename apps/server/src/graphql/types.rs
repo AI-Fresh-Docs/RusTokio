@@ -136,6 +136,11 @@ pub struct TenantModule {
 }
 
 #[derive(SimpleObject, Clone)]
+pub struct EnabledModuleItem {
+    pub module_slug: String,
+}
+
+#[derive(SimpleObject, Clone)]
 pub struct DeleteUserPayload {
     pub success: bool,
 }
@@ -151,7 +156,7 @@ pub struct ModuleRegistryItem {
     pub dependencies: Vec<String>,
 }
 
-pub type EnabledModulesConnection = ListConnection<String>;
+pub type EnabledModulesConnection = ListConnection<EnabledModuleItem>;
 pub type ModuleRegistryConnection = ListConnection<ModuleRegistryItem>;
 pub type TenantModuleConnection = ListConnection<TenantModule>;
 
