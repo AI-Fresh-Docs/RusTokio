@@ -29,7 +29,7 @@ pub fn StorefrontShell(locale: String) -> impl IntoView {
                 hero_title=strings.hero_title
                 hero_subtitle=strings.hero_subtitle
                 cta_primary=strings.cta_primary
-                cta_secondary:strings.cta_secondary
+                cta_secondary=strings.cta_secondary
                 featured_title=strings.featured_title
                 featured_subtitle=strings.featured_subtitle
                 products=products

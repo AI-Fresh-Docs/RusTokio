@@ -1,6 +1,8 @@
 use crate::entities::product::{ProductCard, ProductCardData};
-use crate::shared::ui::{ui_button, ui_input};
+use crate::shared::ui::{UiButton, UiInput};
+use leptos_ui::ButtonVariant;
 use leptos::prelude::*;
+use leptos::prelude::AnyView;
 
 #[component]
 pub fn HomePage(
@@ -20,7 +22,7 @@ pub fn HomePage(
     newsletter_placeholder: &'static str,
     newsletter_cta: &'static str,
     newsletter_note: &'static str,
-    module_views: Vec<View>,
+    module_views: Vec<AnyView>,
 ) -> impl IntoView {
     view! {
         <main class="space-y-20">
@@ -32,12 +34,16 @@ pub fn HomePage(
                         </h1>
                         <p class="text-lg text-muted-foreground">{hero_subtitle}</p>
                         <div class="flex flex-wrap gap-3">
-                            <ui_button class="px-5 py-2.5 text-sm" attr:href="#catalog">
-                                {cta_primary}
-                            </ui_button>
-                            <ui_button variant="outline" class="px-5 py-2.5 text-sm" attr:href="#about">
-                                {cta_secondary}
-                            </ui_button>
+                            <a href="#catalog">
+                                <UiButton class="px-5 py-2.5 text-sm">
+                                    {cta_primary}
+                                </UiButton>
+                            </a>
+                            <a href="#about">
+                                <UiButton variant=ButtonVariant::Outline class="px-5 py-2.5 text-sm">
+                                    {cta_secondary}
+                                </UiButton>
+                            </a>
                         </div>
                     </div>
                 </div>
@@ -83,12 +89,12 @@ pub fn HomePage(
                         <h3 class="text-lg font-semibold text-card-foreground">{newsletter_title}</h3>
                         <p class="text-sm text-muted-foreground">{newsletter_body}</p>
                         <div class="flex gap-2">
-                            <ui_input
+                            <UiInput
                                 placeholder=newsletter_placeholder
                             />
-                            <ui_button variant="secondary" class="px-4 py-2 text-sm">
+                            <UiButton variant=ButtonVariant::Secondary class="px-4 py-2 text-sm">
                                 {newsletter_cta}
-                            </ui_button>
+                            </UiButton>
                         </div>
                         <span class="text-xs text-muted-foreground">{newsletter_note}</span>
                     </div>
