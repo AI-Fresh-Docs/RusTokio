@@ -403,16 +403,23 @@ impl RootQuery {
     async fn recent_activity(
         &self,
         ctx: &Context<'_>,
-        #[graphql(default)] limit: i64,
-    ) -> Result<Vec<ActivityItem>> {
+        #[graphql(default)] pagination: PaginationInput,
+    ) -> Result<ActivityConnection> {
         let app_ctx = ctx.data::<loco_rs::prelude::AppContext>()?;
         let tenant = ctx.data::<TenantContext>()?;
+        let (offset, limit) = pagination.normalize()?;
 
-        let limit = limit.clamp(1, 50);
+        let total = users::Entity::find()
+            .filter(UsersColumn::TenantId.eq(tenant.id))
+            .count(&app_ctx.db)
+            .await
+            .map_err(|err| <FieldError as GraphQLError>::internal_error(&err.to_string()))?
+            as i64;
 
         let recent_users = users::Entity::find()
             .filter(UsersColumn::TenantId.eq(tenant.id))
             .order_by_desc(UsersColumn::CreatedAt)
+            .offset(offset as u64)
             .limit(limit as u64)
             .all(&app_ctx.db)
             .await
@@ -432,6 +439,6 @@ impl RootQuery {
             })
             .collect();
 
-        Ok(activities)
+        Ok(ActivityConnection::new(activities, total, offset, limit))
     }
 }

@@ -179,6 +179,8 @@ pub struct DashboardStats {
     pub revenue_change: f64,
 }
 
+pub type ActivityConnection = ListConnection<ActivityItem>;
+
 #[derive(SimpleObject, Clone)]
 pub struct ActivityItem {
     pub id: String,

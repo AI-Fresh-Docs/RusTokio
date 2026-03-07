@@ -1437,8 +1437,8 @@
   - `grep -rn "FieldError::new" apps/server/src/graphql/ --include="*.rs"`
 - [x] Каждый mutation имеет permission check (не полагается на «auth достаточно»)
   - Проверено по `apps/server/src/graphql/*/mutation.rs`: blog/content/commerce/forum/pages/alloy/auth mutations имеют явные permission/auth checks
-- [~] Каждый query с list возвращает paginated результат (не полную таблицу)
-  - `users`, `products`, `pages`, `posts`, `nodes`, `scripts` используют pagination/page_info; дополнительно переведены `forum_categories`, `forum_topics`, `forum_replies`, `enabled_modules`, `tenant_modules`, `module_registry`, `scripts_for_event` на connection-ответы с `page_info`. Непагинированным пока остаётся `recent_activity`
+- [x] Каждый query с list возвращает paginated результат (не полную таблицу)
+  - `users`, `products`, `pages`, `posts`, `nodes`, `scripts` используют pagination/page_info; дополнительно переведены `forum_categories`, `forum_topics`, `forum_replies`, `enabled_modules`, `tenant_modules`, `module_registry`, `scripts_for_event`, `recent_activity` на connection-ответы с `page_info`
 - [~] `context.data::<TenantContext>()` используется в каждом resolver (не пропущен)
   - Часть resolvers опирается на аргумент `tenant_id`, а root/resolver-level multi-tenant queries используют `TenantContext`; единый паттерн ещё не везде соблюдён
 - [~] Нет бизнес-логики в resolvers — только вызов domain services
