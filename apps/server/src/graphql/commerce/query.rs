@@ -1,11 +1,13 @@
-use async_graphql::{Context, Object, Result};
+use async_graphql::{Context, FieldError, Object};
+use sea_orm::DatabaseConnection;
 use uuid::Uuid;
 
+use crate::graphql::common::PaginationInput;
+use crate::graphql::errors::{GraphQLError, GraphQLResult};
 use rustok_commerce::CatalogService;
 use rustok_outbox::TransactionalEventBus;
 
 use super::types::*;
-use crate::graphql::common::PaginationInput;
 
 #[derive(Default)]
 pub struct CommerceQuery;
@@ -18,8 +20,8 @@ impl CommerceQuery {
         tenant_id: Uuid,
         id: Uuid,
         locale: Option<String>,
-    ) -> Result<Option<GqlProduct>> {
-        let db = ctx.data::<sea_orm::DatabaseConnection>()?;
+    ) -> GraphQLResult<Option<GqlProduct>> {
+        let db = ctx.data::<DatabaseConnection>()?;
         let event_bus = ctx.data::<TransactionalEventBus>()?;
         let locale = locale.unwrap_or_else(|| "en".to_string());
 
@@ -27,7 +29,9 @@ impl CommerceQuery {
         let product = match service.get_product(tenant_id, id).await {
             Ok(product) => product,
             Err(rustok_commerce::CommerceError::ProductNotFound(_)) => return Ok(None),
-            Err(err) => return Err(err.to_string().into()),
+            Err(err) => {
+                return Err(<FieldError as GraphQLError>::internal_error(&err.to_string()));
+            }
         };
 
         let filtered_translations = product
@@ -51,8 +55,8 @@ impl CommerceQuery {
         locale: Option<String>,
         filter: Option<ProductsFilter>,
         #[graphql(default)] pagination: PaginationInput,
-    ) -> Result<GqlProductConnection> {
-        let db = ctx.data::<sea_orm::DatabaseConnection>()?;
+    ) -> GraphQLResult<GqlProductConnection> {
+        let db = ctx.data::<DatabaseConnection>()?;
         let locale = locale.unwrap_or_else(|| "en".to_string());
         let filter = filter.unwrap_or(ProductsFilter {
             status: None,
@@ -61,9 +65,7 @@ impl CommerceQuery {
         });
 
         use rustok_commerce::entities::{product, product_translation};
-        use sea_orm::{
-            ColumnTrait, EntityTrait, PaginatorTrait, QueryFilter, QueryOrder, QuerySelect,
-        };
+        use sea_orm::{ColumnTrait, EntityTrait, PaginatorTrait, QueryFilter, QueryOrder, QuerySelect};
 
         let (offset, limit) = pagination.normalize()?;
 
@@ -82,7 +84,8 @@ impl CommerceQuery {
                 .filter(product_translation::Column::Locale.eq(&locale))
                 .filter(product_translation::Column::Title.contains(search))
                 .all(db)
-                .await?
+                .await
+                .map_err(|err| <FieldError as GraphQLError>::internal_error(&err.to_string()))?
                 .into_iter()
                 .map(|translation| translation.product_id)
                 .collect();
@@ -94,20 +97,26 @@ impl CommerceQuery {
             query = query.filter(product::Column::Id.is_in(search_ids));
         }
 
-        let total = query.clone().count(db).await? as i64;
+        let total = query
+            .clone()
+            .count(db)
+            .await
+            .map_err(|err| <FieldError as GraphQLError>::internal_error(&err.to_string()))? as i64;
         let products = query
             .order_by_desc(product::Column::CreatedAt)
             .offset(offset as u64)
             .limit(limit as u64)
             .all(db)
-            .await?;
+            .await
+            .map_err(|err| <FieldError as GraphQLError>::internal_error(&err.to_string()))?;
 
         let product_ids: Vec<Uuid> = products.iter().map(|product| product.id).collect();
         let translations = product_translation::Entity::find()
             .filter(product_translation::Column::ProductId.is_in(product_ids))
             .filter(product_translation::Column::Locale.eq(&locale))
             .all(db)
-            .await?;
+            .await
+            .map_err(|err| <FieldError as GraphQLError>::internal_error(&err.to_string()))?;
 
         let translation_map: std::collections::HashMap<Uuid, _> = translations
             .into_iter()

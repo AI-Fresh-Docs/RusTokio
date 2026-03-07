@@ -1433,8 +1433,8 @@
   - Искать: resolvers с прямыми DB-запросами внутри `async fn` для дочерних объектов
 - [x] `MergedObject` используется для модульной schema — `Query(RootQuery, AuthQuery, CommerceQuery, ContentQuery, BlogQuery, ForumQuery, AlloyQuery, PagesQuery)` и аналогичная Mutation в `schema.rs`
 - [~] Нет `String` errors в GraphQL — используются structured error extensions
-  - Structured errors через `GraphQLError` расширены кодами `UNAUTHENTICATED` / `PERMISSION_DENIED` / `INTERNAL_ERROR` / `NOT_FOUND` / `BAD_REQUEST`; дополнительно на них переведены `content/query.rs`, `blog/query.rs`, `pages/query.rs`. Остальные модули (`queries.rs`, `loaders.rs`, `alloy/*`, часть `mutation.rs`) ещё содержат `async_graphql::Error::new(err.to_string())` и `err.to_string().into()`
-  - `rg -n "Error::new\(|to_string\(\)\.into" apps/server/src/graphql`
+  - Structured errors через `GraphQLError` расширены кодами `UNAUTHENTICATED` / `PERMISSION_DENIED` / `INTERNAL_ERROR` / `NOT_FOUND` / `BAD_REQUEST`; дополнительно на них переведены `content/query.rs`, `blog/query.rs`, `pages/query.rs`, `queries.rs`, `loaders.rs`, `commerce/query.rs`. Остальные модули (`alloy/*`, часть `mutation.rs`, `types.rs`) ещё содержат `async_graphql::Error::new(err.to_string())`, `FieldError::new(...)` без унификации или `err.to_string().into()`
+  - `rg -n "Error::new\(|FieldError::new\(|to_string\(\)\.into" apps/server/src/graphql`
 - [x] Каждый mutation имеет permission check (не полагается на «auth достаточно»)
   - Проверено по `apps/server/src/graphql/*/mutation.rs`: blog/content/commerce/forum/pages/alloy/auth mutations имеют явные permission/auth checks
 - [x] Каждый query с list возвращает paginated результат (не полную таблицу)

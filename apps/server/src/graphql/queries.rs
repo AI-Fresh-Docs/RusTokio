@@ -1,4 +1,4 @@
-use async_graphql::{Context, FieldError, Object, Result};
+use async_graphql::{Context, FieldError, Object};
 use chrono::{Duration, Utc};
 use sea_orm::{
     sea_query::Expr, ColumnTrait, Condition, EntityTrait, PaginatorTrait, QueryFilter, QueryOrder,
@@ -7,11 +7,12 @@ use sea_orm::{
 use std::collections::HashSet;
 
 use crate::context::{AuthContext, TenantContext};
+use crate::graphql::errors::{GraphQLError, GraphQLResult};
 use crate::graphql::common::PaginationInput;
-use crate::graphql::errors::GraphQLError;
 use crate::graphql::types::{
-    DashboardStats, DashboardStatsMetrics, EnabledModuleItem, ModuleRegistryItem, Tenant,
-    TenantModule, User, UserConnection, UsersFilter,
+    ActivityConnection, ActivityItem, ActivityUser, DashboardStats, DashboardStatsMetrics,
+    EnabledModuleItem, EnabledModulesConnection, ModuleRegistryConnection, ModuleRegistryItem,
+    Tenant, TenantModule, TenantModuleConnection, User, UserConnection, UsersFilter,
 };
 use crate::models::_entities::tenant_modules::Column as TenantModulesColumn;
 use crate::models::_entities::tenant_modules::Entity as TenantModulesEntity;
@@ -55,7 +56,7 @@ impl RootQuery {
         env!("CARGO_PKG_VERSION")
     }
 
-    async fn current_tenant(&self, ctx: &Context<'_>) -> Result<Tenant> {
+    async fn current_tenant(&self, ctx: &Context<'_>) -> GraphQLResult<Tenant> {
         let tenant = ctx.data::<TenantContext>()?;
         Ok(Tenant {
             id: tenant.id,
@@ -68,12 +69,12 @@ impl RootQuery {
         &self,
         ctx: &Context<'_>,
         #[graphql(default)] pagination: PaginationInput,
-    ) -> Result<EnabledModulesConnection> {
+    ) -> GraphQLResult<EnabledModulesConnection> {
         let app_ctx = ctx.data::<loco_rs::prelude::AppContext>()?;
         let tenant = ctx.data::<TenantContext>()?;
         let modules = TenantModulesEntity::find_enabled(&app_ctx.db, tenant.id)
             .await
-            .map_err(|err| err.to_string())?;
+            .map_err(|err| <FieldError as GraphQLError>::internal_error(&err.to_string()))?;
         let (offset, limit) = pagination.normalize()?;
         let total = modules.len() as i64;
         let items = modules
@@ -90,13 +91,13 @@ impl RootQuery {
         &self,
         ctx: &Context<'_>,
         #[graphql(default)] pagination: PaginationInput,
-    ) -> Result<ModuleRegistryConnection> {
+    ) -> GraphQLResult<ModuleRegistryConnection> {
         let app_ctx = ctx.data::<loco_rs::prelude::AppContext>()?;
         let tenant = ctx.data::<TenantContext>()?;
         let registry = ctx.data::<ModuleRegistry>()?;
         let enabled_modules = TenantModulesEntity::find_enabled(&app_ctx.db, tenant.id)
             .await
-            .map_err(|err| err.to_string())?;
+            .map_err(|err| <FieldError as GraphQLError>::internal_error(&err.to_string()))?;
         let enabled_set: HashSet<String> = enabled_modules.into_iter().collect();
         let (offset, limit) = pagination.normalize()?;
 
@@ -135,14 +136,14 @@ impl RootQuery {
         &self,
         ctx: &Context<'_>,
         #[graphql(default)] pagination: PaginationInput,
-    ) -> Result<TenantModuleConnection> {
+    ) -> GraphQLResult<TenantModuleConnection> {
         let app_ctx = ctx.data::<loco_rs::prelude::AppContext>()?;
         let tenant = ctx.data::<TenantContext>()?;
         let modules = TenantModulesEntity::find()
             .filter(TenantModulesColumn::TenantId.eq(tenant.id))
             .all(&app_ctx.db)
             .await
-            .map_err(|err| err.to_string())?;
+            .map_err(|err| <FieldError as GraphQLError>::internal_error(&err.to_string()))?;
         let (offset, limit) = pagination.normalize()?;
 
         let total = modules.len() as i64;
@@ -160,7 +161,7 @@ impl RootQuery {
         Ok(TenantModuleConnection::new(items, total, offset, limit))
     }
 
-    async fn me(&self, ctx: &Context<'_>) -> Result<Option<User>> {
+    async fn me(&self, ctx: &Context<'_>) -> GraphQLResult<Option<User>> {
         let auth = match ctx.data_opt::<AuthContext>() {
             Some(auth) => auth,
             None => return Ok(None),
@@ -173,12 +174,12 @@ impl RootQuery {
             .filter(UsersColumn::TenantId.eq(tenant.id))
             .one(&app_ctx.db)
             .await
-            .map_err(|err| err.to_string())?;
+            .map_err(|err| <FieldError as GraphQLError>::internal_error(&err.to_string()))?;
 
         Ok(user.as_ref().map(User::from))
     }
 
-    async fn user(&self, ctx: &Context<'_>, id: uuid::Uuid) -> Result<Option<User>> {
+    async fn user(&self, ctx: &Context<'_>, id: uuid::Uuid) -> GraphQLResult<Option<User>> {
         let auth = ctx
             .data::<AuthContext>()
             .map_err(|_| <FieldError as GraphQLError>::unauthenticated())?;
@@ -215,7 +216,7 @@ impl RootQuery {
         #[graphql(default)] pagination: PaginationInput,
         filter: Option<UsersFilter>,
         search: Option<String>,
-    ) -> Result<UserConnection> {
+    ) -> GraphQLResult<UserConnection> {
         let auth = ctx
             .data::<AuthContext>()
             .map_err(|_| <FieldError as GraphQLError>::unauthenticated())?;
@@ -277,7 +278,7 @@ impl RootQuery {
         Ok(UserConnection::from_users(&users, total, offset, limit))
     }
 
-    async fn dashboard_stats(&self, ctx: &Context<'_>) -> Result<DashboardStats> {
+    async fn dashboard_stats(&self, ctx: &Context<'_>) -> GraphQLResult<DashboardStats> {
         let app_ctx = ctx.data::<loco_rs::prelude::AppContext>()?;
         let tenant = ctx.data::<TenantContext>()?;
 
@@ -393,7 +394,7 @@ impl RootQuery {
         &self,
         ctx: &Context<'_>,
         #[graphql(default)] pagination: PaginationInput,
-    ) -> Result<ActivityConnection> {
+    ) -> GraphQLResult<ActivityConnection> {
         let app_ctx = ctx.data::<loco_rs::prelude::AppContext>()?;
         let tenant = ctx.data::<TenantContext>()?;
         let (offset, limit) = pagination.normalize()?;
