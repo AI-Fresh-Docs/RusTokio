@@ -44,8 +44,28 @@ impl CommerceQuery {
             translations: filtered_translations,
             ..product
         };
+        let gql_product = GqlProductData {
+            id: product.id,
+            status: product.status.into(),
+            vendor: product.vendor,
+            product_type: product.product_type,
+            created_at: product.created_at.to_rfc3339(),
+            updated_at: product.updated_at.to_rfc3339(),
+            published_at: product.published_at.map(|value| value.to_rfc3339()),
+            translations: product
+                .translations
+                .into_iter()
+                .map(GqlProductTranslation::from)
+                .collect(),
+            options: product
+                .options
+                .into_iter()
+                .map(GqlProductOption::from)
+                .collect(),
+            variants: product.variants.into_iter().map(GqlVariant::from).collect(),
+        };
 
-        Ok(Some(product.into()))
+        Ok(Some(GqlProduct::from_data(gql_product)))
     }
 
     async fn products(

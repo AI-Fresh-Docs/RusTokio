@@ -36,6 +36,20 @@ impl From<GqlProductStatus> for rustok_commerce::entities::product::ProductStatu
     }
 }
 
+#[derive(Debug, Clone)]
+pub struct GqlProductData {
+    pub id: Uuid,
+    pub status: GqlProductStatus,
+    pub vendor: Option<String>,
+    pub product_type: Option<String>,
+    pub created_at: String,
+    pub updated_at: String,
+    pub published_at: Option<String>,
+    pub translations: Vec<GqlProductTranslation>,
+    pub options: Vec<GqlProductOption>,
+    pub variants: Vec<GqlVariant>,
+}
+
 #[derive(SimpleObject)]
 pub struct GqlProduct {
     pub id: Uuid,
@@ -48,6 +62,23 @@ pub struct GqlProduct {
     pub translations: Vec<GqlProductTranslation>,
     pub options: Vec<GqlProductOption>,
     pub variants: Vec<GqlVariant>,
+}
+
+impl GqlProduct {
+    pub fn from_data(data: GqlProductData) -> Self {
+        Self {
+            id: data.id,
+            status: data.status,
+            vendor: data.vendor,
+            product_type: data.product_type,
+            created_at: data.created_at,
+            updated_at: data.updated_at,
+            published_at: data.published_at,
+            translations: data.translations,
+            options: data.options,
+            variants: data.variants,
+        }
+    }
 }
 
 #[derive(SimpleObject)]
