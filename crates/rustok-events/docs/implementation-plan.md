@@ -39,6 +39,7 @@
 
 ## Проверка
 
+- [ ] Contract tests cover public event-contract use cases.
 - `cargo xtask module validate events`
 - `cargo xtask module test events`
 - targeted tests для schema coverage, validation, compatibility aliases и JSON roundtrip
