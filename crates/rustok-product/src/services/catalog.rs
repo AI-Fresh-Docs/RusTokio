@@ -1890,7 +1890,6 @@ impl CatalogService {
             .collect()
     }
 
-    #[allow(clippy::result_large_err)]
     fn expand_option_translations_for_product_locales(
         mut translations: Vec<ProductOptionTranslationInput>,
         product_locales: &[String],
@@ -1917,6 +1916,7 @@ impl CatalogService {
         translations
     }
 
+    #[allow(clippy::result_large_err)]
     fn normalize_option_translations(
         translations: &[ProductOptionTranslationInput],
     ) -> CommerceResult<Vec<ProductOptionTranslationInput>> {
