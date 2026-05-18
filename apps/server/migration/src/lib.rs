@@ -153,11 +153,11 @@ impl MigrationDescriptor {
     }
 }
 
-impl From<(&'static str, Vec<&'static str>)> for MigrationDescriptor {
-    fn from((migration, after): (&'static str, Vec<&'static str>)) -> Self {
+impl From<rustok_product::migrations::MigrationDependencyDescriptor> for MigrationDescriptor {
+    fn from(descriptor: rustok_product::migrations::MigrationDependencyDescriptor) -> Self {
         Self {
-            migration: migration.to_string(),
-            after: after.into_iter().map(str::to_string).collect(),
+            migration: descriptor.migration.to_string(),
+            after: descriptor.after.into_iter().map(str::to_string).collect(),
         }
     }
 }
@@ -308,8 +308,8 @@ mod tests {
                 .expect("migration exists");
             for dependency in rustok_product::migrations::migration_dependencies()
                 .into_iter()
-                .filter(|(migration, _)| migration == name)
-                .flat_map(|(_, dependencies)| dependencies)
+                .filter(|descriptor| descriptor.migration == name)
+                .flat_map(|descriptor| descriptor.after)
             {
                 let dependency_index = names
                     .iter()

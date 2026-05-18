@@ -14,6 +14,18 @@ mod m20260409_000007_add_product_seller_id;
 
 use sea_orm_migration::MigrationTrait;
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct MigrationDependencyDescriptor {
+    pub migration: &'static str,
+    pub after: Vec<&'static str>,
+}
+
+impl MigrationDependencyDescriptor {
+    pub fn new(migration: &'static str, after: Vec<&'static str>) -> Self {
+        Self { migration, after }
+    }
+}
+
 pub fn migrations() -> Vec<Box<dyn MigrationTrait>> {
     vec![
         Box::new(m20250130_000012_create_commerce_products::Migration),
@@ -30,8 +42,8 @@ pub fn migrations() -> Vec<Box<dyn MigrationTrait>> {
     ]
 }
 
-pub fn migration_dependencies() -> Vec<(&'static str, Vec<&'static str>)> {
-    vec![(
+pub fn migration_dependencies() -> Vec<MigrationDependencyDescriptor> {
+    vec![MigrationDependencyDescriptor::new(
         "m20260329_000001_create_product_tags",
         vec!["m20260329_000001_create_taxonomy_tables"],
     )]
