@@ -171,7 +171,7 @@ fn sort_migrations_by_dependencies(
         .map(|migration| migration.name().to_string())
         .collect::<std::collections::BTreeSet<_>>();
 
-    for descriptor in &descriptors {
+    for descriptor in descriptors {
         if !names.contains(&descriptor.migration) {
             return Err(format!(
                 "migration descriptor references missing migration {}",
@@ -282,6 +282,31 @@ mod tests {
         assert!(
             err.contains("cycle or unsatisfied dependency"),
             "unexpected error: {err}"
+        );
+    }
+
+    #[test]
+    fn dependency_sort_keeps_lexical_order_without_descriptors() {
+        let mut migrations: Vec<Box<dyn sea_orm_migration::MigrationTrait>> = vec![
+            Box::new(super::m20250101_000002_create_users::Migration),
+            Box::new(super::m20250101_000001_create_tenants::Migration),
+        ];
+        let descriptors: Vec<MigrationDescriptor> = Vec::new();
+
+        sort_migrations_by_dependencies(&mut migrations, &descriptors)
+            .expect("empty descriptors must preserve lexical default");
+
+        let names = migrations
+            .iter()
+            .map(|migration| migration.name().to_string())
+            .collect::<Vec<_>>();
+        assert_eq!(
+            names,
+            vec![
+                "m20250101_000002_create_users".to_string(),
+                "m20250101_000001_create_tenants".to_string(),
+            ],
+            "sorting helper must not reorder migrations when no dependency metadata is provided"
         );
     }
 
@@ -433,7 +458,7 @@ mod tests {
         let mut migrations = Migrator::migrations();
         let error = super::sort_migrations_by_dependencies(
             &mut migrations,
-            &[(
+            &[MigrationDescriptor::new(
                 "m20260329_000001_create_product_tags",
                 vec!["m20990101_000001_missing"],
             )],
@@ -452,11 +477,11 @@ mod tests {
         let error = super::sort_migrations_by_dependencies(
             &mut migrations,
             &[
-                (
+                MigrationDescriptor::new(
                     "m20260329_000001_create_product_tags",
                     vec!["m20260329_000001_create_taxonomy_tables"],
                 ),
-                (
+                MigrationDescriptor::new(
                     "m20260329_000001_create_taxonomy_tables",
                     vec!["m20260329_000001_create_product_tags"],
                 ),
