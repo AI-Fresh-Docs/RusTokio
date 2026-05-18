@@ -93,6 +93,8 @@ pub mod schema {
             "priceCurrency",
             (!currency.is_empty()).then_some(currency.as_str()),
         );
+        let availability = availability
+            .and_then(normalize_schema_org_availability);
         insert_string(&mut object, "availability", availability);
         Value::Object(object)
     }
@@ -220,6 +222,17 @@ pub mod schema {
         if let Some(value) = value.filter(|value| value.is_finite()) {
             object.insert(key.to_string(), json!(value));
         }
+    }
+
+    fn normalize_schema_org_availability(value: &str) -> Option<&str> {
+        let trimmed = value.trim();
+        if trimmed.is_empty() {
+            return None;
+        }
+        if trimmed.starts_with("https://schema.org/") {
+            return Some(trimmed);
+        }
+        None
     }
 }
 
@@ -752,9 +765,12 @@ mod tests {
         assert_eq!(offer["@type"], json!("Offer"));
         assert_eq!(offer["price"], json!(49.9));
         assert_eq!(offer["priceCurrency"], json!("USD"));
+        assert_eq!(offer["availability"], json!("https://schema.org/InStock"));
         let offer_without_valid_price = schema::offer(f64::NAN, " usd ", None);
         assert!(offer_without_valid_price.get("price").is_none());
         assert_eq!(offer_without_valid_price["priceCurrency"], json!("USD"));
+        let offer_with_invalid_availability = schema::offer(10.0, "USD", Some("InStock"));
+        assert!(offer_with_invalid_availability.get("availability").is_none());
 
         let review = schema::review(Some("Jane"), Some("Great"), Some(5.0), Some(5.0));
         assert_eq!(review["@type"], json!("Review"));
