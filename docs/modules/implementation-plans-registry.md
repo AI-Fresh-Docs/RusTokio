@@ -103,7 +103,7 @@
 | `rustok-region` | `rustok-region` | `crates/rustok-region/docs/implementation-plan.md` | `not_started` | `0%` | `unassigned` | `-` | `-` | Синхронизировать план с текущим кодом и заполнить checkpoint | `-` | `cargo test -p rustok-region --lib` |
 | `rustok-search` | `rustok-search` | `crates/rustok-search/docs/implementation-plan.md` | `not_started` | `0%` | `unassigned` | `-` | `-` | Синхронизировать план с текущим кодом и заполнить checkpoint | `-` | `cargo test -p rustok-search --lib` |
 | `rustok-seo` | `rustok-seo` | `crates/rustok-seo/docs/implementation-plan.md` | `not_started` | `0%` | `unassigned` | `-` | `-` | Синхронизировать план с текущим кодом и заполнить checkpoint | `-` | `cargo test -p rustok-seo --lib` |
-| `rustok-seo` | `rustok-seo` | `crates/rustok-seo/render/docs/implementation-plan.md` | `not_started` | `0%` | `unassigned` | `-` | `-` | Синхронизировать план с текущим кодом и заполнить checkpoint | `-` | `cargo test -p rustok-seo --lib` |
+| `rustok-seo-render` | `rustok-seo-render` | `crates/rustok-seo/render/docs/implementation-plan.md` | `not_started` | `0%` | `unassigned` | `-` | `-` | Синхронизировать план с текущим кодом и заполнить checkpoint | `-` | `cargo test -p rustok-seo-render --lib` |
 | `rustok-seo-admin-support` | `rustok-seo-admin-support` | `crates/rustok-seo-admin-support/docs/implementation-plan.md` | `not_started` | `0%` | `unassigned` | `-` | `-` | Синхронизировать план с текущим кодом и заполнить checkpoint | `-` | `cargo test -p rustok-seo-admin-support --lib` |
 | `rustok-storage` | `rustok-storage` | `crates/rustok-storage/docs/implementation-plan.md` | `not_started` | `0%` | `unassigned` | `-` | `-` | Синхронизировать план с текущим кодом и заполнить checkpoint | `-` | `cargo test -p rustok-storage --lib` |
 | `rustok-tax` | `rustok-tax` | `crates/rustok-tax/docs/implementation-plan.md` | `not_started` | `0%` | `unassigned` | `-` | `-` | Синхронизировать план с текущим кодом и заполнить checkpoint | `-` | `cargo test -p rustok-tax --lib` |
@@ -121,6 +121,16 @@
 4. Обновить статус в этом реестре.
 5. Вычислить следующую запись по таблице `Global board` и записать её в `next_plan_id`.
 6. Если возник блокер — перевести запись в `blocked` и явно зафиксировать условие разблокировки.
+
+## Recovery protocol: второй агент без контекста
+
+Если новый агент не знает, где остановился предыдущий:
+
+1. Считать `next_plan_id` из `Cycle state` как единственный источник истины.
+2. Открыть строку этого `Plan ID` в `Global board` и взять `Plan doc`.
+3. В `Plan doc` прочитать только `Execution checkpoint` и `Quality backlog` (без полного перечитывания всего файла).
+4. Если checkpoint пустой/устаревший — сделать мини-sync: обновить checkpoint, выставить `in_progress`, задать `next_action` и продолжить итерацию.
+5. По завершении обязательно сдвинуть `next_plan_id` на следующую строку по кругу.
 
 ## Cross-module changes policy (минимально)
 
