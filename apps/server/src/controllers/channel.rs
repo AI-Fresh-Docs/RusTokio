@@ -590,16 +590,22 @@ fn build_rule_definition(
     ))
 }
 
+fn normalize_optional_string(value: Option<String>) -> Option<String> {
+    value
+        .map(|v| v.trim().to_lowercase())
+        .filter(|v| !v.is_empty())
+}
+
 fn build_update_rule_input(input: UpdateResolutionRuleRequest) -> UpdateChannelResolutionRuleInput {
     UpdateChannelResolutionRuleInput {
         priority: input.priority,
         is_active: input.is_active,
         action_channel_id: input.action_channel_id,
-        host_equals: input.host_equals.map(|value| value.trim().to_string()),
-        host_suffix: input.host_suffix.map(|value| value.trim().to_string()),
-        oauth_app_id: input.oauth_app_id.map(|value| value.trim().to_string()),
-        surface: input.surface.map(|value| value.trim().to_string()),
-        locale: input.locale.map(|value| value.trim().to_string()),
+        host_equals: normalize_optional_string(input.host_equals),
+        host_suffix: normalize_optional_string(input.host_suffix),
+        oauth_app_id: normalize_optional_string(input.oauth_app_id),
+        surface: normalize_optional_string(input.surface),
+        locale: normalize_optional_string(input.locale),
     }
 }
 
@@ -667,7 +673,7 @@ mod tests {
     use uuid::Uuid;
 
     #[test]
-    fn build_rule_definition_normalizes_predicates() {
+    fn build_rule_definition_returns_normalized_predicates() {
         let channel_id = Uuid::new_v4();
         let (priority, is_active, definition) = build_rule_definition(CreateResolutionRuleRequest {
             priority: 30,
