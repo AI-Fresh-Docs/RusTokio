@@ -384,3 +384,44 @@ async fn dependency_validation_failure_does_not_create_journal_row() {
         "validation errors before lifecycle execution must not create journal rows",
     );
 }
+
+#[tokio::test]
+async fn dependent_validation_failure_does_not_create_journal_row() {
+    let db = setup_db().await;
+    let tenant_id = uuid::Uuid::new_v4();
+    seed_tenant(&db, tenant_id).await;
+
+    let registry = ModuleRegistry::new()
+        .register(TestModule::new("pricing"))
+        .register(DependentModule {
+            slug: "checkout",
+            dependency: "pricing",
+        });
+
+    ModuleLifecycleService::toggle_module(&db, &registry, tenant_id, "pricing", true)
+        .await
+        .expect("enable dependency first");
+    ModuleLifecycleService::toggle_module(&db, &registry, tenant_id, "checkout", true)
+        .await
+        .expect("enable dependent second");
+
+    let err = ModuleLifecycleService::toggle_module(&db, &registry, tenant_id, "pricing", false)
+        .await
+        .expect_err("disable should fail because module has dependents");
+    assert!(matches!(err, ToggleModuleError::HasDependents(_)));
+
+    let operations = module_operations::Entity::find()
+        .filter(module_operations::Column::TenantId.eq(tenant_id))
+        .filter(module_operations::Column::ModuleSlug.eq("pricing"))
+        .all(&db)
+        .await
+        .expect("query operations");
+
+    assert_eq!(
+        operations.len(),
+        1,
+        "pre-validation dependent failure must not create extra journal rows",
+    );
+    assert_eq!(operations[0].status, "done");
+    assert!(operations[0].requested_enabled);
+}
