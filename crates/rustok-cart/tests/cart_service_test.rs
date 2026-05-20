@@ -682,6 +682,53 @@ async fn object_channel_tax_provider_mapping_uses_provider_key_alias() {
 }
 
 #[tokio::test]
+async fn channel_tax_provider_mapping_with_invalid_chars_is_rejected() {
+    let (db, service) = setup_with_db().await;
+    let tenant_id = support::TEST_TENANT_ID;
+    let region_id = Uuid::new_v4();
+    let channel_id = Uuid::new_v4();
+
+    insert_region(
+        &db,
+        tenant_id,
+        region_id,
+        "usd",
+        Some("region_default"),
+        serde_json::json!({
+            "channel_tax_provider_ids": {
+                channel_id.to_string(): "INVALID PROVIDER"
+            }
+        }),
+    )
+    .await;
+
+    let cart = service
+        .create_cart_with_channel(
+            tenant_id,
+            CreateCartInput {
+                region_id: Some(region_id),
+                ..create_cart_input()
+            },
+            Some(channel_id),
+            Some("web".to_string()),
+        )
+        .await
+        .unwrap();
+
+    let error = service
+        .add_line_item(tenant_id, cart.id, line_item_input())
+        .await
+        .expect_err("invalid provider id should be rejected");
+
+    match error {
+        CartError::Tax(rustok_tax::TaxError::Validation(message)) => {
+            assert!(message.contains("tax provider_id must use lowercase ASCII"));
+        }
+        other => panic!("expected tax validation error, got {other:?}"),
+    }
+}
+
+#[tokio::test]
 async fn blank_channel_tax_provider_mapping_falls_back_to_region_provider() {
     let (db, service) = setup_with_db().await;
     let tenant_id = support::TEST_TENANT_ID;
