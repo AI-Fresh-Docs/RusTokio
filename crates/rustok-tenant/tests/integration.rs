@@ -16,24 +16,22 @@ async fn setup_db() -> DatabaseConnection {
         .await
         .expect("failed to connect in-memory sqlite");
 
-    if db.get_database_backend() == DbBackend::Sqlite {
-        let builder = db.get_database_backend();
-        let schema = Schema::new(builder);
+    let builder = db.get_database_backend();
+    let schema = Schema::new(builder);
 
-        create_entity_table(&db, &builder, schema.create_table_from_entity(tenant::Entity)).await;
-        create_entity_table(
-            &db,
-            &builder,
-            schema.create_table_from_entity(tenant_module::Entity),
-        )
-        .await;
-        create_entity_table(
-            &db,
-            &builder,
-            schema.create_table_from_entity(outbox_entity::Entity),
-        )
-        .await;
-    }
+    create_entity_table(&db, &builder, schema.create_table_from_entity(tenant::Entity)).await;
+    create_entity_table(
+        &db,
+        &builder,
+        schema.create_table_from_entity(tenant_module::Entity),
+    )
+    .await;
+    create_entity_table(
+        &db,
+        &builder,
+        schema.create_table_from_entity(outbox_entity::Entity),
+    )
+    .await;
 
     db
 }
