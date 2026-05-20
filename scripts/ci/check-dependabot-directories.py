@@ -35,6 +35,10 @@ def main() -> int:
     args = parse_args()
     root = args.root.resolve()
     config = args.config if args.config.is_absolute() else (root / args.config)
+    if not config.is_file():
+        print(f"Dependabot config file not found: {config}", file=sys.stderr)
+        return 1
+
     missing: list[str] = []
     for line in config.read_text(encoding="utf-8").splitlines():
         match = DIRECTORY_RE.match(line)
@@ -47,7 +51,7 @@ def main() -> int:
 
     if missing:
         print("Dependabot directories do not exist:", file=sys.stderr)
-        for directory in missing:
+        for directory in sorted(set(missing)):
             print(f"  - {directory}", file=sys.stderr)
         return 1
 

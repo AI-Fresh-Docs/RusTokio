@@ -2,6 +2,12 @@
 set -euo pipefail
 
 SCRIPT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)/ci/check-dependabot-directories.py"
+TMPDIR_ROOT="$(mktemp -d)"
+
+cleanup() {
+  rm -rf "$TMPDIR_ROOT"
+}
+trap cleanup EXIT
 
 fail() {
   echo "[FAIL] $1" >&2
@@ -13,15 +19,16 @@ pass() {
 }
 
 test_passes_for_existing_directories() {
-  python3 "$SCRIPT" >/tmp/check_dependabot_ok.log
-  rg -q "All Dependabot update directories exist" /tmp/check_dependabot_ok.log \
+  local out_log="$TMPDIR_ROOT/check_dependabot_ok.log"
+  python3 "$SCRIPT" >"$out_log"
+  rg -q "All Dependabot update directories exist" "$out_log" \
     || fail "expected success message"
   pass "script passes for current repository dependabot directories"
 }
 
 test_fails_for_missing_directory() {
   local tmp
-  tmp="$(mktemp -d)"
+  tmp="$(mktemp -d "$TMPDIR_ROOT/missing-dir-test.XXXXXX")"
   mkdir -p "$tmp/.github" "$tmp/apps/admin"
   cat > "$tmp/.github/dependabot.yml" <<'YAML'
 version: 2
@@ -47,7 +54,23 @@ YAML
   pass "script fails when dependabot contains missing directory"
 }
 
+test_fails_when_config_is_missing() {
+  local tmp
+  tmp="$(mktemp -d "$TMPDIR_ROOT/missing-config-test.XXXXXX")"
+  mkdir -p "$tmp"
+
+  set +e
+  python3 "$SCRIPT" --root "$tmp" --config "$tmp/.github/dependabot.yml" >"$tmp/out.log" 2>&1
+  local code=$?
+  set -e
+
+  [[ $code -eq 1 ]] || fail "expected exit code 1 for missing dependabot config"
+  rg -q "Dependabot config file not found" "$tmp/out.log" || fail "expected missing config message"
+  pass "script fails with clear message when dependabot config is missing"
+}
+
 test_passes_for_existing_directories
 test_fails_for_missing_directory
+test_fails_when_config_is_missing
 
 echo "check_dependabot_directories tests passed"
