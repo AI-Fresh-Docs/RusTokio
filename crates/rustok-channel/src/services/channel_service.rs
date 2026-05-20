@@ -679,10 +679,11 @@ impl ChannelService {
             if let Some(oauth_app_value) = input.oauth_app_id {
                 oauth_app_id = normalize_optional_patch_text(oauth_app_value)
                     .map(|value| {
-                        Uuid::parse_str(value.as_str()).map_err(|_| {
-                            ChannelError::InvalidPolicyDefinition(
-                                "oauth_app_id must be a valid UUID".to_string(),
-                            )
+                        Uuid::parse_str(value.as_str()).map_err(|e| {
+                            ChannelError::InvalidPolicyDefinition(format!(
+                                "oauth_app_id must be a valid UUID: {}",
+                                e
+                            ))
                         })
                     })
                     .transpose()?;
