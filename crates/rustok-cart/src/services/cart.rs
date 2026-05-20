@@ -1375,8 +1375,10 @@ impl CartService {
             .tax_service
             .calculate(TaxCalculationInput {
                 currency_code: cart.currency_code.clone(),
+                channel_id: cart.channel_id,
                 policy: TaxPolicySnapshot {
                     provider_id: region.tax_provider_id.clone(),
+                    channel_provider_id: channel_tax_provider_id(&region.metadata, cart.channel_id),
                     country_code: cart.country_code.clone(),
                     tax_rate,
                     tax_included: region.tax_included,
@@ -1679,6 +1681,20 @@ fn net_total(subtotal_amount: Decimal, adjustment_total: Decimal) -> Decimal {
     } else {
         subtotal_amount - adjustment_total
     }
+}
+
+
+fn channel_tax_provider_id(metadata: &Value, channel_id: Option<Uuid>) -> Option<String> {
+    let channel_id = channel_id?;
+    let channel_key = channel_id.to_string();
+    metadata
+        .get("channel_tax_provider_ids")
+        .and_then(Value::as_object)
+        .and_then(|mapping| mapping.get(&channel_key))
+        .and_then(Value::as_str)
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
+        .map(|value| value.to_string())
 }
 
 fn seller_id_from_metadata(metadata: &Value) -> Option<String> {
