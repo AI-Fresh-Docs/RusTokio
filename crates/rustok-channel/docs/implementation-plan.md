@@ -96,8 +96,9 @@ post-v0 rollout policy lifecycle и runtime integration parity.
 
 - [x] довести policy trace в admin bootstrap/runtime diagnostics;
 - [x] добавить базовые operator flows для policy-set activation и policy-rule authoring/removal;
-- [x] добавить policy rule update/reorder/disable lifecycle на уровне `ChannelService` и REST transport;
-- [x] добавить targeted tests на deterministic rule order и inactive-rule exclusion.
+- [x] добавить policy rule update/reorder/disable lifecycle на уровне `ChannelService`, REST transport и admin UI controls;
+- [x] добавить targeted tests на deterministic rule order и inactive-rule exclusion;
+- [ ] решить, остаётся ли built-in host slice отдельным fast-path после полного policy rollout.
 
 ### 3. Admin operator UX parity
 
