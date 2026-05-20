@@ -42,6 +42,11 @@ impl TestModule {
         self.should_fail_enable = true;
         self
     }
+
+    fn with_disable_failure(mut self) -> Self {
+        self.should_fail_disable = true;
+        self
+    }
 }
 
 impl rustok_core::MigrationSource for TestModule {
@@ -592,5 +597,55 @@ async fn toggle_without_actor_records_null_requested_by() {
     assert!(
         operation.requested_by.is_none(),
         "toggle_module wrapper without actor must persist requested_by as NULL",
+    );
+}
+
+#[tokio::test]
+async fn hook_failure_with_actor_records_failed_operation_with_actor() {
+    let db = setup_db().await;
+    let tenant_id = uuid::Uuid::new_v4();
+    seed_tenant(&db, tenant_id).await;
+
+    let registry = ModuleRegistry::new().register(TestModule::new("billing"));
+
+    ModuleLifecycleService::toggle_module_with_actor(
+        &db,
+        &registry,
+        tenant_id,
+        "billing",
+        true,
+        Some("admin:user-2".to_string()),
+    )
+    .await
+    .expect("enable should succeed");
+
+    let failing_registry =
+        ModuleRegistry::new().register(TestModule::new("billing").with_disable_failure());
+    let err = ModuleLifecycleService::toggle_module_with_actor(
+        &db,
+        &failing_registry,
+        tenant_id,
+        "billing",
+        false,
+        Some("admin:user-2".to_string()),
+    )
+    .await
+    .expect_err("disable hook failure expected");
+    assert!(matches!(err, ToggleModuleError::HookFailed(_)));
+
+    let failed_operation = module_operations::Entity::find()
+        .filter(module_operations::Column::TenantId.eq(tenant_id))
+        .filter(module_operations::Column::ModuleSlug.eq("billing"))
+        .filter(module_operations::Column::RequestedEnabled.eq(false))
+        .one(&db)
+        .await
+        .expect("query failed operation")
+        .expect("failed operation exists");
+
+    assert_eq!(failed_operation.status, "failed");
+    assert_eq!(
+        failed_operation.requested_by.as_deref(),
+        Some("admin:user-2"),
+        "actor metadata must be preserved for failed operations too",
     );
 }
