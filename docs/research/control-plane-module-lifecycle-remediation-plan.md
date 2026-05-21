@@ -376,29 +376,29 @@ rollback-стратегии и Definition of Done по итерациям.
 **Scope.**
 
 - [ ] Полный canonical manifest snapshot serializer.
-- [ ] SHA-256 (hex, 64 chars) как единственный hash contract.
-- [ ] Migration dependency descriptors в module-owned exporters.
-- [ ] Topological sort + lexical tie-breaker + жёсткие ошибки для missing/cycle.
+- [x] SHA-256 (hex, 64 chars) как единственный hash contract.
+- [x] Migration dependency descriptors в module-owned exporters.
+- [x] Topological sort + lexical tie-breaker + жёсткие ошибки для missing/cycle.
 
 **Deliverables.**
 
 - [ ] Общий hash builder для GraphQL, Leptos SSR, BuildService.
-- [ ] Удалён hardcoded dependency match из migrator core.
-- [ ] Расширенные tests на determinism ordering и dependency validation.
+- [x] Удалён hardcoded dependency match из migrator core.
+- [x] Расширенные tests на determinism ordering и dependency validation.
 
 ### Итерация E — закрыть P1.3/P2 (CI contract + docs/ADR sync)
 
 **Scope.**
 
-- [ ] Явная фиксация quality gates как non-regression contract.
-- [ ] Проверка актуальности Dependabot directories.
-- [ ] Единый источник coverage threshold.
+- [x] Явная фиксация quality gates как non-regression contract.
+- [x] Проверка актуальности Dependabot directories.
+- [x] Единый источник coverage threshold.
 - [ ] Синхронизация central/local docs + ADR updates.
 
 **Deliverables.**
 
-- [ ] Обновлён verification-plan с checklist’ом gates.
-- [ ] Script/test для dependabot directory validation.
+- [x] Обновлён verification-plan с checklist’ом gates.
+- [x] Script/test для dependabot directory validation.
 - [ ] ADR(ы) по hook semantics и/или migration descriptor contract (если публичный контракт изменён).
 - [x] `deep-research-report (4).md` помечен как historical input + ссылка на этот remediation backlog.
 
