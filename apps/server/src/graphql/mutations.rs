@@ -1240,6 +1240,20 @@ mod tests {
         assert!(err.message.contains("required"));
     }
 
+    #[test]
+    fn platform_composition_build_error_maps_revision_conflict_to_conflict_message() {
+        let err = map_platform_composition_build_error(PlatformCompositionBuildError::Composition(
+            PlatformCompositionError::RevisionConflict {
+                expected: 11,
+                current: 13,
+            },
+        ));
+        assert_eq!(
+            err.message,
+            "Platform composition revision conflict: expected 11, current 13"
+        );
+    }
+
     #[tokio::test]
     async fn validate_custom_fields_applies_defaults() {
         let tenant_id = Uuid::new_v4();
