@@ -261,16 +261,16 @@ manifest fields. Это повышает риск drift между surfaces и �
 
 #### 2.2 Dependency-aware migration ordering через metadata
 
-- [ ] Ввести descriptor contract (например `MigrationDescriptor { migration, after }`) в module-owned exporters.
-- [ ] Реализовать topological sort с lexical tie-breaker.
-- [ ] Сделать missing dependency и cycle явной ошибкой (test/runtime), без fallback “append remaining”.
-- [ ] Перевести текущую зависимость taxonomy/product-tags на descriptor.
+- [x] Ввести descriptor contract (например `MigrationDescriptor { migration, after }`) в module-owned exporters.
+- [x] Реализовать topological sort с lexical tie-breaker.
+- [x] Сделать missing dependency и cycle явной ошибкой (test/runtime), без fallback “append remaining”.
+- [x] Перевести текущую зависимость taxonomy/product-tags на descriptor.
 
 **Обязательные тесты закрытия:**
 
-- [ ] cross-module ordering по descriptor metadata;
-- [ ] deterministic order при отсутствии явной зависимости;
-- [ ] missing dependency/cycle завершаются контролируемой ошибкой.
+- [x] cross-module ordering по descriptor metadata;
+- [x] deterministic order при отсутствии явной зависимости;
+- [x] missing dependency/cycle завершаются контролируемой ошибкой.
 
 #### 2.3 CI non-regression как контракт
 
