@@ -472,24 +472,25 @@ enum InventoryHealthState {
 }
 
 fn summarize_inventory(variants: &[InventoryVariant]) -> InventorySummary {
+    let (low_stock, backorder, out_of_stock) = variants.iter().fold(
+        (0_usize, 0_usize, 0_usize),
+        |(low_stock, backorder, out_of_stock), variant| match inventory_health_state(variant) {
+            InventoryHealthState::LowStock => (low_stock + 1, backorder, out_of_stock),
+            InventoryHealthState::Backorder => (low_stock, backorder + 1, out_of_stock),
+            InventoryHealthState::OutOfStock => (low_stock, backorder, out_of_stock + 1),
+            InventoryHealthState::Healthy => (low_stock, backorder, out_of_stock),
+        },
+    );
+
     InventorySummary {
         variant_count: variants.len(),
         total_quantity: variants
             .iter()
             .map(|variant| variant.inventory_quantity)
             .sum(),
-        low_stock: variants
-            .iter()
-            .filter(|variant| inventory_health_state(variant) == InventoryHealthState::LowStock)
-            .count(),
-        backorder: variants
-            .iter()
-            .filter(|variant| inventory_health_state(variant) == InventoryHealthState::Backorder)
-            .count(),
-        out_of_stock: variants
-            .iter()
-            .filter(|variant| inventory_health_state(variant) == InventoryHealthState::OutOfStock)
-            .count(),
+        low_stock,
+        backorder,
+        out_of_stock,
     }
 }
 
@@ -591,6 +592,20 @@ mod tests {
             "Low stock"
         );
         assert_eq!(inventory_health_label(None, &healthy), "Healthy");
+    }
+
+    #[test]
+    fn summary_counts_are_partitioned_by_health_state() {
+        let variants = vec![
+            variant(true, "deny", LOW_STOCK_THRESHOLD + 5),
+            variant(true, "deny", LOW_STOCK_THRESHOLD),
+            variant(false, "deny", 0),
+            variant(true, "continue", -1),
+        ];
+
+        let summary = summarize_inventory(&variants);
+        let covered = summary.low_stock + summary.out_of_stock + summary.backorder;
+        assert_eq!(covered, summary.variant_count - 1);
     }
 }
 
