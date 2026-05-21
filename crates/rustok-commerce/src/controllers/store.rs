@@ -461,7 +461,6 @@ pub async fn create_cart(
     params(("id" = Uuid, Path, description = "Cart ID")),
     responses(
         (status = 200, description = "Cart details", body = CartResponse),
-        (status = 400, description = "Cart is completed and cannot create payment collection"),
         (status = 401, description = "Authentication required for customer-owned carts"),
         (status = 404, description = "Cart not found")
     )
@@ -503,7 +502,6 @@ pub async fn get_cart(
     request_body = StoreUpdateCartInput,
     responses(
         (status = 200, description = "Updated cart context", body = StoreCartResponse),
-        (status = 400, description = "Cart is completed and cannot create payment collection"),
         (status = 401, description = "Authentication required for customer-owned carts"),
         (status = 404, description = "Cart not found")
     )
@@ -560,7 +558,6 @@ pub async fn update_cart_context(
     request_body = StoreAddCartLineItemInput,
     responses(
         (status = 200, description = "Updated cart", body = CartResponse),
-        (status = 400, description = "Cart is completed and cannot create payment collection"),
         (status = 401, description = "Authentication required for customer-owned carts"),
         (status = 404, description = "Cart not found")
     )
@@ -837,7 +834,6 @@ pub async fn create_payment_collection(
     request_body = StoreCompleteCartInput,
     responses(
         (status = 200, description = "Checkout completed", body = CompleteCheckoutResponse),
-        (status = 400, description = "Cart is completed and cannot create payment collection"),
         (status = 401, description = "Authentication required for customer-owned carts"),
         (status = 404, description = "Cart not found")
     )
