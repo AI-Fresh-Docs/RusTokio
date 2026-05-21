@@ -137,6 +137,20 @@ pub fn AiAdmin() -> impl IntoView {
     let product_source_meta_description = RwSignal::new(String::new());
     let product_copy_instructions = RwSignal::new(String::new());
     let product_assistant_prompt = RwSignal::new(String::new());
+    let product_attributes_title = RwSignal::new(t(
+        ui_locale.as_deref(),
+        "ai.job.productAttributesTitle",
+        "Product Attributes",
+    ));
+    let product_attributes_locale = RwSignal::new(String::new());
+    let product_attributes_product_id = RwSignal::new(String::new());
+    let product_attributes_category_slug = RwSignal::new(String::new());
+    let product_attributes_source_locale = RwSignal::new(String::new());
+    let product_attributes_source_title = RwSignal::new(String::new());
+    let product_attributes_source_description = RwSignal::new(String::new());
+    let product_attributes_image_urls = RwSignal::new(String::new());
+    let product_attributes_copy_instructions = RwSignal::new(String::new());
+    let product_attributes_assistant_prompt = RwSignal::new(String::new());
     let blog_title = RwSignal::new(t(ui_locale.as_deref(), "ai.job.blogTitle", "Blog Draft"));
     let blog_locale = RwSignal::new(String::new());
     let blog_post_id = RwSignal::new(String::new());
@@ -234,6 +248,11 @@ pub fn AiAdmin() -> impl IntoView {
         "ai.feedback.productCompleted",
         "Product copy job `{title}` completed.",
     );
+    let product_attributes_completed_template = t(
+        ui_locale.as_deref(),
+        "ai.feedback.productAttributesCompleted",
+        "Product attributes job `{title}` completed.",
+    );
     let blog_completed_template = t(
         ui_locale.as_deref(),
         "ai.feedback.blogCompleted",
@@ -284,6 +303,11 @@ pub fn AiAdmin() -> impl IntoView {
         "ai.error.selectProductTaskProfile",
         "Select the `product_copy` task profile before generating localized product copy.",
     );
+    let err_select_product_attributes_task = t(
+        ui_locale.as_deref(),
+        "ai.error.selectProductAttributesTaskProfile",
+        "Select the `product_attributes` task profile before generating product attributes.",
+    );
     let err_select_blog_task = t(
         ui_locale.as_deref(),
         "ai.error.selectBlogTaskProfile",
@@ -303,6 +327,11 @@ pub fn AiAdmin() -> impl IntoView {
         ui_locale.as_deref(),
         "ai.error.assembleProductPayload",
         "Failed to assemble product copy payload. Check the product id.",
+    );
+    let err_product_attributes_payload = t(
+        ui_locale.as_deref(),
+        "ai.error.assembleProductAttributesPayload",
+        "Failed to assemble product attributes payload. Check product id and seed fields.",
     );
     let err_blog_payload = t(
         ui_locale.as_deref(),
@@ -330,6 +359,7 @@ pub fn AiAdmin() -> impl IntoView {
     let alloy_session_query_writer = query_writer.clone();
     let image_session_query_writer = query_writer.clone();
     let product_session_query_writer = query_writer.clone();
+    let product_attributes_session_query_writer = query_writer.clone();
     let blog_session_query_writer = query_writer.clone();
 
     Effect::new(
@@ -1162,7 +1192,7 @@ pub fn AiAdmin() -> impl IntoView {
 
         set_feedback.set(None);
         set_error.set(None);
-        let product_completed_template = product_completed_template.clone();
+        let product_completed_template = product_attributes_completed_template.clone();
         let product_session_query_writer = product_session_query_writer.clone();
         spawn_local(async move {
             let result = api::run_task_job(
@@ -1179,6 +1209,61 @@ pub fn AiAdmin() -> impl IntoView {
                     let session_id = result.session.session.id.clone();
                     set_selected_session.set(Some(session_id.clone()));
                     product_session_query_writer
+                        .replace_value(AdminQueryKey::SessionId.as_str(), session_id);
+                    set_feedback.set(Some(
+                        product_completed_template
+                            .replace("{title}", result.session.session.title.as_str()),
+                    ));
+                    set_refresh_nonce.update(|value| *value += 1);
+                }
+                Err(err) => set_error.set(Some(err.to_string())),
+            }
+        });
+    };
+
+
+    let on_run_product_attributes_job = move |ev: SubmitEvent| {
+        ev.prevent_default();
+        let task_profile_id = selected_task_profile.get_untracked();
+        if task_profile_id.trim().is_empty() {
+            set_error.set(Some(err_select_product_attributes_task.clone()));
+            return;
+        }
+
+        let payload = product_attributes_task_payload(
+            product_attributes_product_id.get_untracked(),
+            optional_text(product_attributes_category_slug.get_untracked()),
+            optional_text(product_attributes_source_locale.get_untracked()),
+            optional_text(product_attributes_source_title.get_untracked()),
+            optional_text(product_attributes_source_description.get_untracked()),
+            product_attributes_image_urls.get_untracked(),
+            optional_text(product_attributes_copy_instructions.get_untracked()),
+            optional_text(product_attributes_assistant_prompt.get_untracked()),
+        );
+        let Ok(payload) = payload else {
+            set_error.set(Some(err_product_attributes_payload.clone()));
+            return;
+        };
+
+        set_feedback.set(None);
+        set_error.set(None);
+        let product_completed_template = product_completed_template.clone();
+        let product_attributes_session_query_writer = product_attributes_session_query_writer.clone();
+        spawn_local(async move {
+            let result = api::run_task_job(
+                product_attributes_title.get_untracked(),
+                optional_text(selected_provider.get_untracked()),
+                task_profile_id,
+                Some("direct".to_string()),
+                optional_text(product_attributes_locale.get_untracked()),
+                payload,
+            )
+            .await;
+            match result {
+                Ok(result) => {
+                    let session_id = result.session.session.id.clone();
+                    set_selected_session.set(Some(session_id.clone()));
+                    product_attributes_session_query_writer
                         .replace_value(AdminQueryKey::SessionId.as_str(), session_id);
                     set_feedback.set(Some(
                         product_completed_template
@@ -1427,6 +1512,7 @@ pub fn AiAdmin() -> impl IntoView {
                     let ui_locale_diagnostics = ui_locale.clone();
                     let ui_locale_blog = ui_locale.clone();
                     let ui_locale_product = ui_locale.clone();
+                    let ui_locale_product_attributes = ui_locale.clone();
                     let ui_locale_image = ui_locale.clone();
                     let ui_locale_alloy = ui_locale.clone();
                     let ui_locale_new_session = ui_locale.clone();
@@ -1445,12 +1531,14 @@ pub fn AiAdmin() -> impl IntoView {
                     let reset_task_form = reset_task_form.clone();
                     let on_run_blog_job = on_run_blog_job.clone();
                     let on_run_product_job = on_run_product_job.clone();
+                    let on_run_product_attributes_job = on_run_product_attributes_job.clone();
                     let on_run_image_job = on_run_image_job.clone();
                     let on_run_alloy_job = on_run_alloy_job.clone();
                     let on_start_session = on_start_session.clone();
                     let on_send_message = on_send_message.clone();
                     let blog_transport_locale = ui_locale.clone();
                     let product_transport_locale = ui_locale.clone();
+                    let product_attributes_transport_locale = ui_locale.clone();
                     let image_transport_locale = ui_locale.clone();
                     let alloy_transport_locale = ui_locale.clone();
                     let session_transport_locale = ui_locale.clone();
@@ -1893,12 +1981,54 @@ pub fn AiAdmin() -> impl IntoView {
                                         <TextField label=t(ui_locale_product.as_deref(), "ai.field.assistantPrompt", "Assistant prompt") value=product_assistant_prompt />
                                         <div class="rounded-lg border border-border px-3 py-2 text-sm text-muted-foreground">
                                             {move || direct_transport_summary(
-                                                product_transport_locale.as_deref(),
+                                                product_attributes_transport_locale.as_deref(),
                                                 selected_provider.get().as_str(),
                                                 selected_task_profile.get().as_str(),
                                             )}
                                         </div>
                                         <button type="submit" class="rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground">{t(ui_locale_product.as_deref(), "ai.action.generateProductCopy", "Generate product copy")}</button>
+                                    </form>
+                                </Card>
+
+
+                                <Card title=t(ui_locale_product_attributes.as_deref(), "ai.card.productAttributes", "Product Attributes")>
+                                    <form class="space-y-3" on:submit=on_run_product_attributes_job.clone()>
+                                        <TextField label=t(ui_locale_product_attributes.as_deref(), "ai.field.jobTitle", "Job title") value=product_attributes_title />
+                                        <TextField
+                                            label=t(ui_locale_product_attributes.as_deref(), "ai.field.locale", "Locale")
+                                            value=product_attributes_locale
+                                            placeholder=t(ui_locale_product_attributes.as_deref(), "ai.field.localeAutoPlaceholder", "auto (request locale -> tenant default -> en)")
+                                        />
+                                        <TextField label=t(ui_locale_product_attributes.as_deref(), "ai.field.productId", "Product id") value=product_attributes_product_id />
+                                        <TextField label=t(ui_locale_product_attributes.as_deref(), "ai.field.categorySlug", "Category slug") value=product_attributes_category_slug />
+                                        <TextField label=t(ui_locale_product_attributes.as_deref(), "ai.field.sourceLocale", "Source locale") value=product_attributes_source_locale />
+                                        <TextField label=t(ui_locale_product_attributes.as_deref(), "ai.field.sourceTitleOverride", "Source title override") value=product_attributes_source_title />
+                                        <label class="block space-y-1">
+                                            <span class="text-sm text-muted-foreground">{t(ui_locale_product_attributes.as_deref(), "ai.field.sourceDescriptionOverride", "Source description override")}</span>
+                                            <textarea
+                                                class="min-h-24 w-full rounded-lg border border-input bg-background px-3 py-2 text-sm"
+                                                prop:value=product_attributes_source_description
+                                                on:input=move |ev| product_attributes_source_description.set(event_target_value(&ev))
+                                            />
+                                        </label>
+                                        <TextField label=t(ui_locale_product_attributes.as_deref(), "ai.field.imageUrlsCsv", "Image URLs (csv)") value=product_attributes_image_urls />
+                                        <label class="block space-y-1">
+                                            <span class="text-sm text-muted-foreground">{t(ui_locale_product_attributes.as_deref(), "ai.field.copyInstructions", "Copy instructions")}</span>
+                                            <textarea
+                                                class="min-h-20 w-full rounded-lg border border-input bg-background px-3 py-2 text-sm"
+                                                prop:value=product_attributes_copy_instructions
+                                                on:input=move |ev| product_attributes_copy_instructions.set(event_target_value(&ev))
+                                            />
+                                        </label>
+                                        <TextField label=t(ui_locale_product_attributes.as_deref(), "ai.field.assistantPrompt", "Assistant prompt") value=product_attributes_assistant_prompt />
+                                        <div class="rounded-lg border border-border px-3 py-2 text-sm text-muted-foreground">
+                                            {move || direct_transport_summary(
+                                                product_transport_locale.as_deref(),
+                                                selected_provider.get().as_str(),
+                                                selected_task_profile.get().as_str(),
+                                            )}
+                                        </div>
+                                        <button type="submit" class="rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground">{t(ui_locale_product_attributes.as_deref(), "ai.action.generateProductAttributes", "Generate product attributes")}</button>
                                     </form>
                                 </Card>
 
