@@ -2908,6 +2908,76 @@ fn product_task_payload(
     serde_json::to_string(&payload)
 }
 
+
+fn parse_csv_urls(value: String) -> Result<Vec<String>, serde_json::Error> {
+    let entries = parse_csv(value);
+    let mut parsed = Vec::with_capacity(entries.len());
+    for entry in entries {
+        let normalized = entry.trim();
+        let is_http = normalized.starts_with("http://") || normalized.starts_with("https://");
+        if !is_http {
+            return Err(serde_json::Error::io(std::io::Error::new(
+                std::io::ErrorKind::InvalidInput,
+                "only http/https image URLs are allowed",
+            )));
+        }
+        if normalized.split("//").nth(1).unwrap_or_default().is_empty() {
+            return Err(serde_json::Error::io(std::io::Error::new(
+                std::io::ErrorKind::InvalidInput,
+                "image URL host is required",
+            )));
+        }
+        parsed.push(normalized.to_string());
+    }
+    Ok(parsed)
+}
+
+fn product_attributes_task_payload(
+    product_id: String,
+    category_slug: Option<String>,
+    source_locale: Option<String>,
+    source_title: Option<String>,
+    source_description: Option<String>,
+    image_urls_csv: String,
+    copy_instructions: Option<String>,
+    assistant_prompt: Option<String>,
+) -> Result<String, serde_json::Error> {
+    let product_id = uuid::Uuid::parse_str(product_id.trim()).map_err(|error| {
+        serde_json::Error::io(std::io::Error::new(std::io::ErrorKind::InvalidInput, error))
+    })?;
+
+    let source_title = source_title.map(|value| value.trim().to_string());
+    let source_description = source_description.map(|value| value.trim().to_string());
+
+    if source_title.as_deref().unwrap_or_default().is_empty()
+        && source_description
+            .as_deref()
+            .unwrap_or_default()
+            .is_empty()
+    {
+        return Err(serde_json::Error::io(std::io::Error::new(
+            std::io::ErrorKind::InvalidInput,
+            "source title or source description is required",
+        )));
+    }
+
+    let image_urls = parse_csv_urls(image_urls_csv)?;
+
+    let payload = serde_json::json!({
+        "product_id": product_id,
+        "category_slug": category_slug
+            .map(|value| value.trim().to_lowercase())
+            .filter(|value| !value.is_empty()),
+        "source_locale": source_locale,
+        "source_title": source_title,
+        "source_description": source_description,
+        "image_urls": image_urls,
+        "copy_instructions": copy_instructions,
+        "assistant_prompt": assistant_prompt,
+    });
+    serde_json::to_string(&payload)
+}
+
 fn blog_task_payload(
     post_id: Option<String>,
     source_locale: Option<String>,
@@ -2951,4 +3021,40 @@ fn blog_task_payload(
         "assistant_prompt": assistant_prompt,
     });
     serde_json::to_string(&payload)
+}
+
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn product_attributes_payload_requires_seed_content() {
+        let result = product_attributes_task_payload(
+            uuid::Uuid::new_v4().to_string(),
+            Some("Electronics".to_string()),
+            Some("en".to_string()),
+            Some("  ".to_string()),
+            Some("".to_string()),
+            String::new(),
+            None,
+            None,
+        );
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn product_attributes_payload_rejects_non_http_urls() {
+        let result = product_attributes_task_payload(
+            uuid::Uuid::new_v4().to_string(),
+            Some("Electronics".to_string()),
+            Some("en".to_string()),
+            Some("Title".to_string()),
+            None,
+            "ftp://example.com/a.jpg".to_string(),
+            None,
+            None,
+        );
+        assert!(result.is_err());
+    }
 }
