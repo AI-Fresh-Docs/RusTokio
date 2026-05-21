@@ -1051,6 +1051,40 @@ async fn apply_percentage_shipping_promotion_uses_shipping_total_as_base() {
 }
 
 #[tokio::test]
+async fn completed_cart_rejects_typed_promotion_mutations() {
+    let service = setup().await;
+    let tenant_id = support::TEST_TENANT_ID;
+
+    let cart = service
+        .create_cart(tenant_id, create_cart_input())
+        .await
+        .unwrap();
+    let cart = service
+        .add_line_item(tenant_id, cart.id, line_item_input())
+        .await
+        .unwrap();
+    let completed = service.complete_cart(tenant_id, cart.id).await.unwrap();
+    assert_eq!(completed.status, "completed");
+
+    let err = service
+        .apply_percentage_promotion(
+            tenant_id,
+            cart.id,
+            None,
+            "promo-on-completed",
+            Decimal::from_str("10.00").unwrap(),
+            serde_json::json!({"source": "completed-guard-test"}),
+        )
+        .await
+        .unwrap_err();
+
+    match err {
+        CartError::InvalidTransition { from, .. } => assert_eq!(from, "completed"),
+        other => panic!("expected invalid transition, got {other:?}"),
+    }
+}
+
+#[tokio::test]
 async fn completed_cart_rejects_mutations() {
     let service = setup().await;
     let tenant_id = support::TEST_TENANT_ID;
