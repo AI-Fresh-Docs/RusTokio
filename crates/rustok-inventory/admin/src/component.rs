@@ -493,6 +493,12 @@ struct InventoryHealthCounts {
     out_of_stock: usize,
 }
 
+impl InventoryHealthCounts {
+    fn non_healthy_total(self) -> usize {
+        self.low_stock + self.backorder + self.out_of_stock
+    }
+}
+
 fn summarize_inventory_health_counts(variants: &[InventoryVariant]) -> InventoryHealthCounts {
     variants
         .iter()
@@ -617,8 +623,9 @@ mod tests {
         ];
 
         let summary = summarize_inventory(&variants);
-        let covered = summary.low_stock + summary.out_of_stock + summary.backorder;
+        let covered = summarize_inventory_health_counts(&variants).non_healthy_total();
         assert_eq!(covered, summary.variant_count - 1);
+        assert_eq!(covered, summary.low_stock + summary.out_of_stock + summary.backorder);
     }
 
     #[test]
