@@ -39,6 +39,8 @@ mod direct_domain_commerce;
 mod direct_domain_content;
 #[path = "direct_domain_orders.rs"]
 mod direct_domain_orders;
+#[path = "direct_order_generation.rs"]
+mod direct_order_generation;
 #[path = "direct_order_tasks.rs"]
 mod direct_order_tasks;
 #[path = "direct_product_attributes.rs"]
@@ -46,6 +48,10 @@ mod direct_product_attributes;
 use direct_domain_commerce::register_commerce_direct_handlers;
 use direct_domain_content::register_content_direct_handlers;
 use direct_domain_orders::register_order_direct_handlers;
+pub(crate) use direct_order_generation::{
+    generate_order_analytics, generate_order_ops_assistant, GeneratedOrderAnalytics,
+    GeneratedOrderOpsAssistant,
+};
 
 pub struct DirectExecutionRequest {
     pub task_slug: String,
@@ -1013,27 +1019,6 @@ pub(crate) struct GeneratedFlexAttribute {
     value: String,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub(crate) struct GeneratedOrderAnalytics {
-    summary: String,
-    #[serde(default)]
-    key_findings: Vec<String>,
-    #[serde(default)]
-    risk_flags: Vec<String>,
-    #[serde(default)]
-    recommended_actions: Vec<String>,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub(crate) struct GeneratedOrderOpsAssistant {
-    recommended_action: String,
-    rationale: String,
-    #[serde(default)]
-    prefill: Value,
-    requires_human: bool,
-    confidence: u8,
-}
-
 fn resolve_blog_source_content(
     existing_post: Option<&rustok_blog::PostResponse>,
     input: &AiBlogDraftTaskInput,
@@ -1336,133 +1321,6 @@ pub(crate) async fn generate_product_attributes(
         ));
     }
     Ok(generated)
-}
-
-pub(crate) async fn generate_order_analytics(
-    provider: &Arc<dyn ModelProvider>,
-    provider_config: &AiProviderConfig,
-    system_prompt: Option<&str>,
-    target_locale: &str,
-    input: &AiOrderAnalyticsTaskInput,
-) -> AiResult<GeneratedOrderAnalytics> {
-    let locale_instruction = concat!(
-        "Return valid JSON only with keys `summary`, `key_findings`, `risk_flags`, `recommended_actions`. ",
-        "All array values must be arrays of strings."
-    );
-    let system = match system_prompt {
-        Some(system_prompt) if !system_prompt.trim().is_empty() => {
-            format!("{system_prompt}\n\n{locale_instruction}")
-        }
-        _ => locale_instruction.to_string(),
-    };
-    let prompt = json!({
-        "task": "order_analytics",
-        "target_locale": target_locale,
-        "input": input,
-    })
-    .to_string();
-    let response = provider
-        .complete(
-            provider_config,
-            ProviderChatRequest {
-                model: provider_config.model.clone(),
-                messages: vec![
-                    ChatMessage {
-                        role: ChatMessageRole::System,
-                        content: Some(system),
-                        name: None,
-                        tool_call_id: None,
-                        tool_calls: Vec::new(),
-                        metadata: json!({"locale": target_locale, "direct_generation": "order_analytics"}),
-                    },
-                    ChatMessage {
-                        role: ChatMessageRole::User,
-                        content: Some(prompt),
-                        name: None,
-                        tool_call_id: None,
-                        tool_calls: Vec::new(),
-                        metadata: json!({"locale": target_locale, "direct_generation": "order_analytics"}),
-                    },
-                ],
-                tools: Vec::new(),
-                temperature: provider_config.temperature,
-                max_tokens: provider_config.max_tokens,
-                locale: Some(target_locale.to_string()),
-            },
-        )
-        .await?;
-    let content = response.assistant_message.content.ok_or_else(|| {
-        AiError::Provider("provider returned empty content for order_analytics".to_string())
-    })?;
-    let parsed = parse_json_object_from_text(&content)?;
-    serde_json::from_value(parsed).map_err(AiError::Json)
-}
-
-pub(crate) async fn generate_order_ops_assistant(
-    provider: &Arc<dyn ModelProvider>,
-    provider_config: &AiProviderConfig,
-    system_prompt: Option<&str>,
-    target_locale: &str,
-    input: &AiOrderOpsAssistantTaskInput,
-) -> AiResult<GeneratedOrderOpsAssistant> {
-    let locale_instruction = concat!(
-        "Return valid JSON only with keys `recommended_action`, `rationale`, `prefill`, `requires_human`, `confidence`. ",
-        "`confidence` must be an integer from 0 to 100."
-    );
-    let system = match system_prompt {
-        Some(system_prompt) if !system_prompt.trim().is_empty() => {
-            format!("{system_prompt}\n\n{locale_instruction}")
-        }
-        _ => locale_instruction.to_string(),
-    };
-    let prompt = json!({
-        "task": "order_ops_assistant",
-        "target_locale": target_locale,
-        "input": input,
-    })
-    .to_string();
-    let response = provider
-        .complete(
-            provider_config,
-            ProviderChatRequest {
-                model: provider_config.model.clone(),
-                messages: vec![
-                    ChatMessage {
-                        role: ChatMessageRole::System,
-                        content: Some(system),
-                        name: None,
-                        tool_call_id: None,
-                        tool_calls: Vec::new(),
-                        metadata: json!({"locale": target_locale, "direct_generation": "order_ops_assistant"}),
-                    },
-                    ChatMessage {
-                        role: ChatMessageRole::User,
-                        content: Some(prompt),
-                        name: None,
-                        tool_call_id: None,
-                        tool_calls: Vec::new(),
-                        metadata: json!({"locale": target_locale, "direct_generation": "order_ops_assistant"}),
-                    },
-                ],
-                tools: Vec::new(),
-                temperature: provider_config.temperature,
-                max_tokens: provider_config.max_tokens,
-                locale: Some(target_locale.to_string()),
-            },
-        )
-        .await?;
-    let content = response.assistant_message.content.ok_or_else(|| {
-        AiError::Provider("provider returned empty content for order_ops_assistant".to_string())
-    })?;
-    let parsed = parse_json_object_from_text(&content)?;
-    let decision: GeneratedOrderOpsAssistant =
-        serde_json::from_value(parsed).map_err(AiError::Json)?;
-    if decision.confidence > 100 {
-        return Err(AiError::Validation(
-            "order_ops_assistant confidence must be between 0 and 100".to_string(),
-        ));
-    }
-    Ok(decision)
 }
 
 #[allow(clippy::too_many_arguments)]
