@@ -204,3 +204,38 @@ async fn successful_enqueue_keeps_hash_parity_between_snapshot_and_build() {
     assert_eq!(result.snapshot.manifest_hash, expected_hash);
     assert_eq!(result.build.manifest_hash, expected_hash);
 }
+
+#[tokio::test]
+async fn successful_enqueue_keeps_manifest_snapshot_parity_with_hash() {
+    let db = setup_db(true).await;
+    let registry = ModuleRegistry::new();
+    let publisher = Arc::new(NoopBuildEventPublisher);
+    let manifest = ModulesManifest::default();
+
+    let seeded = PlatformCompositionService::active_snapshot(&db)
+        .await
+        .expect("seed active snapshot");
+
+    let result = PlatformCompositionBuildService::update_manifest_and_request_build(
+        &db,
+        publisher,
+        &registry,
+        Some(seeded.revision),
+        manifest,
+        ManifestDiff::default(),
+        "test-admin".to_string(),
+        "snapshot parity case".to_string(),
+    )
+    .await
+    .expect("build request should succeed");
+
+    let persisted_snapshot: serde_json::Value = serde_json::from_str(&result.build.manifest_snapshot)
+        .expect("manifest snapshot in build should be valid json");
+    let expected_snapshot = PlatformCompositionService::manifest_snapshot_json(&result.snapshot.manifest)
+        .expect("serialize snapshot from platform state manifest");
+    assert_eq!(persisted_snapshot, expected_snapshot);
+
+    let expected_hash = rustok_api::manifest_hash::hash_manifest_snapshot(&persisted_snapshot);
+    assert_eq!(result.build.manifest_hash, expected_hash);
+    assert_eq!(result.snapshot.manifest_hash, expected_hash);
+}
