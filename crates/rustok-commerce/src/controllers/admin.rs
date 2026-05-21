@@ -2352,7 +2352,15 @@ mod tests {
                         metadata: json!({ "source": "admin-order-list" }),
                     }],
                     adjustments: Vec::new(),
-                    tax_lines: Vec::new(),
+                    tax_lines: vec![CreateOrderTaxLineInput {
+                        line_item_index: Some(0),
+                        shipping_option_index: None,
+                        rate: Decimal::from_str("10.00").expect("valid decimal"),
+                        amount: Decimal::from_str("2.00").expect("valid decimal"),
+                        name: "VAT".to_string(),
+                        provider_id: "region_default".to_string(),
+                        metadata: json!({ "tax_included": false }),
+                    }],
                     metadata: json!({ "source": "admin-order-list" }),
                 },
             )
@@ -2426,6 +2434,9 @@ mod tests {
         assert_eq!(data.len(), 1);
         assert_eq!(data[0]["id"], json!(second_order.id));
         assert_eq!(data[0]["status"], json!("cancelled"));
+        assert_eq!(data[0]["tax_total"], json!("2"));
+        assert_eq!(data[0]["tax_included"], json!(false));
+        assert_eq!(data[0]["tax_lines"][0]["provider_id"], json!("region_default"));
         assert_eq!(payload["meta"]["total"], json!(1));
         assert_eq!(payload["meta"]["page"], json!(1));
         assert_eq!(payload["meta"]["per_page"], json!(1));
