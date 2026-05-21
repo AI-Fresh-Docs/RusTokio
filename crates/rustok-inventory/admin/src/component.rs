@@ -656,6 +656,17 @@ mod tests {
     }
 
     #[test]
+    fn summary_empty_input_is_zeroed() {
+        let summary = summarize_inventory(&[]);
+        assert_eq!(summary.variant_count, 0);
+        assert_eq!(summary.total_quantity, 0);
+        assert_eq!(summary.low_stock, 0);
+        assert_eq!(summary.out_of_stock, 0);
+        assert_eq!(summary.backorder, 0);
+        assert_eq!(summary.healthy, 0);
+    }
+
+    #[test]
     fn health_counts_and_summary_stay_consistent_for_mixed_variants() {
         let variants = vec![
             variant(true, "deny", LOW_STOCK_THRESHOLD - 1),
