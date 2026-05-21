@@ -475,6 +475,7 @@ fn summarize_inventory(variants: &[InventoryVariant]) -> InventorySummary {
     let health_counts = summarize_inventory_health_counts(variants);
     let non_healthy_total = health_counts.non_healthy_total();
     let healthy_total = variants.len().saturating_sub(non_healthy_total);
+    let total_quantity = variants.iter().map(|variant| variant.inventory_quantity).sum();
 
     debug_assert_eq!(
         non_healthy_total + healthy_total,
@@ -484,10 +485,7 @@ fn summarize_inventory(variants: &[InventoryVariant]) -> InventorySummary {
 
     InventorySummary {
         variant_count: variants.len(),
-        total_quantity: variants
-            .iter()
-            .map(|variant| variant.inventory_quantity)
-            .sum(),
+        total_quantity,
         low_stock: health_counts.low_stock,
         backorder: health_counts.backorder,
         out_of_stock: health_counts.out_of_stock,
@@ -684,6 +682,27 @@ mod tests {
         assert_eq!(summary.total_quantity, 0);
         assert_eq!(summary.variant_count, 4);
         assert_eq!(summary.low_stock + summary.out_of_stock + summary.backorder, 3);
+    }
+
+    #[test]
+    fn healthy_count_matches_variant_count_minus_non_healthy_total() {
+        let variants = vec![
+            variant(true, "deny", 12),
+            variant(true, "deny", 2),
+            variant(false, "deny", 0),
+            variant(true, "continue", -3),
+            variant(false, "continue", -4),
+        ];
+
+        let counts = summarize_inventory_health_counts(&variants);
+        let healthy_count = variants
+            .iter()
+            .filter(|variant| inventory_health_state(variant) == InventoryHealthState::Healthy)
+            .count();
+        assert_eq!(
+            healthy_count,
+            variants.len().saturating_sub(counts.non_healthy_total())
+        );
     }
 }
 
