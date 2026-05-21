@@ -552,6 +552,7 @@ export function AiAdminPage(props: AiAdminPageProps) {
   });
 
   const [reply, setReply] = React.useState('');
+  const productAttributesPrefillAppliedRef = React.useRef(false);
 
   const productAttributesTaskProfile = React.useMemo(
     () =>
@@ -595,6 +596,7 @@ export function AiAdminPage(props: AiAdminPageProps) {
 
   React.useEffect(() => {
     if (typeof window === 'undefined') return;
+    if (productAttributesPrefillAppliedRef.current) return;
     const params = new URLSearchParams(window.location.search);
     const task = params.get('task');
     if (task !== 'product_attributes') return;
@@ -620,6 +622,8 @@ export function AiAdminPage(props: AiAdminPageProps) {
         taskProfileId: productAttributesTaskProfile.id
       }));
     }
+
+    productAttributesPrefillAppliedRef.current = true;
   }, [productAttributesTaskProfile]);
 
   const resetProviderForm = React.useCallback(() => {
