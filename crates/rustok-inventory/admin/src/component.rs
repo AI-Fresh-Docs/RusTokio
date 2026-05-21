@@ -552,6 +552,30 @@ mod tests {
         assert_eq!(label, "Out of stock");
         assert_eq!(badge, "border-rose-200 bg-rose-50 text-rose-700");
     }
+
+    #[test]
+    fn summary_and_health_treat_backorder_policy_case_insensitively() {
+        let backorder_upper = variant(false, "CONTINUE", -2);
+        let low_stock_regular = variant(true, "deny", LOW_STOCK_THRESHOLD);
+        let healthy = variant(true, "deny", LOW_STOCK_THRESHOLD + 1);
+        let variants = vec![
+            backorder_upper.clone(),
+            low_stock_regular.clone(),
+            healthy.clone(),
+        ];
+
+        let summary = summarize_inventory(&variants);
+        assert_eq!(summary.backorder, 1);
+        assert_eq!(summary.out_of_stock, 0);
+        assert_eq!(summary.low_stock, 1);
+
+        assert_eq!(inventory_health_label(None, &backorder_upper), "Backorder");
+        assert_eq!(
+            inventory_health_label(None, &low_stock_regular),
+            "Low stock"
+        );
+        assert_eq!(inventory_health_label(None, &healthy), "Healthy");
+    }
 }
 
 fn inventory_translation_for_locale<'a>(
