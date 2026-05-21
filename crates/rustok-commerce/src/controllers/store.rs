@@ -4522,8 +4522,7 @@ mod tests {
         assert_eq!(completed["order"]["status"], json!("paid"));
         assert_eq!(completed["cart"]["tax_included"], json!(true));
         assert_eq!(completed["order"]["tax_included"], json!(true));
-        assert_ne!(completed["cart"]["tax_total"], serde_json::Value::Null);
-        assert_ne!(completed["order"]["tax_total"], serde_json::Value::Null);
+        assert_eq!(completed["cart"]["tax_total"], completed["order"]["tax_total"]);
         assert_eq!(
             completed["cart"]["tax_lines"][0]["provider_id"],
             json!("region_default")
@@ -4537,6 +4536,10 @@ mod tests {
             payment_collection["id"]
         );
         assert_eq!(completed["payment_collection"]["status"], json!("captured"));
+        assert_eq!(
+            completed["payment_collection"]["amount"],
+            completed["order"]["total_amount"]
+        );
         assert!(completed["fulfillment"].is_null());
     }
 
