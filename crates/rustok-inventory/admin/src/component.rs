@@ -781,6 +781,29 @@ mod tests {
     }
 
     #[test]
+    fn summary_partition_matches_health_count_helper_totals() {
+        let variants = vec![
+            variant(true, "deny", LOW_STOCK_THRESHOLD + 10),
+            variant(true, "deny", LOW_STOCK_THRESHOLD - 1),
+            variant(false, "deny", 0),
+            variant(true, "continue", -1),
+            variant(false, "continue", -2),
+        ];
+
+        let counts = summarize_inventory_health_counts(&variants);
+        let summary = summarize_inventory(&variants);
+
+        assert_eq!(summary.low_stock, counts.low_stock);
+        assert_eq!(summary.out_of_stock, counts.out_of_stock);
+        assert_eq!(summary.backorder, counts.backorder);
+        assert_eq!(summary.healthy, variants.len() - counts.non_healthy_total());
+        assert_eq!(
+            summary.healthy + counts.non_healthy_total(),
+            summary.variant_count
+        );
+    }
+
+    #[test]
     fn state_label_helper_matches_variant_label_projection() {
         let variants = vec![
             variant(true, "deny", LOW_STOCK_THRESHOLD + 3),
