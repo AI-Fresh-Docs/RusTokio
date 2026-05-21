@@ -2175,14 +2175,25 @@ export function AiAdminPage(props: AiAdminPageProps) {
                       );
                       return;
                     }
+                    const normalizedCategorySlug =
+                      productAttributesForm.categorySlug.trim().toLowerCase();
+                    const parsedImageUrls = parseCsvUrls(
+                      productAttributesForm.imageUrls
+                    );
+                    if (parsedImageUrls.invalid.length > 0) {
+                      setError(
+                        `Image URLs contain invalid entries: ${parsedImageUrls.invalid.join(', ')}`
+                      );
+                      return;
+                    }
                     const taskInputJson = JSON.stringify({
                       product_id: normalizedProductId,
-                      category_slug: productAttributesForm.categorySlug || null,
+                      category_slug: normalizedCategorySlug || null,
                       source_locale: productAttributesForm.sourceLocale || null,
                       source_title: sourceTitle || null,
                       source_description:
                         sourceDescription || null,
-                      image_urls: splitCsv(productAttributesForm.imageUrls),
+                      image_urls: parsedImageUrls.urls,
                       copy_instructions:
                         productAttributesForm.copyInstructions || null,
                       assistant_prompt:
@@ -3045,4 +3056,26 @@ function splitCsv(value: string): string[] {
     .split(',')
     .map((item) => item.trim())
     .filter(Boolean);
+}
+
+
+function parseCsvUrls(value: string): { urls: string[]; invalid: string[] } {
+  const entries = splitCsv(value);
+  const urls: string[] = [];
+  const invalid: string[] = [];
+
+  for (const entry of entries) {
+    try {
+      const url = new URL(entry);
+      if (url.protocol !== 'http:' && url.protocol !== 'https:') {
+        invalid.push(entry);
+        continue;
+      }
+      urls.push(url.toString());
+    } catch {
+      invalid.push(entry);
+    }
+  }
+
+  return { urls, invalid };
 }
