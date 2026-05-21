@@ -63,3 +63,23 @@ fn bypass_toggle_api_is_not_used_in_production_paths() {
         "Forbidden bypass API usage found outside tenant_modules model file: {offenders:?}"
     );
 }
+
+#[test]
+fn admin_native_toggle_endpoint_is_not_reintroduced() {
+    let repo_root = Path::new(env!("CARGO_MANIFEST_DIR"))
+        .parent()
+        .and_then(Path::parent)
+        .expect("workspace root");
+    let admin_modules_api = repo_root.join("apps/admin/src/features/modules/api.rs");
+    let content = fs::read_to_string(&admin_modules_api)
+        .expect("apps/admin modules api source should be readable");
+
+    assert!(
+        !content.contains("endpoint = \"admin/toggle-module\""),
+        "Forbidden native toggle endpoint declaration found in apps/admin modules api."
+    );
+    assert!(
+        !content.contains("fn toggle_module_native("),
+        "Forbidden native toggle helper reintroduced in apps/admin modules api."
+    );
+}
