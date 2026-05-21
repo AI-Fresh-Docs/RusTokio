@@ -1136,9 +1136,14 @@ fn runtime_deployment_profile(manifest: &RuntimeModulesManifest) -> String {
 
 #[cfg(feature = "ssr")]
 fn runtime_manifest_hash(manifest: &RuntimeModulesManifest) -> String {
+    let snapshot = serde_json::to_value(manifest).unwrap_or(serde_json::Value::Null);
+    runtime_manifest_snapshot_hash(&snapshot)
+}
+
+#[cfg(feature = "ssr")]
+fn runtime_manifest_snapshot_hash(snapshot: &serde_json::Value) -> String {
     use sha2::{Digest, Sha256};
 
-    let snapshot = serde_json::to_value(manifest).unwrap_or(serde_json::Value::Null);
     let canonical_snapshot = runtime_canonicalize_json_value(&snapshot);
     let serialized = serde_json::to_string(&canonical_snapshot).unwrap_or_default();
     let mut hasher = Sha256::new();
@@ -1170,7 +1175,7 @@ fn runtime_canonicalize_json_value(value: &serde_json::Value) -> serde_json::Val
 
 #[cfg(all(test, feature = "ssr"))]
 mod runtime_manifest_hash_tests {
-    use super::runtime_canonicalize_json_value;
+    use super::{runtime_canonicalize_json_value, runtime_manifest_snapshot_hash};
 
     #[test]
     fn canonicalizer_sorts_nested_object_keys() {
@@ -1183,6 +1188,39 @@ mod runtime_manifest_hash_tests {
         let serialized = serde_json::to_string(&canonical).expect("canonical json");
 
         assert_eq!(serialized, r#"{"a":{"c":3,"d":4},"z":{"a":1,"b":2}}"#);
+    }
+
+    #[test]
+    fn manifest_snapshot_hash_is_sha256_hex() {
+        let hash = runtime_manifest_snapshot_hash(&serde_json::json!({
+            "modules": {"catalog": {"enabled": true}}
+        }));
+        assert_eq!(hash.len(), 64);
+        assert!(hash.chars().all(|ch| ch.is_ascii_hexdigit()));
+    }
+
+    #[test]
+    fn manifest_snapshot_hash_is_stable_for_key_order() {
+        let left = runtime_manifest_snapshot_hash(&serde_json::json!({
+            "modules": {"catalog": {"enabled": true}, "pricing": {"enabled": false}},
+            "profile": "default",
+            "settings": {"b": 1, "a": 2}
+        }));
+        let right = runtime_manifest_snapshot_hash(&serde_json::json!({
+            "settings": {"a": 2, "b": 1},
+            "profile": "default",
+            "modules": {"pricing": {"enabled": false}, "catalog": {"enabled": true}}
+        }));
+
+        assert_eq!(left, right);
+    }
+
+    #[test]
+    fn manifest_snapshot_hash_changes_for_meaningful_change() {
+        let left = runtime_manifest_snapshot_hash(&serde_json::json!({"settings": {"locale": "en"}}));
+        let right = runtime_manifest_snapshot_hash(&serde_json::json!({"settings": {"locale": "ru"}}));
+
+        assert_ne!(left, right);
     }
 }
 
