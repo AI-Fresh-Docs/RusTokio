@@ -472,15 +472,7 @@ enum InventoryHealthState {
 }
 
 fn summarize_inventory(variants: &[InventoryVariant]) -> InventorySummary {
-    let (low_stock, backorder, out_of_stock) = variants.iter().fold(
-        (0_usize, 0_usize, 0_usize),
-        |(low_stock, backorder, out_of_stock), variant| match inventory_health_state(variant) {
-            InventoryHealthState::LowStock => (low_stock + 1, backorder, out_of_stock),
-            InventoryHealthState::Backorder => (low_stock, backorder + 1, out_of_stock),
-            InventoryHealthState::OutOfStock => (low_stock, backorder, out_of_stock + 1),
-            InventoryHealthState::Healthy => (low_stock, backorder, out_of_stock),
-        },
-    );
+    let health_counts = summarize_inventory_health_counts(variants);
 
     InventorySummary {
         variant_count: variants.len(),
@@ -488,10 +480,31 @@ fn summarize_inventory(variants: &[InventoryVariant]) -> InventorySummary {
             .iter()
             .map(|variant| variant.inventory_quantity)
             .sum(),
-        low_stock,
-        backorder,
-        out_of_stock,
+        low_stock: health_counts.low_stock,
+        backorder: health_counts.backorder,
+        out_of_stock: health_counts.out_of_stock,
     }
+}
+
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+struct InventoryHealthCounts {
+    low_stock: usize,
+    backorder: usize,
+    out_of_stock: usize,
+}
+
+fn summarize_inventory_health_counts(variants: &[InventoryVariant]) -> InventoryHealthCounts {
+    variants
+        .iter()
+        .fold(InventoryHealthCounts::default(), |mut counts, variant| {
+            match inventory_health_state(variant) {
+                InventoryHealthState::LowStock => counts.low_stock += 1,
+                InventoryHealthState::Backorder => counts.backorder += 1,
+                InventoryHealthState::OutOfStock => counts.out_of_stock += 1,
+                InventoryHealthState::Healthy => {}
+            }
+            counts
+        })
 }
 
 fn is_backorder_enabled(variant: &InventoryVariant) -> bool {
@@ -606,6 +619,12 @@ mod tests {
         let summary = summarize_inventory(&variants);
         let covered = summary.low_stock + summary.out_of_stock + summary.backorder;
         assert_eq!(covered, summary.variant_count - 1);
+    }
+
+    #[test]
+    fn health_counts_empty_input_is_zeroed() {
+        let counts = summarize_inventory_health_counts(&[]);
+        assert_eq!(counts, InventoryHealthCounts::default());
     }
 }
 
