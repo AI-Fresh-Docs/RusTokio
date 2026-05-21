@@ -1,6 +1,6 @@
 use rustok_core::ModuleRegistry;
 use rustok_server::models::build::Entity as BuildEntity;
-use rustok_server::modules::{ManifestDiff, ModulesManifest};
+use rustok_server::modules::{ManifestDiff, ManifestModuleSpec, ModulesManifest};
 use rustok_server::services::build_service::NoopBuildEventPublisher;
 use rustok_server::services::platform_composition::{
     PlatformCompositionBuildError, PlatformCompositionBuildService, PlatformCompositionService,
@@ -165,6 +165,57 @@ async fn build_insert_error_rolls_back_platform_revision() {
     assert_eq!(
         state_after.revision, seeded.revision,
         "revision must be rolled back when build enqueue fails"
+    );
+}
+
+#[tokio::test]
+async fn manifest_validation_error_does_not_update_state_or_enqueue_build() {
+    let db = setup_db(true).await;
+    let registry = ModuleRegistry::new();
+    let publisher = Arc::new(NoopBuildEventPublisher);
+
+    let seeded = PlatformCompositionService::active_snapshot(&db)
+        .await
+        .expect("seed active snapshot");
+
+    let mut invalid_manifest = ModulesManifest::default();
+    invalid_manifest.modules.insert(
+        "catalog".to_string(),
+        ManifestModuleSpec {
+            source: "workspace".to_string(),
+            crate_name: "rustok-catalog".to_string(),
+            depends_on: vec!["missing-dependency".to_string()],
+            ..ManifestModuleSpec::default()
+        },
+    );
+
+    let err = PlatformCompositionBuildService::update_manifest_and_request_build(
+        &db,
+        publisher,
+        &registry,
+        Some(seeded.revision),
+        invalid_manifest,
+        ManifestDiff::default(),
+        "test-admin".to_string(),
+        "invalid manifest should fail validation".to_string(),
+    )
+    .await
+    .expect_err("manifest validation should fail before transaction update");
+
+    assert!(matches!(err, PlatformCompositionBuildError::Composition(_)));
+
+    let state_after = PlatformCompositionService::active_snapshot(&db)
+        .await
+        .expect("load state after validation error");
+    assert_eq!(
+        state_after.revision, seeded.revision,
+        "revision must stay unchanged when manifest validation fails"
+    );
+
+    let builds = BuildEntity::find().all(&db).await.expect("list builds");
+    assert!(
+        builds.is_empty(),
+        "no build should be enqueued when manifest validation fails"
     );
 }
 

@@ -330,7 +330,7 @@ rollback-стратегии и Definition of Done по итерациям.
 
 - [x] Конфликт CAS: stale revision → `platform_state` не меняется, build не создаётся.
 - [x] Ошибка insert в `builds` → транзакция откатывается, revision не инкрементируется.
-- [ ] Ошибка валидации manifest → нет ни update state, ни build enqueue.
+- [x] Ошибка валидации manifest → нет ни update state, ни build enqueue.
 
 ### Итерация B — закрыть P0.2 (canonical lifecycle entrypoint)
 
@@ -344,7 +344,7 @@ rollback-стратегии и Definition of Done по итерациям.
 
 - [x] Явный “unsafe for migrations/tests only” contract для low-level toggle API.
 - [x] Repo-guard (test/script), блокирующий production references bypass API.
-- [ ] Unified parity tests: GraphQL vs Leptos SSR.
+- [~] Unified parity tests: GraphQL vs Leptos SSR (repo-guard уже фиксирует GraphQL-only toggle contract в Leptos admin; остаётся закрыть end-to-end parity matrix по runtime error taxonomy и journal metadata).
 
 **Негативные сценарии, обязательные до merge.**
 
