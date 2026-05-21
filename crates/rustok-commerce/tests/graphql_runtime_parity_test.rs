@@ -4056,6 +4056,11 @@ async fn storefront_graphql_order_query_exposes_typed_adjustments_and_totals() {
             query {{
               storefrontOrder(tenantId: "{tenant_id}", id: "{order_id}") {{
                 id
+                taxTotal
+                taxIncluded
+                taxLines {{
+                  providerId
+                }}
                 subtotalAmount
                 adjustmentTotal
                 totalAmount
@@ -4086,6 +4091,12 @@ async fn storefront_graphql_order_query_exposes_typed_adjustments_and_totals() {
         .into_json()
         .expect("GraphQL response must serialize");
 
+    assert_eq!(json["storefrontOrder"]["taxTotal"], Value::from("0"));
+    assert_eq!(json["storefrontOrder"]["taxIncluded"], Value::from(false));
+    assert_eq!(
+        json["storefrontOrder"]["taxLines"].as_array().map(|items| items.len()),
+        Some(0)
+    );
     assert_eq!(json["storefrontOrder"]["subtotalAmount"], Value::from("30"));
     assert_eq!(
         json["storefrontOrder"]["adjustmentTotal"],
