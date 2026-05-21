@@ -278,6 +278,38 @@ async fn update_manifest_validation_error_does_not_update_platform_state() {
 }
 
 #[tokio::test]
+async fn update_manifest_stale_revision_conflict_does_not_update_platform_state() {
+    let db = setup_db(true).await;
+    let registry = ModuleRegistry::new();
+
+    let seeded = PlatformCompositionService::active_snapshot(&db)
+        .await
+        .expect("seed active snapshot");
+
+    let err = PlatformCompositionService::update_manifest(
+        &db,
+        &registry,
+        Some(seeded.revision - 1),
+        ModulesManifest::default(),
+        Some("test-admin".to_string()),
+    )
+    .await
+    .expect_err("stale revision must fail with conflict");
+
+    assert!(matches!(
+        err,
+        rustok_server::services::platform_composition::PlatformCompositionError::RevisionConflict { .. }
+    ));
+
+    let state_after = PlatformCompositionService::active_snapshot(&db)
+        .await
+        .expect("load state after stale revision conflict");
+    assert_eq!(state_after.revision, seeded.revision);
+    assert_eq!(state_after.manifest_hash, seeded.manifest_hash);
+    assert_eq!(state_after.manifest, seeded.manifest);
+}
+
+#[tokio::test]
 async fn successful_enqueue_sets_manifest_ref_to_platform_state_revision() {
     let db = setup_db(true).await;
     let seeded = PlatformCompositionService::active_snapshot(&db)
