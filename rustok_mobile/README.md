@@ -17,9 +17,16 @@ Flutter workspace scaffold based on `docs/research/flutter.md`.
 - Generated-manifest style module registry adapter (`mobile_manifest.g.dart`).
 - Shared route contracts with snake_case query key constraints.
 - Shared GraphQL transport context/header builders.
+- Manifest generator script from `crates/*/rustok-module.toml`.
+
+## Regenerate mobile manifest
+
+```bash
+python3 rustok_mobile/tooling/scripts/generate_mobile_manifest.py --repo-root /workspace/RusTok
+```
 
 ## Next steps
 
 1. Add real GraphQL client factory (HTTP + WebSocket split links).
-2. Generate `mobile_manifest.g.dart` from RusTok module manifests.
+2. Replace generic icon mapping with module metadata mapping rules.
 3. Start first module package (`rustok_auth_mobile`) with real screens.
