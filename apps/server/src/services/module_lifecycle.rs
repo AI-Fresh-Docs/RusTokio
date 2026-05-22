@@ -417,6 +417,7 @@ impl ModuleLifecycleService {
             previous_effective_enabled: sea_orm::ActiveValue::Set(previous_effective_enabled),
             status: sea_orm::ActiveValue::Set(ModuleOperationStatus::Validated.into()),
             requested_by: sea_orm::ActiveValue::Set(requested_by),
+            correlation_id: sea_orm::ActiveValue::Set(Some(uuid::Uuid::new_v4().to_string())),
             error_message: sea_orm::ActiveValue::Set(None),
             created_at: sea_orm::ActiveValue::Set(now),
             updated_at: sea_orm::ActiveValue::Set(now),
