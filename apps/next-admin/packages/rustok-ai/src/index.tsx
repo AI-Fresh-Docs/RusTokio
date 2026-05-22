@@ -2457,22 +2457,24 @@ export function AiAdminPage(props: AiAdminPageProps) {
                     <br />
                     Mode: direct
                   </div>
-                  {!canSubmitProductAttributes ? (
-                    <ul className='space-y-1 text-xs'>
-                      {productAttributesRequirementItems.map((item) => (
-                        <li
-                          key={item.key}
-                          className={
-                            item.status === 'pass'
-                              ? 'text-emerald-700'
-                              : 'text-amber-700'
-                          }
-                        >
-                          {item.status === 'pass' ? '✓' : '•'} {item.message}
-                        </li>
-                      ))}
-                    </ul>
-                  ) : null}
+                  <ul
+                    className='space-y-1 text-xs'
+                    aria-live='polite'
+                    aria-label='Product attributes readiness checklist'
+                  >
+                    {productAttributesRequirementItems.map((item) => (
+                      <li
+                        key={item.key}
+                        className={
+                          item.status === 'pass'
+                            ? 'text-emerald-700'
+                            : 'text-amber-700'
+                        }
+                      >
+                        {item.status === 'pass' ? '✓' : '•'} {item.message}
+                      </li>
+                    ))}
+                  </ul>
                   <button
                     className='bg-primary text-primary-foreground rounded-lg px-4 py-2 text-sm font-medium disabled:cursor-not-allowed disabled:opacity-60'
                     type='submit'
