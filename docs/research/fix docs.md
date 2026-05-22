@@ -407,6 +407,7 @@ Batch считается закрытым только если одноврем
 | 2026-05-22 | B6 | DOC-05 | `[x]` | `commit: 1d087a3` | `docs/index.md` переведён в navigation-first, убрана статусная хроника |
 | 2026-05-22 | B7 | DOC-06 | `[x]` | `commit: c9a22f1` | Реестры синхронизированы с `modules.toml` |
 | 2026-05-22 | B8 | DOC-07 | `[x]` | `commit: 1bf7ead` | Зафиксирован baseline quality-gates в verification-планах |
+| 2026-05-22 | B11 | DOC-09 | `[~]` | `commit: 4bafe23` | Добавлены API reference-artifacts требования и B11 checklist в verification-план API surfaces |
 
 Пример реальной записи после merge:
 
@@ -647,7 +648,7 @@ Reviewer перед approve проверяет:
 
 ### Трекер статуса (рабочий порядок закрытия хвоста)
 
-- [ ] DOC-09 Конвейер генерации reference-артефактов (Batch: B11 → B12)
+- [~] DOC-09 Конвейер генерации reference-артефактов (Batch: B11, commit: 4bafe23)
 - [ ] DOC-10 Language/naming governance (Batch: B13)
 - [ ] DOC-11 Reviewer checklist + PR template (Batch: B13)
 - [ ] DOC-12 Code hotspots documentation (Batch: B14)
