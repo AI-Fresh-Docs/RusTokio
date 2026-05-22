@@ -3204,7 +3204,7 @@ function splitCsv(value: string): string[] {
 function parseCsvUrls(value: string): { urls: string[]; invalid: string[] } {
   const entries = splitCsv(value);
   const urls = new Set<string>();
-  const invalid: string[] = [];
+  const invalid = new Set<string>();
 
   for (const entry of entries) {
     try {
@@ -3213,16 +3213,16 @@ function parseCsvUrls(value: string): { urls: string[]; invalid: string[] } {
         (url.protocol !== 'http:' && url.protocol !== 'https:') ||
         !url.hostname
       ) {
-        invalid.push(entry);
+        invalid.add(entry);
         continue;
       }
       urls.add(url.toString());
     } catch {
-      invalid.push(entry);
+      invalid.add(entry);
     }
   }
 
-  return { urls: Array.from(urls), invalid };
+  return { urls: Array.from(urls), invalid: Array.from(invalid) };
 }
 
 function hasProductAttributesSeedContent(form: {
