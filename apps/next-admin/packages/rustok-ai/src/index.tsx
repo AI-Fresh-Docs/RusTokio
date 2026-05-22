@@ -2203,6 +2203,12 @@ export function AiAdminPage(props: AiAdminPageProps) {
                       }
                       const normalizedCategorySlug =
                         productAttributesForm.categorySlug.trim().toLowerCase();
+                      const normalizedSourceLocale =
+                        productAttributesForm.sourceLocale.trim();
+                      const normalizedCopyInstructions =
+                        productAttributesForm.copyInstructions.trim();
+                      const normalizedAssistantPrompt =
+                        productAttributesForm.assistantPrompt.trim();
                       const parsedImageUrls = parseCsvUrls(
                         productAttributesForm.imageUrls
                       );
@@ -2215,15 +2221,15 @@ export function AiAdminPage(props: AiAdminPageProps) {
                       const taskInputJson = JSON.stringify({
                         product_id: normalizedProductId,
                         category_slug: normalizedCategorySlug || null,
-                        source_locale: productAttributesForm.sourceLocale || null,
+                        source_locale: normalizedSourceLocale || null,
                         source_title: sourceTitle || null,
                         source_description:
                           sourceDescription || null,
                         image_urls: parsedImageUrls.urls,
                         copy_instructions:
-                          productAttributesForm.copyInstructions || null,
+                          normalizedCopyInstructions || null,
                         assistant_prompt:
-                          productAttributesForm.assistantPrompt || null
+                          normalizedAssistantPrompt || null
                       });
                       const started = await gql<
                         {
