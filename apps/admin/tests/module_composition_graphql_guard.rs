@@ -90,12 +90,34 @@ fn toggle_module_helper_uses_graphql_only_contract() {
         "toggle_module must use typed ToggleModuleVariables payload"
     );
     assert!(
-        helper_body.contains("module_slug"),
-        "toggle_module must forward module_slug into GraphQL variables"
+        helper_body.contains("ToggleModuleVariables {"),
+        "toggle_module must construct ToggleModuleVariables struct literal"
     );
     assert!(
-        helper_body.contains("enabled"),
-        "toggle_module must forward enabled flag into GraphQL variables"
+        helper_body.contains("module_slug,"),
+        "toggle_module must forward module_slug into ToggleModuleVariables payload"
+    );
+    assert!(
+        helper_body.contains("enabled,"),
+        "toggle_module must forward enabled flag into ToggleModuleVariables payload"
+    );
+    assert!(
+        helper_body.contains("Ok(response.toggle_module)"),
+        "toggle_module must return GraphQL toggle payload directly without native fallback mapping"
+    );
+}
+
+#[test]
+fn toggle_module_helper_signature_is_unique() {
+    let crate_root = Path::new(env!("CARGO_MANIFEST_DIR"));
+    let api_path = crate_root.join("src/features/modules/api.rs");
+    let content = fs::read_to_string(&api_path).expect("read api.rs");
+
+    let signature = "pub async fn toggle_module(";
+    let occurrences = content.matches(signature).count();
+    assert_eq!(
+        occurrences, 1,
+        "Expected exactly one toggle_module helper signature, found {occurrences}"
     );
 }
 
