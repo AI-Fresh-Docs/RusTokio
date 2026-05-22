@@ -176,6 +176,18 @@ pub(crate) async fn other_helper() {}
 }
 
 #[test]
+fn extract_function_block_returns_none_for_missing_signature() {
+    let source = "pub(crate) async fn other_helper() {}";
+    assert!(
+        extract_function_block(
+            source,
+            "pub(crate) async fn upsert_flag_without_lifecycle_for_migrations_only("
+        )
+        .is_none()
+    );
+}
+
+#[test]
 fn graphql_mutations_do_not_reintroduce_duplicate_platform_composition_mapping_tests() {
     let repo_root = Path::new(env!("CARGO_MANIFEST_DIR"))
         .parent()
