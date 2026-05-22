@@ -71,6 +71,7 @@ fn module_composition_helpers_use_graphql_contract_payloads() {
         "pub async fn install_module(",
         "INSTALL_MODULE_MUTATION",
         "InstallModuleVariables {",
+        &["slug,", "version,"],
         "Ok(response.install_module)",
     );
     assert_graphql_only_helper(
@@ -78,6 +79,7 @@ fn module_composition_helpers_use_graphql_contract_payloads() {
         "pub async fn uninstall_module(",
         "UNINSTALL_MODULE_MUTATION",
         "UninstallModuleVariables {",
+        &["slug,"],
         "Ok(response.uninstall_module)",
     );
     assert_graphql_only_helper(
@@ -85,6 +87,7 @@ fn module_composition_helpers_use_graphql_contract_payloads() {
         "pub async fn upgrade_module(",
         "UPGRADE_MODULE_MUTATION",
         "UpgradeModuleVariables {",
+        &["slug,", "version,"],
         "Ok(response.upgrade_module)",
     );
 }
@@ -141,6 +144,7 @@ fn assert_graphql_only_helper(
     signature: &str,
     mutation_name: &str,
     variables_literal: &str,
+    forwarded_fields: &[&str],
     return_expr: &str,
 ) {
     let helper_body = extract_function_block(content, signature)
@@ -162,6 +166,12 @@ fn assert_graphql_only_helper(
         helper_body.contains(return_expr),
         "expected helper {signature} to return GraphQL payload directly"
     );
+    for field in forwarded_fields {
+        assert!(
+            helper_body.contains(field),
+            "expected helper {signature} to forward field `{field}` into typed GraphQL payload"
+        );
+    }
     assert!(
         !helper_body.contains("combine_native_and_graphql_error"),
         "helper {signature} must not compose native/graphql fallback errors"
