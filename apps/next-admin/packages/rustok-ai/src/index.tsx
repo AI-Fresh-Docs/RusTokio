@@ -2386,7 +2386,7 @@ export function AiAdminPage(props: AiAdminPageProps) {
                   </div>
                   {!canSubmitProductAttributes ? (
                     <p className='text-muted-foreground text-xs'>
-                      Product id and active task profile `product_attributes` are required.
+                      Active task profile `product_attributes`, product id, and source title or description are required.
                     </p>
                   ) : null}
                   <button
