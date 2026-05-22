@@ -1,6 +1,6 @@
 # RusTok Mobile Workspace
 
-Initial Flutter workspace scaffold based on `docs/research/flutter.md`.
+Flutter workspace scaffold based on `docs/research/flutter.md`.
 
 ## Structure
 
@@ -11,8 +11,15 @@ Initial Flutter workspace scaffold based on `docs/research/flutter.md`.
 - `packages/app_route_contracts` — typed route/query contracts.
 - `packages/app_module_contracts` — interfaces for module-owned mobile packages.
 
+## Implemented now
+
+- Host app routing with `go_router` + `ShellRoute`.
+- Generated-manifest style module registry adapter (`mobile_manifest.g.dart`).
+- Shared route contracts with snake_case query key constraints.
+- Shared GraphQL transport context/header builders.
+
 ## Next steps
 
-1. Wire GraphQL HTTP/WS client with tenant/auth/locale headers.
-2. Add module registry generation from RusTok module manifests.
-3. Start first module package (`rustok_auth_mobile`).
+1. Add real GraphQL client factory (HTTP + WebSocket split links).
+2. Generate `mobile_manifest.g.dart` from RusTok module manifests.
+3. Start first module package (`rustok_auth_mobile`) with real screens.

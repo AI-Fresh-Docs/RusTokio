@@ -1,9 +1,9 @@
 import 'package:app_module_contracts/app_module_contracts.dart';
+import 'package:app_route_contracts/app_route_contracts.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
 import '../app_shell/app_shell_page.dart';
-import '../registry/mobile_module_registry.dart';
 
 GoRouter buildRouter(List<MobileModuleEntry> entries) {
   return GoRouter(
@@ -14,13 +14,25 @@ GoRouter buildRouter(List<MobileModuleEntry> entries) {
         routes: [
           GoRoute(
             path: '/modules',
-            builder: (context, state) => const ModulesHomePage(),
+            builder: (context, state) => ModulesHomePage(entries: entries),
             routes: [
               for (final entry in entries)
                 GoRoute(
                   path: entry.routeSegment,
                   name: entry.moduleKey,
-                  builder: (context, state) => ModulePlaceholderPage(entry: entry),
+                  builder: (context, state) {
+                    final sanitizer = RouteSanitizer({
+                      QueryKeys.tab,
+                      QueryKeys.productId,
+                      QueryKeys.orderId,
+                      QueryKeys.mediaId,
+                    });
+                    final sanitizedQuery = sanitizer.sanitize(state.uri.queryParameters);
+                    return ModulePlaceholderPage(
+                      entry: entry,
+                      query: sanitizedQuery,
+                    );
+                  },
                 ),
             ],
           ),
@@ -31,11 +43,12 @@ GoRouter buildRouter(List<MobileModuleEntry> entries) {
 }
 
 class ModulesHomePage extends StatelessWidget {
-  const ModulesHomePage({super.key});
+  const ModulesHomePage({super.key, required this.entries});
+
+  final List<MobileModuleEntry> entries;
 
   @override
   Widget build(BuildContext context) {
-    final entries = mobileModuleRegistry;
     return ListView(
       children: [
         const ListTile(title: Text('RusTok Modules')),
@@ -51,14 +64,25 @@ class ModulesHomePage extends StatelessWidget {
 }
 
 class ModulePlaceholderPage extends StatelessWidget {
-  const ModulePlaceholderPage({super.key, required this.entry});
+  const ModulePlaceholderPage({
+    super.key,
+    required this.entry,
+    required this.query,
+  });
 
   final MobileModuleEntry entry;
+  final Map<String, String> query;
 
   @override
   Widget build(BuildContext context) {
     return Center(
-      child: Text('Module: ${entry.moduleKey}'),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text('Module: ${entry.moduleKey}'),
+          Text('Query: $query'),
+        ],
+      ),
     );
   }
 }

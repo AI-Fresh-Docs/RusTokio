@@ -4,6 +4,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'registry/mobile_module_registry.dart';
 import 'routes/app_router.dart';
 
+final mobileRegistryProvider = Provider((ref) => buildMobileModuleRegistry());
+
 void main() {
   runApp(const ProviderScope(child: RusTokAdminMobileApp()));
 }
@@ -13,7 +15,7 @@ class RusTokAdminMobileApp extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final router = buildRouter(mobileModuleRegistry);
+    final router = buildRouter(ref.watch(mobileRegistryProvider));
     return MaterialApp.router(
       title: 'RusTok Admin Mobile',
       theme: ThemeData(useMaterial3: true, colorSchemeSeed: Colors.deepPurple),
