@@ -2183,6 +2183,10 @@ export function AiAdminPage(props: AiAdminPageProps) {
                         );
                         return;
                       }
+                      const resolvedTaskProfileId =
+                        selectedTaskProfile?.slug === 'product_attributes'
+                          ? selectedTaskProfile.id
+                          : productAttributesTaskProfile.id;
                       const normalizedProductId = productAttributesForm.productId.trim();
                       if (!normalizedProductId) {
                         setError('Product id is required.');
@@ -2235,7 +2239,7 @@ export function AiAdminPage(props: AiAdminPageProps) {
                             title: productAttributesForm.title,
                             providerProfileId:
                               sessionForm.providerProfileId || null,
-                            taskProfileId: productAttributesTaskProfile.id,
+                            taskProfileId: resolvedTaskProfileId,
                             executionMode: 'DIRECT',
                             locale: productAttributesForm.locale || null,
                             taskInputJson,
