@@ -612,6 +612,12 @@ export function AiAdminPage(props: AiAdminPageProps) {
     productAttributesParsedImageUrls.invalid,
     productAttributesTaskProfile
   ]);
+  const productAttributesChecklistStats = React.useMemo(() => {
+    const passed = productAttributesRequirementItems.filter(
+      (item) => item.status === 'pass'
+    ).length;
+    return { passed, total: productAttributesRequirementItems.length };
+  }, [productAttributesRequirementItems]);
 
   const loadBootstrap = React.useCallback(async () => {
     setLoading(true);
@@ -2498,6 +2504,10 @@ export function AiAdminPage(props: AiAdminPageProps) {
                     aria-live='polite'
                     aria-label='Product attributes readiness checklist'
                   >
+                    <li className='text-muted-foreground'>
+                      Readiness: {productAttributesChecklistStats.passed}/
+                      {productAttributesChecklistStats.total}
+                    </li>
                     {productAttributesRequirementItems.map((item) => (
                       <li
                         key={item.key}
