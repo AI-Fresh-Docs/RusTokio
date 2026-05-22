@@ -333,3 +333,9 @@ pub async fn toggle_module() {
 "#;
     assert!(extract_function_block(source, "pub async fn toggle_module()").is_none());
 }
+
+#[test]
+fn extract_function_block_returns_none_when_body_brace_missing() {
+    let source = "pub async fn toggle_module() -> Result<(), ()>";
+    assert!(extract_function_block(source, "pub async fn toggle_module()").is_none());
+}
