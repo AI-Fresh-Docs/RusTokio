@@ -2475,6 +2475,32 @@ export function AiAdminPage(props: AiAdminPageProps) {
                     >
                       Clear image URLs
                     </button>
+                    <button
+                      className='border-input text-foreground rounded-md border px-2 py-1 text-xs'
+                      type='button'
+                      disabled={productAttributesParsedImageUrls.urls.length === 0}
+                      onClick={async () => {
+                        const text = normalizedProductAttributesImageUrls;
+                        if (!text) return;
+                        try {
+                          if (
+                            typeof navigator !== 'undefined' &&
+                            navigator.clipboard?.writeText
+                          ) {
+                            await navigator.clipboard.writeText(text);
+                            setFeedback('Normalized image URLs copied to clipboard.');
+                            return;
+                          }
+                        } catch {
+                          // no-op fallback below
+                        }
+                        setFeedback(
+                          'Clipboard unavailable. Use "Normalize image URLs" and copy manually.'
+                        );
+                      }}
+                    >
+                      Copy normalized URLs
+                    </button>
                   </div>
                   <Input
                     label='Copy instructions'
