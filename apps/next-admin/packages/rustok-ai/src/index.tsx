@@ -554,8 +554,6 @@ export function AiAdminPage(props: AiAdminPageProps) {
   const [reply, setReply] = React.useState('');
   const [isSubmittingProductAttributes, setIsSubmittingProductAttributes] =
     React.useState(false);
-  const [isSubmittingDirectJob, setIsSubmittingDirectJob] =
-    React.useState(false);
   const [activeDirectSubmit, setActiveDirectSubmit] = React.useState<
     | 'blog_draft'
     | 'product_copy'
@@ -564,6 +562,7 @@ export function AiAdminPage(props: AiAdminPageProps) {
     | 'new_session'
     | null
   >(null);
+  const isSubmittingDirectJob = activeDirectSubmit !== null;
   const productAttributesPrefillAppliedRef = React.useRef(false);
 
   const productAttributesTaskProfile = React.useMemo(
@@ -1906,7 +1905,6 @@ export function AiAdminPage(props: AiAdminPageProps) {
                       return;
                     }
                     setActiveDirectSubmit('blog_draft');
-                    setIsSubmittingDirectJob(true);
                     try {
                       const taskInputJson = JSON.stringify({
                         post_id: blogForm.postId || null,
@@ -1958,7 +1956,6 @@ export function AiAdminPage(props: AiAdminPageProps) {
                       await loadSession(id);
                     } finally {
                       setActiveDirectSubmit(null);
-                      setIsSubmittingDirectJob(false);
                     }
                   }}
                 >
@@ -2124,7 +2121,6 @@ export function AiAdminPage(props: AiAdminPageProps) {
                       return;
                     }
                     setActiveDirectSubmit('product_copy');
-                    setIsSubmittingDirectJob(true);
                     try {
                       const taskInputJson = JSON.stringify({
                         product_id: normalizedProductId,
@@ -2173,7 +2169,6 @@ export function AiAdminPage(props: AiAdminPageProps) {
                       await loadSession(id);
                     } finally {
                       setActiveDirectSubmit(null);
-                      setIsSubmittingDirectJob(false);
                     }
                   }}
                 >
@@ -2642,7 +2637,6 @@ export function AiAdminPage(props: AiAdminPageProps) {
                       return;
                     }
                     setActiveDirectSubmit('image_asset');
-                    setIsSubmittingDirectJob(true);
                     try {
                       const taskInputJson = JSON.stringify({
                         prompt: imageForm.prompt,
@@ -2689,7 +2683,6 @@ export function AiAdminPage(props: AiAdminPageProps) {
                       await loadSession(id);
                     } finally {
                       setActiveDirectSubmit(null);
-                      setIsSubmittingDirectJob(false);
                     }
                   }}
                 >
@@ -2807,7 +2800,6 @@ export function AiAdminPage(props: AiAdminPageProps) {
                       return;
                     }
                     setActiveDirectSubmit('alloy_code');
-                    setIsSubmittingDirectJob(true);
                     try {
                       const taskInputJson = JSON.stringify({
                         operation: alloyForm.operation,
@@ -2853,7 +2845,6 @@ export function AiAdminPage(props: AiAdminPageProps) {
                       await loadSession(id);
                     } finally {
                       setActiveDirectSubmit(null);
-                      setIsSubmittingDirectJob(false);
                     }
                   }}
                 >
@@ -2951,7 +2942,6 @@ export function AiAdminPage(props: AiAdminPageProps) {
                     setError(null);
                     setFeedback(null);
                     setActiveDirectSubmit('new_session');
-                    setIsSubmittingDirectJob(true);
                     try {
                       const started = await gql<
                         {
@@ -2988,7 +2978,6 @@ export function AiAdminPage(props: AiAdminPageProps) {
                       await loadSession(id);
                     } finally {
                       setActiveDirectSubmit(null);
-                      setIsSubmittingDirectJob(false);
                     }
                   }}
                 >
