@@ -31,6 +31,10 @@ impl ModuleOperationStatus {
         }
     }
 
+    pub(crate) const fn is_terminal(self) -> bool {
+        matches!(self, Self::Committed | Self::Failed)
+    }
+
     pub(crate) fn parse(value: &str) -> Option<Self> {
         match value {
             "running" => Some(Self::Running),
@@ -451,6 +455,9 @@ mod tests {
             assert_eq!(ModuleOperationStatus::parse(&encoded), Some(status));
         }
         assert_eq!(ModuleOperationStatus::parse("unknown"), None);
+        assert!(!ModuleOperationStatus::Running.is_terminal());
+        assert!(ModuleOperationStatus::Committed.is_terminal());
+        assert!(ModuleOperationStatus::Failed.is_terminal());
     }
 
     fn path_module(crate_name: &str, path: &str, required: bool) -> ManifestModuleSpec {
