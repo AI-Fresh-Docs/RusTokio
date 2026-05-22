@@ -59,6 +59,12 @@ impl std::str::FromStr for ModuleOperationStatus {
     }
 }
 
+impl From<ModuleOperationStatus> for String {
+    fn from(value: ModuleOperationStatus) -> Self {
+        value.as_str().to_string()
+    }
+}
+
 
 #[derive(Debug, Error)]
 pub enum ToggleModuleError {
@@ -309,7 +315,7 @@ impl ModuleLifecycleService {
                     .await?
                 {
                     let mut active: module_operations::ActiveModel = model.into();
-                    active.status = sea_orm::ActiveValue::Set(ModuleOperationStatus::Committed.as_str().to_string());
+                    active.status = sea_orm::ActiveValue::Set(ModuleOperationStatus::Committed.into());
                     active.updated_at = sea_orm::ActiveValue::Set(chrono::Utc::now().into());
                     active.update(txn).await?;
                 }
@@ -405,7 +411,7 @@ impl ModuleLifecycleService {
             module_slug: sea_orm::ActiveValue::Set(module_slug.to_string()),
             requested_enabled: sea_orm::ActiveValue::Set(requested_enabled),
             previous_effective_enabled: sea_orm::ActiveValue::Set(previous_effective_enabled),
-            status: sea_orm::ActiveValue::Set(ModuleOperationStatus::Running.as_str().to_string()),
+            status: sea_orm::ActiveValue::Set(ModuleOperationStatus::Running.into()),
             requested_by: sea_orm::ActiveValue::Set(requested_by),
             error_message: sea_orm::ActiveValue::Set(None),
             created_at: sea_orm::ActiveValue::Set(now),
@@ -425,7 +431,7 @@ impl ModuleLifecycleService {
             .await?
         {
             let mut active: module_operations::ActiveModel = model.into();
-            active.status = sea_orm::ActiveValue::Set(ModuleOperationStatus::Failed.as_str().to_string());
+            active.status = sea_orm::ActiveValue::Set(ModuleOperationStatus::Failed.into());
             active.error_message = sea_orm::ActiveValue::Set(Some(error_message.to_string()));
             active.updated_at = sea_orm::ActiveValue::Set(chrono::Utc::now().into());
             active.update(db).await?;
@@ -467,6 +473,7 @@ mod tests {
         assert_eq!("committed".parse::<ModuleOperationStatus>(), Ok(ModuleOperationStatus::Committed));
         assert_eq!("failed".parse::<ModuleOperationStatus>(), Ok(ModuleOperationStatus::Failed));
         assert_eq!("unknown".parse::<ModuleOperationStatus>(), Err(()));
+        assert_eq!(String::from(ModuleOperationStatus::Running), "running");
         assert!(!ModuleOperationStatus::Running.is_terminal());
         assert!(ModuleOperationStatus::Committed.is_terminal());
         assert!(ModuleOperationStatus::Failed.is_terminal());
