@@ -101,6 +101,10 @@ fn toggle_module_helper_uses_graphql_only_contract() {
         helper_body.contains("enabled,"),
         "toggle_module must forward enabled flag into ToggleModuleVariables payload"
     );
+    assert!(
+        helper_body.contains("Ok(response.toggle_module)"),
+        "toggle_module must return GraphQL toggle payload directly without native fallback mapping"
+    );
 }
 
 #[test]
