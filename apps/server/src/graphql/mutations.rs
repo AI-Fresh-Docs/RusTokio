@@ -1273,6 +1273,60 @@ mod tests {
     }
 
     #[test]
+    fn toggle_error_mapping_matrix_preserves_message_and_code_contract() {
+        struct ToggleCase {
+            error: ToggleModuleError,
+            expected_message: String,
+            expected_code: Option<&'static str>,
+        }
+
+        let cases = vec![
+            ToggleCase {
+                error: ToggleModuleError::UnknownModule,
+                expected_message: TOGGLE_ERR_UNKNOWN_MODULE.to_string(),
+                expected_code: Some("BAD_USER_INPUT"),
+            },
+            ToggleCase {
+                error: ToggleModuleError::CoreModuleCannotBeDisabled("core".into()),
+                expected_message: toggle_err_core_module_cannot_be_disabled("core"),
+                expected_code: Some("BAD_USER_INPUT"),
+            },
+            ToggleCase {
+                error: ToggleModuleError::MissingDependencies("pricing".into()),
+                expected_message: toggle_err_missing_dependencies("pricing"),
+                expected_code: Some("BAD_USER_INPUT"),
+            },
+            ToggleCase {
+                error: ToggleModuleError::HasDependents("checkout".into()),
+                expected_message: toggle_err_has_dependents("checkout"),
+                expected_code: Some("BAD_USER_INPUT"),
+            },
+            ToggleCase {
+                error: ToggleModuleError::HookFailed("boom".into()),
+                expected_message: toggle_err_hook_failed("boom"),
+                expected_code: Some("BAD_USER_INPUT"),
+            },
+            ToggleCase {
+                error: ToggleModuleError::Database(sea_orm::DbErr::Custom("db down".to_string())),
+                expected_message: "Internal server error".to_string(),
+                expected_code: Some("INTERNAL_ERROR"),
+            },
+            ToggleCase {
+                error: ToggleModuleError::Policy("policy".to_string()),
+                expected_message: "Internal server error".to_string(),
+                expected_code: Some("INTERNAL_ERROR"),
+            },
+        ];
+
+        for case in cases {
+            let mapped = map_toggle_module_error(case.error);
+            assert_eq!(mapped.message, case.expected_message);
+            let gql = mapped.extend();
+            assert_eq!(error_code(&gql).as_deref(), case.expected_code);
+        }
+    }
+
+    #[test]
     fn manifest_error_maps_validation_errors_to_user_messages() {
         let err = map_manifest_error(ManifestError::RequiredModule("pages".to_string()));
         assert!(err.message.contains("required"));
