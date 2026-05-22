@@ -20,6 +20,24 @@ Flutter workspace scaffold based on `docs/research/flutter.md`.
 - GraphQL client factory with HTTP/WebSocket split transport and subscription support.
 - Manifest generator script from `crates/*/rustok-module.toml`.
 
+
+## Runtime transport configuration
+
+Host app reads GraphQL transport defaults from `--dart-define` values:
+
+- `RUSTOK_SERVER_BASE_URL` (default: `http://localhost:8080`)
+- `RUSTOK_TENANT_SLUG` (default: `default`)
+- `RUSTOK_LOCALE` (default: `en`)
+
+Example:
+
+```bash
+flutter run \
+  --dart-define=RUSTOK_SERVER_BASE_URL=https://api.example.com \
+  --dart-define=RUSTOK_TENANT_SLUG=acme \
+  --dart-define=RUSTOK_LOCALE=ru
+```
+
 ## Regenerate mobile manifest
 
 ```bash

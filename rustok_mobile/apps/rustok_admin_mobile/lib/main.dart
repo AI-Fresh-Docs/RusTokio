@@ -6,14 +6,27 @@ import 'package:graphql/client.dart';
 import 'registry/mobile_module_registry.dart';
 import 'routes/app_router.dart';
 
+const _defaultServerBaseUrl = String.fromEnvironment(
+  'RUSTOK_SERVER_BASE_URL',
+  defaultValue: 'http://localhost:8080',
+);
+const _defaultTenantSlug = String.fromEnvironment(
+  'RUSTOK_TENANT_SLUG',
+  defaultValue: 'default',
+);
+const _defaultLocale = String.fromEnvironment(
+  'RUSTOK_LOCALE',
+  defaultValue: 'en',
+);
+
 final mobileRegistryProvider = Provider((ref) => buildMobileModuleRegistry());
 
 final graphQlConfigProvider = Provider<GraphQlClientConfig>((ref) {
   return GraphQlClientConfig(
-    baseUri: Uri.parse('http://localhost:8080'),
+    baseUri: Uri.parse(_defaultServerBaseUrl),
     context: const GraphQlRequestContext(
-      tenantSlug: 'default',
-      locale: 'en',
+      tenantSlug: _defaultTenantSlug,
+      locale: _defaultLocale,
     ),
   );
 });
