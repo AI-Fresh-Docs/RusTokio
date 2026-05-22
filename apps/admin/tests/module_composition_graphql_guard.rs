@@ -11,6 +11,7 @@ fn native_module_composition_endpoints_are_not_declared() {
         "endpoint = \"admin/install-module\"",
         "endpoint = \"admin/uninstall-module\"",
         "endpoint = \"admin/upgrade-module\"",
+        "endpoint = \"admin/toggle-module\"",
     ] {
         assert!(
             !content.contains(endpoint),
@@ -29,6 +30,7 @@ fn module_composition_client_helpers_do_not_call_native_paths() {
         "install_module_native(",
         "uninstall_module_native(",
         "upgrade_module_native(",
+        "toggle_module_native(",
     ] {
         assert!(
             !content.contains(native_call),
