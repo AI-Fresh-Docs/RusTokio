@@ -3950,15 +3950,35 @@ async fn storefront_graphql_customer_and_order_queries_match_customer_owned_read
                     metadata: serde_json::json!({ "source": "storefront-graphql-order-parity" }),
                 }],
                 adjustments: Vec::new(),
-                tax_lines: vec![rustok_order::dto::CreateOrderTaxLineInput {
-                    line_item_index: Some(0),
-                    shipping_option_index: None,
-                    rate: Decimal::from_str("19.00").expect("valid decimal"),
-                    amount: Decimal::from_str("5.70").expect("valid decimal"),
-                    name: "VAT".to_string(),
-                    provider_id: "region_default".to_string(),
-                    metadata: serde_json::json!({ "tax_included": false }),
-                }],
+                tax_lines: vec![
+                    rustok_order::dto::CreateOrderTaxLineInput {
+                        line_item_index: Some(0),
+                        shipping_option_index: None,
+                        rate: Decimal::from_str("19.00").expect("valid decimal"),
+                        amount: Decimal::from_str("5.70").expect("valid decimal"),
+                        name: "VAT line item".to_string(),
+                        provider_id: "region_default".to_string(),
+                        metadata: serde_json::json!({ "tax_included": false, "scope": "line_item" }),
+                    },
+                    rustok_order::dto::CreateOrderTaxLineInput {
+                        line_item_index: None,
+                        shipping_option_index: Some(0),
+                        rate: Decimal::from_str("19.00").expect("valid decimal"),
+                        amount: Decimal::from_str("1.50").expect("valid decimal"),
+                        name: "VAT shipping".to_string(),
+                        provider_id: "region_default".to_string(),
+                        metadata: serde_json::json!({ "tax_included": false, "scope": "shipping" }),
+                    },
+                    rustok_order::dto::CreateOrderTaxLineInput {
+                        line_item_index: None,
+                        shipping_option_index: None,
+                        rate: Decimal::from_str("19.00").expect("valid decimal"),
+                        amount: Decimal::from_str("0.25").expect("valid decimal"),
+                        name: "VAT order".to_string(),
+                        provider_id: "region_default".to_string(),
+                        metadata: serde_json::json!({ "tax_included": false, "scope": "order" }),
+                    },
+                ],
                 metadata: serde_json::json!({ "source": "storefront-graphql-order-parity" }),
             },
         )
@@ -4001,13 +4021,18 @@ async fn storefront_graphql_customer_and_order_queries_match_customer_owned_read
     );
     assert_eq!(json["storefrontOrder"]["status"], Value::from("pending"));
     assert_eq!(json["storefrontOrder"]["currencyCode"], Value::from("EUR"));
-    assert_eq!(json["storefrontOrder"]["taxTotal"], Value::from("5.7"));
+    assert_eq!(json["storefrontOrder"]["taxTotal"], Value::from("7.45"));
     assert_eq!(json["storefrontOrder"]["taxIncluded"], Value::from(false));
-    assert_eq!(
-        json["storefrontOrder"]["taxLines"][0]["providerId"],
-        Value::from("region_default")
-    );
-    assert_eq!(json["storefrontOrder"]["totalAmount"], Value::from("35.7"));
+    let tax_lines = json["storefrontOrder"]["taxLines"].as_array().expect("tax lines array");
+    assert_eq!(tax_lines.len(), 3);
+    assert_eq!(tax_lines[0]["providerId"], Value::from("region_default"));
+    assert!(tax_lines[0]["lineItemId"].as_str().is_some());
+    assert!(tax_lines[0]["shippingOptionId"].is_null());
+    assert!(tax_lines[1]["lineItemId"].is_null());
+    assert!(tax_lines[1]["shippingOptionId"].as_str().is_some());
+    assert!(tax_lines[2]["lineItemId"].is_null());
+    assert!(tax_lines[2]["shippingOptionId"].is_null());
+    assert_eq!(json["storefrontOrder"]["totalAmount"], Value::from("37.45"));
     assert_eq!(
         json["storefrontOrder"]["lineItems"][0]["title"],
         Value::from("Storefront Order")
