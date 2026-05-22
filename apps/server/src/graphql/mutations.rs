@@ -1168,8 +1168,11 @@ mod tests {
     fn toggle_error_maps_core_module_disable() {
         let err =
             map_toggle_module_error(ToggleModuleError::CoreModuleCannotBeDisabled("core".into()));
-        assert!(err.message.contains("Core module cannot be disabled"));
-        assert!(err.message.contains("core"));
+        assert_eq!(
+            err.message,
+            "Core module cannot be disabled: core",
+            "core-module mapping must keep deterministic user-facing taxonomy"
+        );
     }
 
     #[test]
@@ -1194,10 +1197,11 @@ mod tests {
     #[test]
     fn toggle_error_maps_hook_failure() {
         let err = map_toggle_module_error(ToggleModuleError::HookFailed("boom".into()));
-        assert!(err
-            .message
-            .contains("Module lifecycle hook failed before state commit"));
-        assert!(err.message.contains("boom"));
+        assert_eq!(
+            err.message,
+            "Module lifecycle hook failed before state commit: boom",
+            "hook-failure mapping must stay explicit and deterministic"
+        );
         assert!(!err.message.contains("rolled back"));
     }
 
