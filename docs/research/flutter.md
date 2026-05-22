@@ -1140,6 +1140,19 @@ _Легенда статусов: `⬜ Planned` — не начато, `🟡 In 
 
 Это сохраняет platform parity и снижает стоимость сопровождения по сравнению с отдельным web-host fork.
 
+### Зависимости между планами (anti-drift guardrail)
+
+- Flutter-план для registry/codegen и module surfaces **зависит** от выполнения backend/page-builder этапов в:
+  - `docs/modules/tiptap-page-builder-implementation-plan.md`;
+  - `crates/rustok-pages/docs/implementation-plan.md` (Dedicated page-builder track).
+- Если в мобильном host добавить routing/registry под page-builder раньше, чем зафиксированы backend contract + parity для admin-стеков, появится drift:
+  - расхождение surface metadata;
+  - нестабильные GraphQL payload/contracts;
+  - повторные переделки route/query wiring в клиентах.
+- Поэтому при каждом PR по Flutter registry/module contracts агент должен явно отмечать:
+  1) что уже закрыто в backend/page-builder плане;
+  2) какой следующий шаг **заблокирован** до закрытия пунктов в `tiptap-page-builder-implementation-plan.md` и `rustok-pages` плане.
+
 Ниже — то, что в постановке **не указано**, поэтому в отчёте я дал только разумные варианты, а не жёсткие требования:
 
 | Параметр | Статус | Разумный вариант по умолчанию |
