@@ -18,6 +18,7 @@ Flutter workspace scaffold based on `docs/research/flutter.md`.
 - Shared route contracts with snake_case query key constraints.
 - Shared GraphQL transport context/header builders.
 - GraphQL client factory with HTTP/WebSocket split transport and subscription support.
+- Auth session scaffolding (`AuthSessionStore`, in-memory store, refresh service contract).
 - Manifest generator script from `crates/*/rustok-module.toml`.
 
 
@@ -54,4 +55,4 @@ python3 rustok_mobile/tooling/scripts/verify_mobile_manifest.py --repo-root /wor
 
 1. Replace generic icon mapping with module metadata mapping rules.
 2. Start first module package (`rustok_auth_mobile`) with real screens.
-3. Add auth session storage + refresh flow wiring for production token lifecycle.
+3. Replace in-memory auth session store with secure storage and connect refresh flow to sign-in lifecycle.

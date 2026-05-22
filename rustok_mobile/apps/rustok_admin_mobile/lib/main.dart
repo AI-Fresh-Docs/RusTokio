@@ -21,12 +21,23 @@ const _defaultLocale = String.fromEnvironment(
 
 final mobileRegistryProvider = Provider((ref) => buildMobileModuleRegistry());
 
+final authSessionStoreProvider = Provider<AuthSessionStore>((ref) {
+  return InMemoryAuthSessionStore();
+});
+
+final authSessionProvider = FutureProvider<AuthSession?>((ref) async {
+  final store = ref.watch(authSessionStoreProvider);
+  return store.read();
+});
+
 final graphQlConfigProvider = Provider<GraphQlClientConfig>((ref) {
+  final session = ref.watch(authSessionProvider).valueOrNull;
   return GraphQlClientConfig(
     baseUri: Uri.parse(_defaultServerBaseUrl),
-    context: const GraphQlRequestContext(
+    context: GraphQlRequestContext(
       tenantSlug: _defaultTenantSlug,
       locale: _defaultLocale,
+      accessToken: session?.accessToken,
     ),
   );
 });
