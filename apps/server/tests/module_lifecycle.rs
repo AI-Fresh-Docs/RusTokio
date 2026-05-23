@@ -766,6 +766,28 @@ async fn hook_failure_without_actor_records_failed_operation_with_null_actor() {
         failed_operation.requested_by.is_none(),
         "wrapper toggle_module without actor must keep requested_by=NULL even on failed operations",
     );
+    assert!(
+        failed_operation.correlation_id.is_some(),
+        "failed pre-enable operation must keep correlation id for retry/audit tracing",
+    );
+    let correlation_id = failed_operation
+        .correlation_id
+        .as_deref()
+        .expect("failed operation must have correlation id");
+    let parsed = uuid::Uuid::parse_str(correlation_id).expect("correlation id must be uuid");
+    assert_eq!(parsed.get_version_num(), 4);
+
+    let operations = module_operations::Entity::find()
+        .filter(module_operations::Column::TenantId.eq(tenant_id))
+        .filter(module_operations::Column::ModuleSlug.eq("orders"))
+        .all(&db)
+        .await
+        .expect("load order operations");
+    assert_eq!(
+        operations.len(),
+        1,
+        "single pre-enable failure attempt must produce exactly one lifecycle journal row",
+    );
 }
 
 #[tokio::test]
