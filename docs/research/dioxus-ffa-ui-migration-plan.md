@@ -117,6 +117,47 @@
 - `npm run verify:i18n:contract`
 - `npm.cmd run verify:storefront:routes`
 
+## Принцип исполнения backlog (одна задача за итерацию)
+
+Чтобы не накапливать архитектурный drift и противоречивые записи, программа выполняется
+строго по принципу **"одна задача -> все UI surfaces -> двойная документационная сверка"**:
+
+1. Берём **одну конкретную задачу** (например, выделение `core` для выбранного use-case).
+2. Применяем её **во всех релевантных UI пакетах/host surfaces**, где этот контракт должен быть одинаковым.
+3. Обновляем документацию:
+   - локальные docs модулей;
+   - central docs в `docs/`;
+   - при необходимости ADR/decision trail.
+4. Делаем **двойную сверку документации** перед переходом к следующей задаче:
+   - проход №1: проверить, что новые формулировки полностью соответствуют фактическому коду;
+   - проход №2: целевой поиск и удаление/правка старых формулировок, которые вводят в заблуждение
+     (устаревшие "Leptos-only" или конфликтующие transport-описания и т.п.).
+5. Только после этого закрываем задачу и переходим к следующей.
+
+Этот режим обязателен для фаз B–E, чтобы не получить частичный rollout, где код и docs расходятся
+между модулями или хостами.
+
+
+
+## Политика актуализации verification scripts
+
+Verification scripts (`scripts/verify/*`) считаются частью живого platform contract и
+обновляются вместе с изменением правил, которые они проверяют.
+
+Обязательные правила:
+
+1. Если migration-задача меняет transport/UI/doc contract, она **обязана** включать
+   обновление соответствующих verify-скриптов в том же PR/итерации.
+2. Задача не считается завершённой, если contract уже изменён, а verify-скрипты не
+   отражают новые правила.
+3. После каждой wave (Phase D) выполняется отдельный review verify-скриптов на предмет
+   устаревших паттернов/исключений и добавления новых anti-pattern checks.
+4. Перед закрытием phase-gate владелец задачи прикладывает вывод запуска актуальных
+   verify-скриптов как часть evidence.
+
+Минимальный ритм плановой ревизии: не реже 1 раза в 2–4 недели и обязательно по
+завершению каждой волны rollout.
+
 ## Документация и governance
 
 При platform-level изменениях:
@@ -187,3 +228,29 @@ nl -ba apps/storefront/docs/README.md
 ### 6) Следствие для исполнения плана
 
 План выполняется **без смены продуктового контракта**: сначала рефактор структуры пакетов (core/transport/ui), затем Dioxus adapter pilot. GraphQL/REST остаются обязательными контрактами для headless parity на каждом этапе.
+
+## Phase-gate критерии (обязательные переходы между фазами)
+
+- **A -> B**: завершена карта связности пилотов, зафиксированы current native/GraphQL surfaces, составлен parity checklist.
+- **B -> C**: в пилотах реально выделены `core/transport/ui`, UI не ходит напрямую в transport, parity тесты проходят в pilot scope.
+- **C -> D**: shared abstractions согласованы с владельцами модулей, portability-порт для route/query принят как contract.
+- **D -> E**: минимум одна wave завершена без doc drift, двойная documentation verification выполнена для всех затронутых модулей.
+- **E -> Program done**: Dioxus pilot прошёл parity/KPI проверки и не нарушил headless контракты.
+
+## KPI parity (измеримые пороги)
+
+- Функциональный parity: все обязательные сценарии pilot checklist проходят и в native path, и в GraphQL fallback path.
+- Error parity: доля расхождений по error-classification между адаптерами = 0 для обязательных сценариев.
+- Performance guard: p95 latency новых adapter-path не ухудшается более чем на 15% относительно baseline пилота.
+- Contract guard: 0 случаев удаления/ослабления headless GraphQL/REST контракта в рамках migration PR.
+- Docs guard: 0 известных конфликтующих/устаревших transport-формулировок после двойной сверки.
+
+## RACI (кто принимает phase-gates)
+
+- **Responsible (R):** владелец конкретного модуля UI пакета + исполнитель migration task.
+- **Accountable (A):** platform foundation team (финальный gate по transport/UI contract).
+- **Consulted (C):** владельцы `apps/admin`, `apps/storefront`, `apps/next-admin`, `apps/next-frontend` по host parity.
+- **Informed (I):** смежные module owners и observability/QA владельцы.
+
+Phase-gate не считается пройденным без явного подтверждения `A` и отметки о двойной documentation verification.
+
