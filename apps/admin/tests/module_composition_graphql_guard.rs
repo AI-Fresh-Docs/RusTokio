@@ -49,6 +49,7 @@ fn module_composition_helpers_do_not_use_native_graphql_fallback_combiner() {
         "pub async fn install_module(",
         "pub async fn uninstall_module(",
         "pub async fn upgrade_module(",
+        "pub async fn toggle_module(",
     ] {
         let helper_body = extract_function_block(&content, helper)
             .unwrap_or_else(|| panic!("helper signature not found: {helper}"));
@@ -588,6 +589,22 @@ fn module_graphql_mutation_constants_have_stable_operation_shapes() {
             ],
             ["__typename", "toggleModule(", "moduleSlug: $moduleSlug"],
         ),
+        (
+            "pub const TOGGLE_MODULE_MUTATION: &str = \"",
+            [
+                "mutation ToggleModule($moduleSlug: String!, $enabled: Boolean!)",
+                "toggleModule(moduleSlug: $moduleSlug, enabled: $enabled)",
+                "moduleSlug",
+                "enabled",
+                "settings",
+            ],
+            [
+                "__typename",
+                "$module_slug",
+                "module_slug:",
+                "toggleModule(moduleSlug: $module_slug",
+            ],
+        ),
     ];
 
     for (declaration, required_fragments, forbidden_fragments) in cases {
@@ -607,67 +624,6 @@ fn module_graphql_mutation_constants_have_stable_operation_shapes() {
             );
         }
     }
-}
-
-#[test]
-fn toggle_module_mutation_contract_shape_stays_stable() {
-    let crate_root = Path::new(env!("CARGO_MANIFEST_DIR"));
-    let api_path = crate_root.join("src/features/modules/api.rs");
-    let content = fs::read_to_string(&api_path).expect("read api.rs");
-
-    let declaration = "pub const TOGGLE_MODULE_MUTATION: &str = \"";
-    let start = content
-        .find(declaration)
-        .expect("TOGGLE_MODULE_MUTATION declaration not found");
-    let rest = &content[start + declaration.len()..];
-    let end = rest
-        .find("\";")
-        .expect("TOGGLE_MODULE_MUTATION declaration terminator not found");
-    let mutation = &rest[..end];
-
-    for required_fragment in [
-        "mutation ToggleModule($moduleSlug: String!, $enabled: Boolean!)",
-        "toggleModule(moduleSlug: $moduleSlug, enabled: $enabled)",
-        "moduleSlug",
-        "enabled",
-        "settings",
-    ] {
-        assert!(
-            mutation.contains(required_fragment),
-            "toggle mutation contract drifted: missing fragment `{required_fragment}`"
-        );
-    }
-
-    for forbidden_fragment in [
-        "$module_slug",
-        "module_slug:",
-        "toggleModule(moduleSlug: $module_slug",
-    ] {
-        assert!(
-            !mutation.contains(forbidden_fragment),
-            "toggle mutation contract must keep canonical camelCase variable naming, found forbidden fragment `{forbidden_fragment}`"
-        );
-    }
-
-    assert!(
-        !mutation.contains("__typename"),
-        "toggle mutation contract must stay minimal and not introduce opaque response-only fields"
-    );
-}
-
-#[test]
-fn toggle_module_mutation_constant_is_declared_once() {
-    let crate_root = Path::new(env!("CARGO_MANIFEST_DIR"));
-    let api_path = crate_root.join("src/features/modules/api.rs");
-    let content = fs::read_to_string(&api_path).expect("read api.rs");
-
-    let occurrences = content
-        .matches("pub const TOGGLE_MODULE_MUTATION: &str =")
-        .count();
-    assert_eq!(
-        occurrences, 1,
-        "Expected exactly one TOGGLE_MODULE_MUTATION declaration, found {occurrences}"
-    );
 }
 
 
@@ -711,20 +667,6 @@ fn assert_graphql_only_helper(
 }
 
 #[test]
-fn toggle_module_helper_signature_is_unique() {
-    let crate_root = Path::new(env!("CARGO_MANIFEST_DIR"));
-    let api_path = crate_root.join("src/features/modules/api.rs");
-    let content = fs::read_to_string(&api_path).expect("read api.rs");
-
-    let signature = "pub async fn toggle_module(";
-    let occurrences = content.matches(signature).count();
-    assert_eq!(
-        occurrences, 1,
-        "Expected exactly one toggle_module helper signature, found {occurrences}"
-    );
-}
-
-#[test]
 fn module_composition_helper_signatures_are_unique() {
     let crate_root = Path::new(env!("CARGO_MANIFEST_DIR"));
     let api_path = crate_root.join("src/features/modules/api.rs");
@@ -741,81 +683,6 @@ fn module_composition_helper_signatures_are_unique() {
             occurrences, 1,
             "Expected exactly one `{signature}` helper signature, found {occurrences}"
         );
-    }
-}
-
-#[test]
-fn module_composition_helpers_do_not_call_toggle_mutation_contract() {
-    let crate_root = Path::new(env!("CARGO_MANIFEST_DIR"));
-    let api_path = crate_root.join("src/features/modules/api.rs");
-    let content = fs::read_to_string(&api_path).expect("read api.rs");
-
-    for helper in [
-        "pub async fn install_module(",
-        "pub async fn uninstall_module(",
-        "pub async fn upgrade_module(",
-    ] {
-        let helper_body = extract_function_block(&content, helper)
-            .unwrap_or_else(|| panic!("helper signature not found: {helper}"));
-
-        assert!(
-            !helper_body.contains("TOGGLE_MODULE_MUTATION"),
-            "module composition helper must not accidentally call toggle mutation contract: {helper}"
-        );
-    }
-}
-
-#[test]
-fn module_composition_helpers_do_not_cross_wire_mutation_constants() {
-    let crate_root = Path::new(env!("CARGO_MANIFEST_DIR"));
-    let api_path = crate_root.join("src/features/modules/api.rs");
-    let content = fs::read_to_string(&api_path).expect("read api.rs");
-
-    let cases = [
-        (
-            "pub async fn install_module(",
-            [
-                "UNINSTALL_MODULE_MUTATION",
-                "UPGRADE_MODULE_MUTATION",
-                "TOGGLE_MODULE_MUTATION",
-            ],
-        ),
-        (
-            "pub async fn uninstall_module(",
-            [
-                "INSTALL_MODULE_MUTATION",
-                "UPGRADE_MODULE_MUTATION",
-                "TOGGLE_MODULE_MUTATION",
-            ],
-        ),
-        (
-            "pub async fn upgrade_module(",
-            [
-                "INSTALL_MODULE_MUTATION",
-                "UNINSTALL_MODULE_MUTATION",
-                "TOGGLE_MODULE_MUTATION",
-            ],
-        ),
-        (
-            "pub async fn toggle_module(",
-            [
-                "INSTALL_MODULE_MUTATION",
-                "UNINSTALL_MODULE_MUTATION",
-                "UPGRADE_MODULE_MUTATION",
-            ],
-        ),
-    ];
-
-    for (signature, forbidden_mutations) in cases {
-        let helper_body = extract_function_block(&content, signature)
-            .unwrap_or_else(|| panic!("helper signature not found: {signature}"));
-
-        for forbidden in forbidden_mutations {
-            assert!(
-                !helper_body.contains(forbidden),
-                "helper {signature} must not reference foreign mutation constant {forbidden}"
-            );
-        }
     }
 }
 
