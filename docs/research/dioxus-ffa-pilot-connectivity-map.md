@@ -176,3 +176,11 @@
 
 - `rustok-pages/admin` — core helper extraction и выравнивание UI-call sites.
 - `rustok-pages/storefront` — ранее завершённый core slice подтверждён повторной сверкой.
+
+
+### Pages pilot status (current checkpoint)
+
+- [x] Planned `rustok-pages` pilot slices completed for current helper-extraction scope.
+- [x] Validate + module test evidence attached in trackers.
+- [x] Documentation double-check completed and synchronized.
+- [x] Pilot can be treated as baseline reference sample for following module slices.

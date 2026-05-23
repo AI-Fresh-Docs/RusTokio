@@ -101,3 +101,12 @@
 - [x] Slice 15: storefront open-link label composition moved to core (`open_link_label`).
 - [x] Slice 16: storefront label/value pair rendering moved to core (`label_value_pair`).
 - [x] Slice 17: storefront core extraction cleanup after full module test evidence (unused import removal).
+
+
+## Phase B pilot closure (rustok-pages)
+
+- [x] Core extraction slices for admin/storefront completed for planned helper scope.
+- [x] Module validation evidence attached (`cargo xtask module validate pages`).
+- [x] Module test evidence attached (`cargo xtask module test pages`).
+- [x] Double documentation verification completed and synced in central tracker.
+- [x] Ready to move primary focus to next module wave while keeping pages in maintenance mode.
