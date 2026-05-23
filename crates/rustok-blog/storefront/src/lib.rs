@@ -214,9 +214,10 @@ fn PublishedPostsList(items: Vec<BlogPostListItem>, total: u64) -> impl IntoView
                     .map(|post| {
                         let module_route_base = module_route_base.clone();
                         let locale = locale.clone();
-                        let slug = post.slug.unwrap_or_else(|| {
-                            t(locale.as_deref(), "blog.selected.missingSlug", "missing-slug")
-                        });
+                        let slug = core::fallback_slug(
+                            post.slug,
+                            &t(locale.as_deref(), "blog.selected.missingSlug", "missing-slug"),
+                        );
                         let href = core::module_href(module_route_base.as_str(), slug.as_str());
                         view! {
                             <article class="rounded-2xl border border-border bg-background p-5">
@@ -225,7 +226,10 @@ fn PublishedPostsList(items: Vec<BlogPostListItem>, total: u64) -> impl IntoView
                                 </div>
                                 <h4 class="mt-2 text-base font-semibold text-foreground">{post.title}</h4>
                                 <p class="mt-2 text-sm text-muted-foreground">
-                                    {post.excerpt.unwrap_or_else(|| t(locale.as_deref(), "blog.list.noExcerpt", "No excerpt yet."))}
+                                    {core::fallback_excerpt(
+                                        post.excerpt,
+                                        &t(locale.as_deref(), "blog.list.noExcerpt", "No excerpt yet."),
+                                    )}
                                 </p>
                                 <a class="mt-3 inline-flex text-sm text-primary hover:underline" href=href>
                                     {core::open_link_label(&t(locale.as_deref(), "blog.list.open", "Open"), slug.as_str())}

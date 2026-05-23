@@ -22,6 +22,14 @@ pub fn module_href(base: &str, slug: &str) -> String {
     format!("{base}?slug={slug}")
 }
 
+pub fn fallback_slug(value: Option<String>, fallback: &str) -> String {
+    fallback_text(value, fallback)
+}
+
+pub fn fallback_excerpt(value: Option<String>, fallback: &str) -> String {
+    fallback_text(value, fallback)
+}
+
 pub fn summarize_content(content: &str, format: &str, fallback_template: &str) -> String {
     if format.eq_ignore_ascii_case("markdown") {
         return content.trim().to_string();
@@ -63,6 +71,14 @@ mod tests {
         assert_eq!(
             module_href("/store/modules/blog", "hello-world"),
             "/store/modules/blog?slug=hello-world"
+        );
+        assert_eq!(
+            fallback_slug(None, "missing-slug"),
+            "missing-slug".to_string()
+        );
+        assert_eq!(
+            fallback_excerpt(None, "No excerpt yet."),
+            "No excerpt yet.".to_string()
         );
     }
 }
