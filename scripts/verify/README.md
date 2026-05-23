@@ -75,7 +75,6 @@ node scripts/verify/verify-module-lifecycle-bypass-usage.mjs
 - `unwrap_or("default")` для секретов — unsafe fallback
 
 **Severity:** HIGH. Паника крашит весь tokio runtime.
-????????????? ??? `registry-only` ??????? ??? ?????? `GET /v1/catalog/{slug}` detail-path, cache-contract ????? `ETag` / `If-None-Match` ? negative smoke ?? write-route-? `POST /v2/catalog/publish`, `POST /v2/catalog/owner-transfer` ? `POST /v2/catalog/yank`.
 
 ---
 
