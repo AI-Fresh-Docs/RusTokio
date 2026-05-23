@@ -239,7 +239,7 @@ pub fn BlogAdmin() -> impl IntoView {
             body: body.get_untracked().trim().to_string(),
             body_format: body_format.get_untracked(),
             publish: publish_now.get_untracked(),
-            tags: parse_tags(tags_input.get_untracked().as_str()),
+            tags: core::parse_tags(tags_input.get_untracked().as_str()),
         };
 
         if draft.title.is_empty() || draft.body.is_empty() {
@@ -605,7 +605,7 @@ pub fn BlogAdmin() -> impl IntoView {
                                 on:input=move |ev| {
                                     let value = event_target_value(&ev);
                                     if slug.get_untracked().trim().is_empty() {
-                                        set_slug.set(slugify(value.as_str()));
+                                        set_slug.set(core::slugify(value.as_str()));
                                     }
                                     set_title.set(value);
                                 }
@@ -944,27 +944,13 @@ fn BlogPostsTable(
 
 #[component]
 fn StatusBadge(status: String) -> impl IntoView {
-    let class_name = if status.eq_ignore_ascii_case("published") {
-        "bg-emerald-50 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400"
-    } else if status.eq_ignore_ascii_case("archived") {
-        "bg-muted text-muted-foreground"
-    } else {
-        "bg-primary/10 text-primary"
-    };
+    let class_name = core::status_badge_class(status.as_str());
 
     view! {
         <span class=format!("inline-flex rounded-full px-2.5 py-0.5 text-xs font-semibold {class_name}")>
             {status}
         </span>
     }
-}
-
-fn parse_tags(raw: &str) -> Vec<String> {
-    raw.split(',')
-        .map(str::trim)
-        .filter(|tag| !tag.is_empty())
-        .map(ToString::to_string)
-        .collect()
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -1013,21 +999,4 @@ fn reset_form(
     set_body_format.set("markdown".to_string());
     set_tags_input.set(String::new());
     set_publish_now.set(false);
-}
-
-fn slugify(input: &str) -> String {
-    input
-        .chars()
-        .map(|ch| {
-            if ch.is_ascii_alphanumeric() {
-                ch.to_ascii_lowercase()
-            } else {
-                '-'
-            }
-        })
-        .collect::<String>()
-        .split('-')
-        .filter(|segment| !segment.is_empty())
-        .collect::<Vec<_>>()
-        .join("-")
 }
