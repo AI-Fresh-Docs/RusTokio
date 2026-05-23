@@ -425,11 +425,7 @@ fn SearchResults(
         "search.features.facetsBody",
         "Entity type and source module facets come from the same search payload used by admin previews.",
     );
-    let locale = payload
-        .items
-        .first()
-        .and_then(|item| item.locale.clone())
-        .unwrap_or_else(|| "all".to_string());
+    let locale = core::locale_or_all(payload.items.first().and_then(|item| item.locale.clone()));
     let SearchPreviewPayload {
         query_log_id,
         preset_key: applied_preset_key,
@@ -452,7 +448,7 @@ fn SearchResults(
                     <div class="flex flex-wrap items-center gap-2 text-xs font-medium uppercase tracking-[0.16em] text-muted-foreground">
                         <span>{core::entity_source_label(&item.entity_type, &item.source_module)}</span>
                         <span>"|"</span>
-                        <span>{format!("score {}", core::score_value(item.score))}</span>
+                        <span>{core::score_label(item.score)}</span>
                     </div>
                     <h3 class="mt-3 text-lg font-semibold text-foreground">{item.title}</h3>
                     <p class="mt-2 text-sm text-muted-foreground">
@@ -488,10 +484,12 @@ fn SearchResults(
                             <p class="mt-2 text-xs text-muted-foreground">
                                 {preset_template.replace(
                                     "{preset}",
-                                    applied_preset_key
-                                        .filter(|value| !value.is_empty())
-                                        .unwrap_or_else(|| if selected_preset.is_empty() { none_label.clone() } else { selected_preset.clone() })
-                                        .as_str(),
+                                    core::applied_preset_or_selected(
+                                        applied_preset_key,
+                                        selected_preset.as_str(),
+                                        none_label.as_str(),
+                                    )
+                                    .as_str(),
                                 )}
                             </p>
                         </div>

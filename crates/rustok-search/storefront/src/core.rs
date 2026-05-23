@@ -141,6 +141,19 @@ mod tests {
             suggestion_kind_with_locale("query", None),
             "query".to_string()
         );
+        assert_eq!(locale_or_all(None), "all".to_string());
+        assert_eq!(
+            applied_preset_or_selected(Some("featured".to_string()), "", "none"),
+            "featured".to_string()
+        );
+        assert_eq!(
+            applied_preset_or_selected(None, "manual", "none"),
+            "manual".to_string()
+        );
+        assert_eq!(
+            applied_preset_or_selected(None, "", "none"),
+            "none".to_string()
+        );
     }
 }
 
@@ -178,4 +191,24 @@ pub fn suggestion_kind_with_locale(kind: &str, locale: Option<&str>) -> String {
     locale
         .map(|locale| format!("{kind} • {locale}"))
         .unwrap_or_else(|| kind.to_string())
+}
+
+pub fn locale_or_all(locale: Option<String>) -> String {
+    locale.unwrap_or_else(|| "all".to_string())
+}
+
+pub fn applied_preset_or_selected(
+    applied_preset_key: Option<String>,
+    selected_preset: &str,
+    none_label: &str,
+) -> String {
+    applied_preset_key
+        .filter(|value| !value.is_empty())
+        .unwrap_or_else(|| {
+            if selected_preset.is_empty() {
+                none_label.to_string()
+            } else {
+                selected_preset.to_string()
+            }
+        })
 }
