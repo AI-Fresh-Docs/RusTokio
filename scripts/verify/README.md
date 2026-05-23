@@ -284,7 +284,7 @@ Focused repo-side guardrail for the live Flex multilingual contract.
 
 ---
 ### `verify-all.sh`
-**Master runner** — запуск всех скриптов с итоговым отчётом.
+**Master runner** — запуск всех `verify-*.sh` и ключевых `verify-*.mjs` с итоговым отчётом.
 
 ```
 ╔══════════════════════════════════════════════╗
@@ -300,7 +300,7 @@ Focused repo-side guardrail for the live Flex multilingual contract.
   PASS Security
   PASS Architecture
 
-  Total: 8 suites | 7 passed | 1 failed
+  Total: 13 suites | 12 passed | 1 failed
 ```
 
 ## Интерпретация результатов

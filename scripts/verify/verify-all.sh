@@ -34,6 +34,11 @@ usage() {
     echo "  architecture       Check module registry, Loco hooks, MCP, DI, telemetry"
     echo "  deployment-profiles  Smoke-check monolith, server+admin, headless-api builds"
     echo "  anti-bypass       Audit domain bypass patterns and duplicated business logic"
+    echo "  storefront-module-routes  Verify storefront module route contract"
+    echo "  i18n-contract     Verify i18n contract drift (repo-side)"
+    echo "  ui-i18n-parity    Verify module UI i18n parity"
+    echo "  flex-multilingual-contract  Verify Flex multilingual live contract guardrails"
+    echo "  module-lifecycle-bypass-usage  Verify lifecycle bypass helper is blocked in production paths"
     echo ""
     echo "Without arguments, runs all scripts."
 }
@@ -57,6 +62,11 @@ SCRIPTS=(
     "verify-architecture.sh:Architecture"
     "verify-deployment-profiles.sh:Deployment Profiles"
     "verify-anti-bypass.sh:Anti-bypass Audit"
+    "verify-storefront-module-routes.mjs:Storefront Module Routes"
+    "verify-i18n-contract.mjs:i18n Contract"
+    "verify-ui-i18n-parity.mjs:UI i18n Parity"
+    "verify-flex-multilingual-contract.mjs:Flex Multilingual Contract"
+    "verify-module-lifecycle-bypass-usage.mjs:Module Lifecycle Bypass Usage"
 )
 
 # Filter to selected script if specified
@@ -65,6 +75,7 @@ if [[ -n "$SELECTED_SCRIPT" ]]; then
     for entry in "${SCRIPTS[@]}"; do
         script_file="${entry%%:*}"
         script_name="${script_file%.sh}"
+        script_name="${script_name%.mjs}"
         script_name="${script_name#verify-}"
         if [[ "$script_name" == "$SELECTED_SCRIPT" || "$script_file" == "$SELECTED_SCRIPT" ]]; then
             FILTERED+=("$entry")
@@ -105,11 +116,17 @@ for entry in "${SCRIPTS[@]}"; do
     echo -e "${BLUE}▶ Running: $script_label${NC}"
     echo -e "${SEPARATOR}"
 
+    if [[ "$script_file" == *.mjs ]]; then
+        runner=(node "$script_path")
+    else
+        runner=(bash "$script_path")
+    fi
+
     if [[ $VERBOSE -eq 1 ]]; then
-        bash "$script_path"
+        "${runner[@]}"
         exit_code=$?
     else
-        output=$(bash "$script_path" 2>&1)
+        output=$("${runner[@]}" 2>&1)
         exit_code=$?
         # Show only the summary line
         echo "$output" | grep -E "━━━|error|warning|passed|✗" | tail -5
