@@ -5,12 +5,15 @@
 
 ## Execution checkpoint
 
-- Current phase: plan_sync
-- Last checkpoint: Initial bootstrap by registry workflow.
-- Next step: Закрыть sync-точки с `docs/modules/tiptap-page-builder-implementation-plan.md` и `docs/research/flutter.md` перед расширением mobile page-builder surfaces.
+- Current phase: phase_b_closed
+- Last checkpoint: Phase B pilot closure зафиксирован (core extraction + validate/test + docs double-check).
+- Next step: Перевести `rustok-pages` в maintenance mode и при следующем инкременте ограничиваться runtime-contract задачами (builder/visibility/observability), без возврата UI helper-логики из core в lib.rs.
 - Open blockers: None.
-- Hand-off notes for next agent: После каждого инкремента обновлять этот блок и явно фиксировать, какие шаги Flutter/mobile ещё заблокированы текущим pages backend/parity статусом.
-- Last updated at (UTC): 2026-05-23T00:00:00Z
+- Hand-off notes for next agent:
+  1. Перед любыми изменениями pages сначала сверить `docs/research/dioxus-ffa-pilot-connectivity-map.md` и этот файл; не открывать новый slice без явной цели в трекере.
+  2. Для кода ориентироваться на текущий образец: Leptos UI = thin render/bind, formatting/parsing helpers = `core::*`, dual-path (`native #[server]` + GraphQL fallback) не менять.
+  3. Если задача не про pages runtime contract, приоритет смещается на следующий модуль волны; в pages вносить только bugfix/contract-sync.
+- Last updated at (UTC): 2026-05-23T23:59:00Z
 
 ## Область работ
 
