@@ -1462,6 +1462,14 @@ mod tests {
                 expected_code: "INTERNAL_SERVER_ERROR",
                 message_fragment: "db is unavailable",
             },
+            Case {
+                name: "manifest validation direct mapping",
+                error: PlatformCompositionError::Manifest(ManifestError::RequiredModule(
+                    "pages".to_string(),
+                )),
+                expected_code: "BAD_USER_INPUT",
+                message_fragment: "required",
+            },
         ];
 
         for case in cases {
