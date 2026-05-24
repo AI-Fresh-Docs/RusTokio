@@ -87,14 +87,6 @@ fn toggle_err_hook_failed(reason: &str) -> String {
     format!("Module lifecycle hook failed: {reason}")
 }
 
-fn toggle_err_hook_failure_metadata(reason: &str) -> (&str, bool, &str) {
-    if reason.starts_with("post-hook:") {
-        ("MODULE_HOOK_FAILED", true, "post_hook_failed")
-    } else {
-        ("MODULE_HOOK_FAILED", false, "pre_hook_failed")
-    }
-}
-
 fn map_custom_field_error(error: rustok_core::field_schema::FlexError) -> FieldError {
     match error {
         rustok_core::field_schema::FlexError::ValidationFailed(errors) => {
@@ -356,12 +348,18 @@ fn map_toggle_module_error(error: ToggleModuleError) -> FieldError {
         ToggleModuleError::Database(err) => {
             <FieldError as GraphQLError>::internal_error(&err.to_string())
         }
-        ToggleModuleError::HookFailed(err) => {
-            let (code, retryable_issue, operation_issue) = toggle_err_hook_failure_metadata(&err);
+        ToggleModuleError::PreHookFailed(err) => {
             FieldError::new(toggle_err_hook_failed(&err)).extend_with(|_, ext| {
-                ext.set("code", code);
-                ext.set("retryable_issue", retryable_issue);
-                ext.set("operation_issue", operation_issue);
+                ext.set("code", "MODULE_HOOK_FAILED");
+                ext.set("retryable_issue", false);
+                ext.set("operation_issue", "pre_hook_failed");
+            })
+        }
+        ToggleModuleError::PostHookFailed(err) => {
+            FieldError::new(toggle_err_hook_failed(&err)).extend_with(|_, ext| {
+                ext.set("code", "MODULE_HOOK_FAILED");
+                ext.set("retryable_issue", true);
+                ext.set("operation_issue", "post_hook_failed");
             })
         }
         ToggleModuleError::Policy(err) => <FieldError as GraphQLError>::internal_error(&err),
@@ -1268,10 +1266,16 @@ mod tests {
                 case_name: "has-dependents",
             },
             ToggleCase {
-                error: ToggleModuleError::HookFailed("boom".into()),
+                error: ToggleModuleError::PreHookFailed("boom".into()),
                 expected_message: toggle_err_hook_failed("boom"),
                 expected_code: Some("MODULE_HOOK_FAILED"),
-                case_name: "hook-failed",
+                case_name: "pre-hook-failed",
+            },
+            ToggleCase {
+                error: ToggleModuleError::PostHookFailed("downstream timeout".into()),
+                expected_message: toggle_err_hook_failed("downstream timeout"),
+                expected_code: Some("MODULE_HOOK_FAILED"),
+                case_name: "post-hook-failed",
             },
             ToggleCase {
                 error: ToggleModuleError::Database(sea_orm::DbErr::Custom("db down".to_string())),
@@ -1438,7 +1442,7 @@ mod tests {
 
     #[test]
     fn toggle_hook_failed_pre_hook_sets_non_retryable_issue_extensions() {
-        let mapped = map_toggle_module_error(ToggleModuleError::HookFailed("boom".to_string()));
+        let mapped = map_toggle_module_error(ToggleModuleError::PreHookFailed("boom".to_string()));
         let gql = mapped.extend();
 
         assert_eq!(error_code(&gql).as_deref(), Some("MODULE_HOOK_FAILED"));
@@ -1451,9 +1455,7 @@ mod tests {
 
     #[test]
     fn toggle_hook_failed_post_hook_sets_retryable_issue_extensions() {
-        let mapped = map_toggle_module_error(ToggleModuleError::HookFailed(
-            "post-hook: downstream timeout".to_string(),
-        ));
+        let mapped = map_toggle_module_error(ToggleModuleError::PostHookFailed("downstream timeout".to_string()));
         let gql = mapped.extend();
 
         assert_eq!(error_code(&gql).as_deref(), Some("MODULE_HOOK_FAILED"));
