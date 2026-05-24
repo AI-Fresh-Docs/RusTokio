@@ -15,6 +15,7 @@
   2. Для кода ориентироваться на текущий образец: Leptos UI = thin render/bind, formatting/parsing helpers = `core::*`, dual-path (`native #[server]` + GraphQL fallback) не менять.
   3. Если задача не про pages runtime contract, приоритет смещается на следующий модуль волны; в pages вносить только bugfix/contract-sync.
 - Last updated at (UTC): 2026-05-24T00:40:00Z
+- Last updated at (UTC): 2026-05-24T09:15:00Z
 - Latest maintenance update: Leptos admin package now exposes capability surfaces `preview/tree/properties/publish` for `grapesjs_v1` and keeps legacy `blocks` compatibility visible in the same write-path.
 
 ## Область работ
@@ -49,11 +50,11 @@
 
 ### Acceptance criteria for hand-off
 
-- [ ] Admin UI показывает понятный fallback-state при `builder.enabled=false`.
-- [ ] Storefront read-path не зависит от availability builder capability endpoint.
-- [ ] Publish endpoint корректно возвращает typed runtime error при `builder.publish.enabled=false`.
+- [x] Admin UI показывает понятный fallback-state при `builder.enabled=false`.
+- [x] Storefront read-path не зависит от availability builder capability endpoint.
+- [x] Publish endpoint корректно возвращает typed runtime error при `builder.publish.enabled=false`.
 - [ ] Legacy blocks path работает в режиме read/bridge без расширения write surface.
-- [ ] Переключение tenant flags не требует redeploy и оставляет list/read surfaces доступными.
+- [x] Переключение tenant flags не требует redeploy и оставляет list/read surfaces доступными.
 
 ### Tenant switch procedure (operational checklist)
 
@@ -93,6 +94,54 @@ Rollback trigger:
 - [ ] документировать новые runtime guarantees одновременно с изменением visual builder и visibility contract;
 - [ ] синхронизировать local docs, README и central references при изменении module boundary.
 - [ ] добавить FBA runbook: partial disable capability layer + fallback behavior для admin/storefront paths.
+
+## FBA execution backlog (`pages` как consumer reference builder-модуля)
+
+### B1. Contract & metadata hardening
+
+- [x] Обновить runtime metadata/manifest: явно указать внешний `builder capability-provider` и поддерживаемые capability surfaces (`preview/tree/properties/publish`) — см. `rustok-module.toml` (`dependencies.page_builder`, `fba.builder_consumer`).
+- [x] Добавить contract-version marker для anti-drift проверок между `pages`, Next/Leptos adapters и reference builder (`contract_version = "1.0"` в metadata consumer/provider link).
+- [x] Зафиксировать machine-readable degraded modes (`builder_disabled`, `publish_disabled`, `preview_disabled`) в `fba.builder_consumer.degraded_modes`.
+
+### B2. Fallback & error semantics
+
+- [ ] Закрепить единый typed error catalog для builder-related runtime ошибок (`validation/sanitize/runtime/feature-disabled`).
+- [ ] Добавить fallback snapshots в docs для admin/list/read/publish surfaces.
+- [ ] Убедиться, что partial disable не ломает page read/list/menu paths в storefront/admin.
+
+### B3. Operability & rollout
+
+- [ ] Привязать tenant switch checklist к control-plane audit trail (before/after snapshots + decision).
+- [ ] Синхронизировать rollback triggers с platform SLO policy (p95 publish, runtime error-rate, sanitize failures).
+- [ ] Добавить runbook-note для pilot-tenants: обязательный smoke `preview -> properties -> publish(dry)`.
+
+### B4. Verification gates
+
+- [ ] Включить fallback regression checks в `cargo xtask module test pages` (или эквивалентный CI gate).
+- [ ] Добавить targeted integration checks для `builder.publish.enabled=false` и `builder.enabled=false`.
+- [ ] Зафиксировать evidence-template для Wave hand-off (platform + pages owner approval).
+
+## Wave 0 execution checklist (операционный минимум для `pages`)
+
+### C1. Toggle profiles (обязательно)
+
+- [ ] `all_on`: `builder.enabled=true`, `preview/properties/publish=true`.
+- [ ] `publish_off`: `builder.publish.enabled=false`, publish-path возвращает typed `feature-disabled` error.
+- [ ] `preview_off`: preview capability недоступен, read/list surfaces не деградируют.
+- [ ] `builder_off`: admin visual path в read-only fallback, storefront read-path стабилен.
+
+### C2. Evidence package для каждого профиля
+
+- [ ] before/after snapshot флагов и module health.
+- [ ] smoke output: `list -> open -> preview -> save-draft -> publish-dry` (с ожидаемым результатом для профиля).
+- [ ] observability snapshot: `sanitize`, `runtime`, `publish_latency`.
+- [ ] решение `keep/rollback` + owner подпись в control-plane audit trail.
+
+### C3. Exit criteria для Wave 1
+
+- [ ] fallback regression checks зелёные в CI на актуальном коммите.
+- [ ] нет RBAC regression для editor/moderator/admin в builder-related сценариях.
+- [ ] подтверждён rollback execution <= 10 минут без redeploy `pages` runtime.
 
 ## Проверка
 
