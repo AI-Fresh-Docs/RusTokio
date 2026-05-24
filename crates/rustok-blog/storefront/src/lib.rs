@@ -139,6 +139,7 @@ fn SelectedPostCard(post: Option<BlogPostDetail>) -> impl IntoView {
     );
     let tags = post.tags;
     let body_format = post.body_format;
+    let unknown_status_label = t(locale.as_deref(), "blog.selected.unknownStatus", "unknown");
     let body = core::body_or_fallback(
         post.body.map(|body| {
             core::summarize_content(
@@ -171,7 +172,7 @@ fn SelectedPostCard(post: Option<BlogPostDetail>) -> impl IntoView {
             <div class="mt-3">
                 <BlogStatusBadge
                     status=status
-                    unknown_label=t(locale.as_deref(), "blog.selected.unknownStatus", "unknown")
+                    unknown_label=unknown_status_label
                 />
             </div>
             <p class="mt-3 text-sm text-muted-foreground">{excerpt}</p>
