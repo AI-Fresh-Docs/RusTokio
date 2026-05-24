@@ -33,4 +33,12 @@ if ! grep -q "pending: 1" <<<"$OUTPUT"; then
   exit 1
 fi
 
+MISSING_PATH="$FIXTURE_ROOT/missing-plan.md"
+MISSING_OUTPUT="$(RUSTOK_REMEDIATION_PLAN_PATH="$MISSING_PATH" python3 "$REPORT_SCRIPT" || true)"
+if ! grep -q "ERROR: remediation plan not found" <<<"$MISSING_OUTPUT"; then
+  echo "expected missing-plan error message" >&2
+  echo "$MISSING_OUTPUT" >&2
+  exit 1
+fi
+
 echo "control_plane_remediation_progress_report_test.sh: PASS"

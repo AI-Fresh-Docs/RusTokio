@@ -785,3 +785,8 @@ rollback-стратегии и Definition of Done по итерациям.
 
 - Добавлен утилитарный отчёт `scripts/verify/report-control-plane-remediation-progress.py`, который считает `[x]/[~]/[ ]` по remediation-плану и печатает top-элементы хвоста для batch-планирования следующей итерации.
 - Добавлен изолированный smoke-test `scripts/tests/control_plane_remediation_progress_report_test.sh` (fixture markdown + проверка expected counters), чтобы зафиксировать контракт отчёта.
+
+### Актуализация 2026-05-24 (итерация 60)
+
+- `report-control-plane-remediation-progress.py` получил явный fail-fast для отсутствующего файла плана (`exit 1` + `ERROR: remediation plan not found: ...`), чтобы CI/локальные раннеры не давали ложный PASS при неверном path.
+- Smoke-тест progress-report расширен негативным сценарием missing-plan path.

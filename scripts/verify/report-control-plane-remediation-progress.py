@@ -1,13 +1,18 @@
 #!/usr/bin/env python3
 from __future__ import annotations
 
+import os
 import re
 from pathlib import Path
 
-PLAN_PATH = Path(__import__("os").environ.get("RUSTOK_REMEDIATION_PLAN_PATH", "docs/research/control-plane-module-lifecycle-remediation-plan.md"))
+PLAN_PATH = Path(os.environ.get("RUSTOK_REMEDIATION_PLAN_PATH", "docs/research/control-plane-module-lifecycle-remediation-plan.md"))
 
 
 def main() -> int:
+    if not PLAN_PATH.exists():
+        print(f"ERROR: remediation plan not found: {PLAN_PATH}")
+        return 1
+
     text = PLAN_PATH.read_text(encoding="utf-8")
     lines = text.splitlines()
     pending: list[tuple[int, str]] = []

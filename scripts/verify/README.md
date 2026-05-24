@@ -504,3 +504,5 @@ RUSTOK_VERIFY_STEP_TIMEOUT=15m ./scripts/verify/run-control-plane-remediation-mi
 ```bash
 python3 scripts/verify/report-control-plane-remediation-progress.py
 ```
+
+Если путь к плану не существует, скрипт завершится с кодом `1` и сообщением `ERROR: remediation plan not found: ...`.
