@@ -308,6 +308,24 @@ class VerifyMobileManifestTests(unittest.TestCase):
         self.assertIsNotNone(error)
         self.assertIn("sorted by route_segment", error)
 
+    def test_validate_snapshot_schema_rejects_untrimmed_child_title(self):
+        error = _validate_snapshot_schema(
+            [
+                {
+                    "module_slug": "blog",
+                    "surface_kind": "admin_mobile",
+                    "route_segment": "blog",
+                    "permissions": [],
+                    "locale_namespace": "blog",
+                    "child_pages": [
+                        {"subpath": "posts", "title": " Posts ", "nav_label": "Posts"}
+                    ],
+                }
+            ]
+        )
+        self.assertIsNotNone(error)
+        self.assertIn("title must be trimmed", error)
+
 
 if __name__ == "__main__":
     unittest.main()

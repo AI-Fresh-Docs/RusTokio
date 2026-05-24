@@ -147,6 +147,10 @@ def _validate_snapshot_schema(entries: object) -> str | None:
                     return (
                         f"snapshot entry #{index} child #{child_index} has invalid {key}"
                     )
+                if value != value.strip():
+                    return (
+                        f"snapshot entry #{index} child #{child_index} {key} must be trimmed"
+                    )
             subpath = child["subpath"]
             if not _is_snake_case(subpath):
                 return (
