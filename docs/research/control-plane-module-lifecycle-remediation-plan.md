@@ -780,3 +780,8 @@ rollback-стратегии и Definition of Done по итерациям.
 ### Актуализация 2026-05-24 (итерация 58)
 
 - Alias smoke-test для `verify-all` расширен дополнительным селектором по имени файла (`run-control-plane-remediation-minimal.sh`), чтобы фиксировать parity между alias- и direct-selector путями.
+
+### Актуализация 2026-05-24 (итерация 59)
+
+- Добавлен утилитарный отчёт `scripts/verify/report-control-plane-remediation-progress.py`, который считает `[x]/[~]/[ ]` по remediation-плану и печатает top-элементы хвоста для batch-планирования следующей итерации.
+- Добавлен изолированный smoke-test `scripts/tests/control_plane_remediation_progress_report_test.sh` (fixture markdown + проверка expected counters), чтобы зафиксировать контракт отчёта.

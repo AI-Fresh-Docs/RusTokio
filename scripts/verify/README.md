@@ -497,3 +497,10 @@ RUSTOK_VERIFY_SKIP_FMT=1 ./scripts/verify/run-control-plane-remediation-minimal.
 ```bash
 RUSTOK_VERIFY_STEP_TIMEOUT=15m ./scripts/verify/run-control-plane-remediation-minimal.sh
 ```
+
+
+## Control-plane remediation progress snapshot
+
+```bash
+python3 scripts/verify/report-control-plane-remediation-progress.py
+```
