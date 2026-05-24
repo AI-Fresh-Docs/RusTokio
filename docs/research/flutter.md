@@ -1132,7 +1132,7 @@ _Легенда статусов: `⬜ Planned` — не начато, `🟡 In 
 #### Ближайший execution backlog (Phase 2 → Phase 1)
 
 1. **Registry schema freeze (FFA-safe):** зафиксировать минимальный mobile registry contract (`module_slug`, `surface_kind`, `route_segment`, `child_pages`, `permissions`, `locale_namespace`) без Flutter-only полей.
-2. **Codegen pipeline:** добавить reproducible генерацию `mobile_manifest.g.dart` из manifest snapshot + CI-проверку diff generated-файлов.
+2. **Codegen pipeline:** добавить reproducible генерацию `mobile_manifest.g.dart` из manifest snapshot + CI-проверку diff generated-файлов (в работе: локальная verify-команда уже фиксирует stale-state для manifest + snapshot).
 3. **Host integration seam:** подключить registry через единый adapter-слой (`module_entry_adapter`) и убрать ручное перечисление модулей в shell routing/nav.
 4. **Pilot gate:** после стабилизации registry перевести `Phase 1 — Pilot module` в `🟡 In progress` и взять один модульный E2E-флоу (`modules` или `blog`) как контроль parity.
 
