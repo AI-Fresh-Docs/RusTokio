@@ -394,6 +394,17 @@ mod map_server_fn_error_tests {
     }
 
     #[test]
+    fn pure_graphql_prefixed_http_payload_is_not_misclassified_as_transport_http() {
+        let payload = "GraphQL error: Http error: 409 stale revision conflict";
+        let mapped = map_server_fn_error(ServerFnError::new(payload));
+        assert!(
+            matches!(mapped, GraphqlHttpError::Graphql(message)
+                if message == "Http error: 409 stale revision conflict"),
+            "GraphQL-prefixed payload must remain Graphql variant even when inner message starts with `Http error:`"
+        );
+    }
+
+    #[test]
     fn maps_http_prefix_and_preserves_payload() {
         let mapped = normalize_server_fn_error_message("Http error: 409 conflict");
         assert!(matches!(mapped, GraphqlHttpError::Http(message) if message == "409 conflict"));
