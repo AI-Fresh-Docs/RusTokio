@@ -1125,6 +1125,17 @@ fn normalize_tax_provider_id(value: &str) -> OrderResult<String> {
     Ok(normalized)
 }
 
+fn trim_optional_text(value: Option<String>) -> Option<String> {
+    value.and_then(|raw| {
+        let trimmed = raw.trim();
+        if trimmed.is_empty() {
+            None
+        } else {
+            Some(trimmed.to_string())
+        }
+    })
+}
+
 async fn load_line_item_titles<C>(
     conn: &C,
     line_items: &[entities::order_line_item::Model],
@@ -1225,8 +1236,8 @@ impl OrderService {
             id: Set(generate_id()),
             tenant_id: Set(tenant_id),
             order_id: Set(order_id),
-            reason: Set(input.reason.map(|value| value.trim().to_string())),
-            note: Set(input.note.map(|value| value.trim().to_string())),
+            reason: Set(trim_optional_text(input.reason)),
+            note: Set(trim_optional_text(input.note)),
             status: Set(RETURN_STATUS_PENDING.to_string()),
             metadata: Set(input.metadata),
             created_at: Set(now.into()),

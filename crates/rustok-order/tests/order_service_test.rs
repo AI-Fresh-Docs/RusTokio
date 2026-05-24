@@ -348,8 +348,8 @@ async fn create_and_list_order_returns() {
             tenant_id,
             created_order.id,
             CreateOrderReturnInput {
-                reason: Some("damaged".to_string()),
-                note: Some("Box arrived crushed".to_string()),
+                reason: Some("  damaged  ".to_string()),
+                note: Some("   ".to_string()),
                 metadata: serde_json::json!({ "source": "admin-test" }),
             },
         )
@@ -357,6 +357,7 @@ async fn create_and_list_order_returns() {
         .expect("return should be created");
     assert_eq!(created_return.status, "pending");
     assert_eq!(created_return.reason.as_deref(), Some("damaged"));
+    assert_eq!(created_return.note, None);
 
     let (rows, total) = service
         .list_returns(
