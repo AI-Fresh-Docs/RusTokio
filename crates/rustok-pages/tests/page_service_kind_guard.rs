@@ -1,5 +1,7 @@
 use rustok_core::{MigrationSource, SecurityContext};
-use rustok_pages::dto::{BlockType, CreateBlockInput, CreatePageInput, PageTranslationInput};
+use rustok_pages::dto::{
+    BlockType, CreateBlockInput, CreatePageInput, PageBodyInput, PageTranslationInput,
+};
 use rustok_pages::error::PagesError;
 use rustok_pages::services::{BlockService, PageService};
 use rustok_pages::PagesModule;
@@ -76,6 +78,34 @@ async fn create_block(
         .expect("failed to create block")
 }
 
+async fn seed_pages_module_settings(
+    db: &DatabaseConnection,
+    tenant_id: Uuid,
+    settings: &str,
+) {
+    db.execute(Statement::from_string(
+        db.get_database_backend(),
+        format!(
+            "CREATE TABLE IF NOT EXISTS tenant_modules (
+                id TEXT PRIMARY KEY,
+                tenant_id TEXT NOT NULL,
+                module_slug TEXT NOT NULL,
+                enabled BOOLEAN NOT NULL DEFAULT TRUE,
+                settings TEXT NOT NULL DEFAULT '{{}}',
+                created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+            );
+            INSERT INTO tenant_modules (id, tenant_id, module_slug, enabled, settings)
+            VALUES ('{}', '{}', 'pages', 1, '{}');",
+            Uuid::new_v4(),
+            tenant_id,
+            settings
+        ),
+    ))
+    .await
+    .expect("must create and seed tenant_modules");
+}
+
 #[tokio::test]
 async fn publish_returns_page_not_found_for_block_id_and_keeps_page_status() {
     let (_db, page_service, block_service, tenant_id, security) = setup().await;
@@ -136,31 +166,52 @@ async fn delete_returns_page_not_found_for_block_id_and_keeps_page_record() {
 #[tokio::test]
 async fn publish_returns_feature_disabled_when_builder_publish_toggle_is_false() {
     let (db, page_service, _block_service, tenant_id, security) = setup().await;
-    db.execute(Statement::from_string(
-        db.get_database_backend(),
-        format!(
-            "CREATE TABLE IF NOT EXISTS tenant_modules (
-                id TEXT PRIMARY KEY,
-                tenant_id TEXT NOT NULL,
-                module_slug TEXT NOT NULL,
-                enabled BOOLEAN NOT NULL DEFAULT TRUE,
-                settings TEXT NOT NULL DEFAULT '{{}}',
-                created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
-                updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
-            );
-            INSERT INTO tenant_modules (id, tenant_id, module_slug, enabled, settings)
-            VALUES ('{}', '{}', 'pages', 1, '{{\"builder\":{{\"publish\":{{\"enabled\":false}}}}}}');",
-            Uuid::new_v4(),
-            tenant_id
-        ),
-    ))
-    .await
-    .expect("must create and seed tenant_modules");
+    seed_pages_module_settings(&db, tenant_id, "{\"builder\":{\"publish\":{\"enabled\":false}}}")
+        .await;
 
     let page = create_page(&page_service, tenant_id, security.clone()).await;
     let result = page_service.publish(tenant_id, security, page.id).await;
     assert!(matches!(
         result,
         Err(PagesError::FeatureDisabled { feature }) if feature == "builder.publish.enabled"
+    ));
+}
+
+#[tokio::test]
+async fn create_grapesjs_body_returns_feature_disabled_when_builder_toggle_is_false() {
+    let (db, page_service, _block_service, tenant_id, security) = setup().await;
+    seed_pages_module_settings(&db, tenant_id, "{\"builder\":{\"enabled\":false}}").await;
+
+    let result = page_service
+        .create(
+            tenant_id,
+            security,
+            CreatePageInput {
+                translations: vec![PageTranslationInput {
+                    locale: "en".to_string(),
+                    title: "Landing".to_string(),
+                    slug: Some("landing".to_string()),
+                    meta_title: None,
+                    meta_description: None,
+                }],
+                template: Some("default".to_string()),
+                body: Some(PageBodyInput {
+                    locale: "en".to_string(),
+                    content: "".to_string(),
+                    format: Some("grapesjs_v1".to_string()),
+                    content_json: Some(serde_json::json!({
+                        "components": []
+                    })),
+                }),
+                blocks: None,
+                channel_slugs: None,
+                publish: false,
+            },
+        )
+        .await;
+
+    assert!(matches!(
+        result,
+        Err(PagesError::FeatureDisabled { feature }) if feature == "builder.enabled"
     ));
 }

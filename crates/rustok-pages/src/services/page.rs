@@ -88,6 +88,9 @@ impl PageService {
         let metadata = build_page_metadata(&template, &input.translations, None);
         let channel_slugs = normalize_channel_slugs(input.channel_slugs.as_deref().unwrap_or(&[]));
         let body = normalize_page_body_input(input.body)?;
+        if body_uses_builder_capability(body.as_ref()) {
+            self.ensure_builder_enabled(tenant_id).await?;
+        }
         let now = Utc::now();
         let page_id = Uuid::new_v4();
 
@@ -423,6 +426,9 @@ impl PageService {
             .unwrap_or_default();
         let replace_channel_visibility = input.channel_slugs.is_some();
         let body = normalize_page_body_input(input.body)?;
+        if body_uses_builder_capability(body.as_ref()) {
+            self.ensure_builder_enabled(tenant_id).await?;
+        }
         let locale = input
             .translations
             .as_ref()
@@ -624,11 +630,7 @@ impl PageService {
     }
 
     async fn ensure_builder_publish_enabled(&self, tenant_id: Uuid) -> PagesResult<()> {
-        let module = tenant_module::Entity::find()
-            .filter(tenant_module::Column::TenantId.eq(tenant_id))
-            .filter(tenant_module::Column::ModuleSlug.eq("pages"))
-            .one(&self.db)
-            .await?;
+        let module = self.load_tenant_pages_module(tenant_id).await?;
         let enabled = module
             .as_ref()
             .map(|m| is_builder_publish_enabled(&m.settings))
@@ -637,6 +639,30 @@ impl PageService {
             return Err(PagesError::feature_disabled("builder.publish.enabled"));
         }
         Ok(())
+    }
+
+    async fn ensure_builder_enabled(&self, tenant_id: Uuid) -> PagesResult<()> {
+        let module = self.load_tenant_pages_module(tenant_id).await?;
+        let enabled = module
+            .as_ref()
+            .map(|m| is_builder_enabled(&m.settings))
+            .unwrap_or(true);
+        if !enabled {
+            return Err(PagesError::feature_disabled("builder.enabled"));
+        }
+        Ok(())
+    }
+
+    async fn load_tenant_pages_module(
+        &self,
+        tenant_id: Uuid,
+    ) -> PagesResult<Option<tenant_module::Model>> {
+        let module = tenant_module::Entity::find()
+            .filter(tenant_module::Column::TenantId.eq(tenant_id))
+            .filter(tenant_module::Column::ModuleSlug.eq("pages"))
+            .one(&self.db)
+            .await?;
+        Ok(module)
     }
 
     async fn find_page(&self, tenant_id: Uuid, page_id: Uuid) -> PagesResult<page::Model> {
@@ -971,6 +997,18 @@ fn is_builder_publish_enabled(settings: &serde_json::Value) -> bool {
         .unwrap_or(true)
 }
 
+fn is_builder_enabled(settings: &serde_json::Value) -> bool {
+    settings
+        .get("builder")
+        .and_then(|builder| builder.get("enabled"))
+        .and_then(serde_json::Value::as_bool)
+        .unwrap_or(true)
+}
+
+fn body_uses_builder_capability(body: Option<&PreparedPageBody>) -> bool {
+    body.is_some_and(|item| item.format == CONTENT_FORMAT_GRAPESJS_V1)
+}
+
 fn resolve_translation_record<'a>(
     translations: &'a [page_translation::Model],
     requested: &str,
@@ -1214,6 +1252,24 @@ mod tests {
         })));
         assert!(is_builder_publish_enabled(&serde_json::json!({
             "builder": { "publish": { "enabled": true } }
+        })));
+    }
+
+    #[test]
+    fn builder_enabled_defaults_to_true() {
+        assert!(is_builder_enabled(&serde_json::json!({})));
+        assert!(is_builder_enabled(&serde_json::json!({
+            "builder": {}
+        })));
+    }
+
+    #[test]
+    fn builder_enabled_reads_top_level_flag() {
+        assert!(!is_builder_enabled(&serde_json::json!({
+            "builder": { "enabled": false }
+        })));
+        assert!(is_builder_enabled(&serde_json::json!({
+            "builder": { "enabled": true }
         })));
     }
 }
