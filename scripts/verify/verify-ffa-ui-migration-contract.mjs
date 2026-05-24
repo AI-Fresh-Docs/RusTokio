@@ -79,6 +79,10 @@ function stripCodeFences(content) {
   return content.replace(/```[\s\S]*?```/g, "");
 }
 
+function stripHtmlComments(content) {
+  return content.replace(/<!--[\s\S]*?-->/g, "");
+}
+
 
 function getMarkdownHeadings(content) {
   return content
@@ -102,11 +106,16 @@ function readRequiredDocs() {
 }
 
 function hasMarkdownLink(content, target) {
-  const normalizedContent = stripCodeFences(content);
+  const normalizedContent = stripHtmlComments(stripCodeFences(content));
   const escapedTarget = escapeRegExp(target);
 
   const inlineLinkPattern = new RegExp(`\\[[^\\]]+\\]\\([^)]*${escapedTarget}[^)]*\\)`);
   if (inlineLinkPattern.test(normalizedContent)) {
+    return true;
+  }
+
+  const autoLinkPattern = new RegExp(`<[^>]*${escapedTarget}[^>]*>`);
+  if (autoLinkPattern.test(normalizedContent)) {
     return true;
   }
 
