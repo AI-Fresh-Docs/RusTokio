@@ -19,8 +19,11 @@ else:
 
 
 
+_SNAKE_CASE_RE = re.compile(r"^[a-z0-9_]+$")
+
+
 def _is_snake_case(value: str) -> bool:
-    return bool(value) and bool(__import__("re").match(r"^[a-z0-9_]+$", value))
+    return bool(value) and bool(_SNAKE_CASE_RE.fullmatch(value))
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser()
