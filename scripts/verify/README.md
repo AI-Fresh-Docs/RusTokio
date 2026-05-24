@@ -506,3 +506,17 @@ python3 scripts/verify/report-control-plane-remediation-progress.py
 ```
 
 Если путь к плану не существует, скрипт завершится с кодом `1` и сообщением `ERROR: remediation plan not found: ...`.
+
+Машиночитаемый формат (для CI-артефактов/ботов):
+
+```bash
+python3 scripts/verify/report-control-plane-remediation-progress.py --json
+```
+
+Чтобы использовать отчёт как gate (падать при наличии `[ ]`):
+
+```bash
+python3 scripts/verify/report-control-plane-remediation-progress.py --fail-on-pending
+```
+
+Код выхода `2` означает, что в плане остались pending-пункты.
