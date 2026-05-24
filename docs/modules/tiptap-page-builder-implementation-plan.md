@@ -566,3 +566,34 @@ Go/No-Go для перехода в следующую волну:
 Переход между модулями выполняется только при наличии полного evidence-пакета предыдущего шага (metadata + fallback + observability + rollback).
 
 Без синхронного обновления этих артефактов модуль не переводится в следующую rollout-волну.
+
+### 12.5 Матрица ответственности и hand-off (обязательный baseline для Sprint 1–3)
+
+Чтобы исключить неявные блокеры между командами, для каждого sprint-checkpoint фиксируется owner-профиль:
+
+| Checkpoint | Platform team | Builder reference owners | Pages owners | Frontend owners (Next/Leptos/Flutter) |
+| --- | --- | --- | --- | --- |
+| Sprint 1 / A1 | утверждают anti-drift gate и contract registry | публикуют `builder_contract_version` и typed error catalog | подтверждают `consumer_min_version` и dependency profile | подтверждают adapter mapping для typed errors |
+| Sprint 2 / B1 | подтверждают toggle policy и rollback triggers | гарантируют стабильность capability health probes | верифицируют `list/read/menu` fallback без 5xx | подтверждают UX parity при `publish_off`/`builder_off` |
+| Sprint 3 / C1-D1 | проводят Go/No-Go церемонию и фиксируют decision log | прикладывают provider health и SLO report | прикладывают publish/read smoke и rollback note | прикладывают parity evidence по capability semantics |
+
+Правило hand-off: checkpoint не считается завершённым, если хотя бы один owner-блок в таблице не имеет подтверждённого артефакта в release packet.
+
+### 12.6 Минимальный evidence packet template (для Wave 0/Wave 1)
+
+Для унификации пакета между модулями после `pages` используется единая структура:
+
+1. `metadata/`
+   - provider snapshot (`builder_contract_version`, health profile, degraded modes);
+   - consumer snapshot (`dependency profile`, fallback matrix, toggle profiles).
+2. `fallback/`
+   - результаты `all_on/publish_off/preview_off/builder_off`;
+   - подтверждение отсутствия 5xx в `admin list/read` и `storefront read`.
+3. `observability/`
+   - `preview p95`, `publish p95`, sanitize failure rate, runtime error rate;
+   - correlation trace examples `builder write -> pages publish -> storefront read`.
+4. `rollback/`
+   - rollback decision log (`keep` / `rollback`) с причиной;
+   - owner on-call подтверждение и timestamp.
+
+Минимальный стандарт: без полного packet template модуль не может перейти из Wave 0 в Wave 1.
