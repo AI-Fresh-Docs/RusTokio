@@ -6,7 +6,11 @@ use rustok_pages::dto::{
 use rustok_pages::error::PagesError;
 use rustok_pages::services::{BlockService, PageService};
 use rustok_pages::PagesModule;
-use rustok_test_utils::{db::setup_test_db, helpers::admin_context, mock_transactional_event_bus};
+use rustok_test_utils::{
+    db::setup_test_db,
+    helpers::{admin_context, customer_context},
+    mock_transactional_event_bus,
+};
 use sea_orm::{ConnectionTrait, DatabaseConnection, Statement};
 use sea_orm_migration::SchemaManager;
 use uuid::Uuid;
@@ -559,4 +563,50 @@ async fn update_to_published_markdown_is_allowed_when_builder_disabled_but_publi
         updated.status,
         rustok_content::entities::node::ContentStatus::Published
     );
+}
+
+#[tokio::test]
+async fn publish_forbidden_user_gets_forbidden_before_builder_toggle_errors() {
+    let (db, page_service, _block_service, tenant_id, admin) = setup().await;
+    let draft = page_service
+        .create(
+            tenant_id,
+            admin,
+            CreatePageInput {
+                translations: vec![PageTranslationInput {
+                    locale: "en".to_string(),
+                    title: "Protected grapes page".to_string(),
+                    slug: Some("protected-grapes-page".to_string()),
+                    meta_title: None,
+                    meta_description: None,
+                }],
+                template: Some("default".to_string()),
+                body: Some(PageBodyInput {
+                    locale: "en".to_string(),
+                    content: "".to_string(),
+                    format: Some("grapesjs_v1".to_string()),
+                    content_json: Some(serde_json::json!({
+                        "components": []
+                    })),
+                }),
+                blocks: None,
+                channel_slugs: None,
+                publish: false,
+            },
+        )
+        .await
+        .expect("must create protected draft page");
+
+    seed_pages_module_settings(
+        &db,
+        tenant_id,
+        "{\"builder\":{\"enabled\":false,\"publish\":{\"enabled\":false}}}",
+    )
+    .await;
+
+    let result = page_service
+        .publish(tenant_id, customer_context(), draft.id)
+        .await;
+
+    assert!(matches!(result, Err(PagesError::Forbidden(_))));
 }
