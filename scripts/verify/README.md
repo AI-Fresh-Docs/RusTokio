@@ -24,6 +24,7 @@ node scripts/verify/verify-module-lifecycle-bypass-usage.mjs
 node scripts/verify/verify-page-builder-contract-parity.mjs
 node scripts/verify/verify-page-builder-fallback-profiles.mjs
 node scripts/verify/verify-page-builder-toggle-profiles-consistency.mjs
+./scripts/verify/verify-page-builder-fba-baseline.sh
 ```
 
 ## Когда запускать
@@ -45,6 +46,7 @@ node scripts/verify/verify-page-builder-toggle-profiles-consistency.mjs
 | Проверка parity provider/consumer для page-builder контракта | `node scripts/verify/verify-page-builder-contract-parity.mjs` |
 | Проверка required fallback/toggle профилей page-builder | `node scripts/verify/verify-page-builder-fallback-profiles.mjs` |
 | Проверка консистентности значений в toggle профилях page-builder | `node scripts/verify/verify-page-builder-toggle-profiles-consistency.mjs` |
+| Полный baseline gate page-builder FBA перед Wave 0/Wave 1 | `./scripts/verify/verify-page-builder-fba-baseline.sh` |
 
 ## Описание скриптов
 

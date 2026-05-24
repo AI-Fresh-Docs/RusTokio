@@ -42,6 +42,7 @@ usage() {
     echo "  page-builder-contract-parity  Verify page-builder provider/consumer contract version parity"
     echo "  page-builder-fallback-profiles  Verify required page-builder fallback/toggle profile structure"
     echo "  page-builder-toggle-profiles-consistency  Verify page-builder toggle profile flag combinations"
+    echo "  page-builder-fba-baseline  Run full page-builder FBA baseline gate (parity + fallback + toggle consistency)"
     echo ""
     echo "Without arguments, runs all scripts."
 }
@@ -73,6 +74,7 @@ SCRIPTS=(
     "verify-page-builder-contract-parity.mjs:Page Builder Contract Parity"
     "verify-page-builder-fallback-profiles.mjs:Page Builder Fallback Profiles"
     "verify-page-builder-toggle-profiles-consistency.mjs:Page Builder Toggle Profiles Consistency"
+    "verify-page-builder-fba-baseline.sh:Page Builder FBA Baseline Gate"
 )
 
 # Filter to selected script if specified
