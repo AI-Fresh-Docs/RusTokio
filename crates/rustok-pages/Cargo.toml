@@ -21,6 +21,7 @@ rustok-content.workspace = true
 rustok-outbox.workspace = true
 rustok-seo-targets.workspace = true
 rustok-telemetry.workspace = true
+rustok-tenant.workspace = true
 sea-orm.workspace = true
 sea-orm-migration.workspace = true
 serde.workspace = true
@@ -35,3 +36,4 @@ url = "2.5"
 [dev-dependencies]
 rustok-test-utils.workspace = true
 tokio.workspace = true
+toml.workspace = true

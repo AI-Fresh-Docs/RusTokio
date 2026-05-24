@@ -4,10 +4,11 @@ use rustok_pages::error::PagesError;
 use rustok_pages::services::{BlockService, PageService};
 use rustok_pages::PagesModule;
 use rustok_test_utils::{db::setup_test_db, helpers::admin_context, mock_transactional_event_bus};
+use sea_orm::{ConnectionTrait, DatabaseConnection, Statement};
 use sea_orm_migration::SchemaManager;
 use uuid::Uuid;
 
-async fn setup() -> (PageService, BlockService, Uuid, SecurityContext) {
+async fn setup() -> (DatabaseConnection, PageService, BlockService, Uuid, SecurityContext) {
     let db = setup_test_db().await;
     let module = PagesModule;
     let schema = SchemaManager::new(&db);
@@ -22,7 +23,7 @@ async fn setup() -> (PageService, BlockService, Uuid, SecurityContext) {
     let page_service = PageService::new(db.clone(), event_bus.clone());
     let block_service = BlockService::new(db, event_bus);
 
-    (page_service, block_service, Uuid::new_v4(), admin_context())
+    (db, page_service, block_service, Uuid::new_v4(), admin_context())
 }
 
 async fn create_page(
@@ -77,7 +78,7 @@ async fn create_block(
 
 #[tokio::test]
 async fn publish_returns_page_not_found_for_block_id_and_keeps_page_status() {
-    let (page_service, block_service, tenant_id, security) = setup().await;
+    let (_db, page_service, block_service, tenant_id, security) = setup().await;
     let page = create_page(&page_service, tenant_id, security.clone()).await;
     let block = create_block(&block_service, tenant_id, security.clone(), page.id).await;
 
@@ -96,7 +97,7 @@ async fn publish_returns_page_not_found_for_block_id_and_keeps_page_status() {
 
 #[tokio::test]
 async fn unpublish_returns_page_not_found_for_block_id_and_keeps_page_status() {
-    let (page_service, block_service, tenant_id, security) = setup().await;
+    let (_db, page_service, block_service, tenant_id, security) = setup().await;
     let page = create_page(&page_service, tenant_id, security.clone()).await;
     let block = create_block(&block_service, tenant_id, security.clone(), page.id).await;
 
@@ -115,7 +116,7 @@ async fn unpublish_returns_page_not_found_for_block_id_and_keeps_page_status() {
 
 #[tokio::test]
 async fn delete_returns_page_not_found_for_block_id_and_keeps_page_record() {
-    let (page_service, block_service, tenant_id, security) = setup().await;
+    let (_db, page_service, block_service, tenant_id, security) = setup().await;
     let page = create_page(&page_service, tenant_id, security.clone()).await;
     let block = create_block(&block_service, tenant_id, security.clone(), page.id).await;
 
@@ -130,4 +131,36 @@ async fn delete_returns_page_not_found_for_block_id_and_keeps_page_record() {
         .await
         .expect("page should remain accessible");
     assert_eq!(unchanged.status, page.status);
+}
+
+#[tokio::test]
+async fn publish_returns_feature_disabled_when_builder_publish_toggle_is_false() {
+    let (db, page_service, _block_service, tenant_id, security) = setup().await;
+    db.execute(Statement::from_string(
+        db.get_database_backend(),
+        format!(
+            "CREATE TABLE IF NOT EXISTS tenant_modules (
+                id TEXT PRIMARY KEY,
+                tenant_id TEXT NOT NULL,
+                module_slug TEXT NOT NULL,
+                enabled BOOLEAN NOT NULL DEFAULT TRUE,
+                settings TEXT NOT NULL DEFAULT '{{}}',
+                created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+            );
+            INSERT INTO tenant_modules (id, tenant_id, module_slug, enabled, settings)
+            VALUES ('{}', '{}', 'pages', 1, '{{\"builder\":{{\"publish\":{{\"enabled\":false}}}}}}');",
+            Uuid::new_v4(),
+            tenant_id
+        ),
+    ))
+    .await
+    .expect("must create and seed tenant_modules");
+
+    let page = create_page(&page_service, tenant_id, security.clone()).await;
+    let result = page_service.publish(tenant_id, security, page.id).await;
+    assert!(matches!(
+        result,
+        Err(PagesError::FeatureDisabled { feature }) if feature == "builder.publish.enabled"
+    ));
 }
