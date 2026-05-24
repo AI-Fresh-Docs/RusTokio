@@ -172,7 +172,7 @@ pub fn PagesAdmin() -> impl IntoView {
     let tree_surface_body = t(
         route_context.locale.as_deref(),
         "pages.surface.tree.body",
-        "Page/component tree from projectData plus legacy block compatibility snapshot.",
+        "Page/component tree from projectData plus existing block compatibility snapshot.",
     );
     let properties_surface_title = t(
         route_context.locale.as_deref(),
@@ -207,12 +207,12 @@ pub fn PagesAdmin() -> impl IntoView {
     let legacy_blocks_title = t(
         route_context.locale.as_deref(),
         "pages.surface.tree.legacyBlocks",
-        "Legacy blocks",
+        "Existing blocks",
     );
     let no_legacy_blocks_text = t(
         route_context.locale.as_deref(),
         "pages.surface.tree.noLegacyBlocks",
-        "No legacy blocks attached.",
+        "No existing blocks attached.",
     );
     let body_format_label = t(
         route_context.locale.as_deref(),
@@ -267,12 +267,12 @@ pub fn PagesAdmin() -> impl IntoView {
     let compatibility_non_grapes = t(
         route_context.locale.as_deref(),
         "pages.compat.nonGrapes",
-        "Current body format is not grapesjs_v1. Save once to migrate this page body while keeping legacy blocks untouched.",
+        "Current body format is not grapesjs_v1. Save once to migrate this page body while keeping existing blocks untouched.",
     );
     let compatibility_legacy_blocks = t(
         route_context.locale.as_deref(),
         "pages.compat.legacyBlocks",
-        "Legacy blocks remain attached and are not deleted automatically by grapesjs_v1 writes.",
+        "Existing blocks remain attached and are not deleted automatically by grapesjs_v1 writes.",
     );
 
     let (refresh_nonce, set_refresh_nonce) = signal(0_u64);
