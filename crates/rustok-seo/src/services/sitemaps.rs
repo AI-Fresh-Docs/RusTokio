@@ -1205,6 +1205,22 @@ mod tests {
         let message = summary.into_error().expect("error expected");
         assert!(message.contains("endpoint statuses omitted: 6"));
     }
+
+    #[test]
+    fn submission_summary_error_includes_endpoint_status_samples() {
+        let mut summary = SitemapSubmissionSummary {
+            failure_count: 1,
+            ..Default::default()
+        };
+        for idx in 0..5 {
+            super::push_endpoint_status(&mut summary, format!("status #{idx}"));
+        }
+        push_submission_failure(&mut summary, "failed endpoint".to_string());
+
+        let message = summary.into_error().expect("error expected");
+        assert!(message.contains("endpoint statuses: [status #0, status #1, status #2]"));
+        assert!(!message.contains("status #3"));
+    }
     #[test]
     fn submission_summary_omits_extra_failure_details_deterministically() {
         let mut summary = SitemapSubmissionSummary {
