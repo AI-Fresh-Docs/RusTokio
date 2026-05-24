@@ -66,6 +66,51 @@ test_baseline_passes_on_isolated_fixture() {
   (cd "$FIXTURE_ROOT" && node scripts/verify/verify-page-builder-fba-baseline.mjs)
 }
 
+test_baseline_fails_on_contract_mismatch_fixture() {
+  cat > "$FIXTURE_ROOT/crates/rustok-pages/rustok-module.toml" <<'EOF'
+[fba.builder_consumer]
+contract_version = "1.0"
+builder_contract_version = "2.0"
+
+[fba.builder_consumer.degraded_modes]
+builder_disabled = "admin_builder_readonly_fallback"
+preview_disabled = "preview_capability_hidden_keep_read_paths"
+publish_disabled = "typed_feature_disabled_error_keep_read_paths"
+
+[fba.builder_consumer.toggle_profiles]
+all_on = [
+  "builder.enabled=true",
+  "builder.preview.enabled=true",
+  "builder.properties.enabled=true",
+  "builder.publish.enabled=true",
+]
+publish_off = [
+  "builder.enabled=true",
+  "builder.preview.enabled=true",
+  "builder.properties.enabled=true",
+  "builder.publish.enabled=false",
+]
+preview_off = [
+  "builder.enabled=true",
+  "builder.preview.enabled=false",
+  "builder.properties.enabled=true",
+  "builder.publish.enabled=true",
+]
+builder_off = [
+  "builder.enabled=false",
+  "builder.preview.enabled=false",
+  "builder.properties.enabled=false",
+  "builder.publish.enabled=false",
+]
+EOF
+
+  if (cd "$FIXTURE_ROOT" && node scripts/verify/verify-page-builder-fba-baseline.mjs >/tmp/page_builder_fixture_fail.out 2>&1); then
+    echo "expected baseline to fail on contract mismatch fixture"
+    cat /tmp/page_builder_fixture_fail.out
+    exit 1
+  fi
+}
+
 test_verify_all_alias_runs_page_builder_baseline() {
   (cd "$REPO_ROOT" && "$VERIFY_DIR/verify-all.sh" page-builder-fba-baseline >/tmp/page_builder_verify_all.out)
   grep -q "PASS" /tmp/page_builder_verify_all.out
@@ -74,6 +119,7 @@ test_verify_all_alias_runs_page_builder_baseline() {
 create_fixture_repo
 trap cleanup_fixture_repo EXIT
 test_baseline_passes_on_isolated_fixture
+test_baseline_fails_on_contract_mismatch_fixture
 test_verify_all_alias_runs_page_builder_baseline
 
-echo "page_builder_fba_verify_test.sh: PASS (fixture + repo alias)"
+echo "page_builder_fba_verify_test.sh: PASS (fixture pass/fail + repo alias)"
