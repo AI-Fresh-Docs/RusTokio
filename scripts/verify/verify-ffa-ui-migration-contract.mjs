@@ -14,22 +14,22 @@ const requiredDocs = [
   "docs/verification/ffa-ui-parity-checklist.md",
 ];
 
-const requiredPlanSections = [
-  "## Фазы реализации",
-  "## Принцип исполнения backlog (одна задача за итерацию)",
-  "## Политика актуализации verification scripts",
-  "## Phase-gate критерии (обязательные переходы между фазами)",
-  "## KPI parity (измеримые пороги)",
-  "## RACI (кто принимает phase-gates)",
+const requiredPlanHeadings = [
+  "Фазы реализации",
+  "Принцип исполнения backlog (одна задача за итерацию)",
+  "Политика актуализации verification scripts",
+  "Phase-gate критерии (обязательные переходы между фазами)",
+  "KPI parity (измеримые пороги)",
+  "RACI (кто принимает phase-gates)",
 ];
 
 const requiredChecklistPatterns = [
-  /- \[ \] Native path \(Leptos SSR\/hydrate\) работает для целевого сценария\./,
-  /- \[ \] GraphQL fallback работает для того же сценария\./,
-  /- \[ \] UI слой не владеет transport\/business логикой\./,
-  /- \[ \] Доступ к transport идёт через core ports\./,
-  /- \[ \] Core слой не зависит от `leptos\*`\./,
-  /- \[ \] Выполнен `npm run verify:ffa:ui:migration`\./,
+  /- \[[ xX]\] Native path \(Leptos SSR\/hydrate\) работает для целевого сценария\./,
+  /- \[[ xX]\] GraphQL fallback работает для того же сценария\./,
+  /- \[[ xX]\] UI слой не владеет transport\/business логикой\./,
+  /- \[[ xX]\] Доступ к transport идёт через core ports\./,
+  /- \[[ xX]\] Core слой не зависит от `leptos\*`\./,
+  /- \[[ xX]\] Выполнен `npm run verify:ffa:ui:migration`\./,
 ];
 
 function assertFileExists(relPath) {
@@ -56,6 +56,19 @@ function normalizeMarkdown(content) {
   return content.replace(/\r\n/g, "\n").replace(/[ \t]+$/gm, "");
 }
 
+function getMarkdownHeadings(content) {
+  return content
+    .split("\n")
+    .map((line) => line.match(/^#{1,6}\s+(.*)$/)?.[1]?.trim())
+    .filter(Boolean);
+}
+
+function assertHeadingExists(headings, expectedHeading) {
+  if (!headings.includes(expectedHeading)) {
+    throw new Error(`Не найден обязательный heading: ${expectedHeading}`);
+  }
+}
+
 try {
   const planPath = assertFileExists(requiredDocs[0]);
   const connectivityPath = assertFileExists(requiredDocs[1]);
@@ -65,8 +78,9 @@ try {
   const checklist = normalizeMarkdown(readFileSync(checklistPath, "utf8"));
   const connectivity = normalizeMarkdown(readFileSync(connectivityPath, "utf8"));
 
-  requiredPlanSections.forEach((section) => {
-    assertContains(plan, section, "plan section");
+  const planHeadings = getMarkdownHeadings(plan);
+  requiredPlanHeadings.forEach((heading) => {
+    assertHeadingExists(planHeadings, heading);
   });
 
   requiredChecklistPatterns.forEach((pattern) => {
