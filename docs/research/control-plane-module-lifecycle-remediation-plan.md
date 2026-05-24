@@ -653,7 +653,7 @@ rollback-стратегии и Definition of Done по итерациям.
 
 - [x] Contract tests для GraphQL/Leptos SSR parity (manifest + lifecycle) — закрыто guard-контрактами `apps/admin/tests/module_composition_graphql_guard.rs` + `apps/server/tests/platform_composition_guard.rs`/`apps/server/tests/lifecycle_bypass_guard.rs`.
 - [x] Failure-mode tests для CAS/build enqueue и pre/post hooks — закрыто integration/guard тестами `apps/server/tests/platform_composition_build_service.rs` и `apps/server/tests/module_lifecycle.rs`.
-- [ ] Migration ordering tests (descriptor, missing, cycle, determinism).
+- [x] Migration ordering tests (descriptor, missing, cycle, determinism) — закрыто unit-тестами `apps/server/migration/src/lib.rs` (`dependency_sort_rejects_missing_dependency`, `dependency_sort_rejects_cycle`, `dependency_sort_rejects_duplicate_descriptor_for_same_migration`, `collected_descriptors_*`, `migrator_orders_taxonomy_before_product_tags`).
 
 ### 3) Документация
 
@@ -701,5 +701,5 @@ rollback-стратегии и Definition of Done по итерациям.
 ### Definition of Done для пакетного цикла
 
 - [x] Все пункты Batch-1 отмечены `[x]`.
-- [ ] Обновлён release-gate checklist (разделы Код/Тесты/Документация/Операционные проверки).
+- [x] Обновлён release-gate checklist (разделы Код/Тесты/Документация/Операционные проверки).
 - [x] В актуализации этого документа добавлен короткий отчёт по факту выполненного пакета.
