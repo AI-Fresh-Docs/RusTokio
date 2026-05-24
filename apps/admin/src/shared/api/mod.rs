@@ -269,6 +269,38 @@ mod map_server_fn_error_tests {
     }
 
     #[test]
+    fn lifecycle_journal_actor_and_correlation_matrix_is_forwarded_without_local_remap() {
+        let cases = [
+            (
+                "committed",
+                Some("admin:user-1"),
+                "ad8dc8f2-18f4-44fd-b5f5-c925ca7053c8",
+            ),
+            ("failed", None, "2a93228c-d0ed-4c17-b883-b8d8fa8fbe1f"),
+        ];
+
+        for (status, requested_by, correlation_id) in cases {
+            let requested_by_fragment = match requested_by {
+                Some(actor) => format!("\"requested_by\":\"{actor}\""),
+                None => "\"requested_by\":null".to_string(),
+            };
+            let payload = format!(
+                "GraphQL error: MODULE_HOOK_FAILED {{\"extensions\":{{\"code\":\"MODULE_HOOK_FAILED\",\"status\":\"{status}\",\"{correlation_id_key}\":\"{correlation_id}\",{requested_by_fragment}}}}}",
+                correlation_id_key = "correlation_id",
+            );
+            let mapped = map_server_fn_error(ServerFnError::new(payload.clone()));
+
+            assert!(
+                matches!(mapped, GraphqlHttpError::Graphql(message)
+                    if message.contains(&format!("\"status\":\"{status}\""))
+                    && message.contains(&format!("\"correlation_id\":\"{correlation_id}\""))
+                    && message.contains(&requested_by_fragment)),
+                "journal metadata payload must pass through unchanged for status={status}, requested_by={requested_by:?}"
+            );
+        }
+    }
+
+    #[test]
     fn lifecycle_taxonomy_extensions_are_forwarded_without_local_normalization() {
         let payload = "GraphQL error: MISSING_DEPENDENCIES {\"extensions\":{\"code\":\"MISSING_DEPENDENCIES\",\"reason_code\":\"dependency_missing\",\"requested_by\":\"admin:user-2\"}}";
         let mapped = map_server_fn_error(ServerFnError::new(payload));
@@ -333,6 +365,57 @@ mod map_server_fn_error_tests {
             assert!(
                 matches!(mapped, GraphqlHttpError::Graphql(message) if message == case),
                 "expected composition taxonomy message to be forwarded unchanged for case {case}"
+            );
+        }
+    }
+
+    #[test]
+    fn lifecycle_extensions_code_matrix_is_forwarded_without_remapping() {
+        let cases = [
+            ("UNKNOWN_MODULE", "module_not_found"),
+            ("CORE_MODULE", "core_module"),
+            ("MISSING_DEPENDENCIES", "dependency_missing"),
+            ("HAS_DEPENDENTS", "has_dependents"),
+            ("MODULE_HOOK_FAILED", "hook_failed"),
+        ];
+
+        for (code, reason_code) in cases {
+            let payload = format!(
+                "GraphQL error: {code} {{\"extensions\":{{\"code\":\"{code}\",\"reason_code\":\"{reason_code}\"}}}}"
+            );
+            let mapped = map_server_fn_error(ServerFnError::new(payload.clone()));
+            assert!(
+                matches!(mapped, GraphqlHttpError::Graphql(message)
+                    if message.contains(&format!("\"code\":\"{code}\""))
+                    && message.contains(&format!("\"reason_code\":\"{reason_code}\""))),
+                "extensions code/reason must pass through unchanged for lifecycle code {code}"
+            );
+        }
+    }
+
+    #[test]
+    fn composition_extensions_code_matrix_is_forwarded_without_remapping() {
+        let cases = [
+            ("REVISION_CONFLICT", "revision_conflict"),
+            ("INVALID_MODULE", "invalid_module"),
+            ("REQUIRED_MODULE", "required_module"),
+            ("UNKNOWN_DEPENDENCY", "unknown_dependency"),
+            ("INTERNAL_ERROR", "internal_error"),
+        ];
+
+        for (code, reason_code) in cases {
+            let payload = format!(
+                "GraphQL error: {code} {{\"extensions\":{{\"code\":\"{code}\",\"reason_code\":\"{reason_code}\",\"manifest_ref\":\"platform_state:77\",\"manifest_revision\":77,\"expected_revision\":76}}}}"
+            );
+            let mapped = map_server_fn_error(ServerFnError::new(payload.clone()));
+            assert!(
+                matches!(mapped, GraphqlHttpError::Graphql(message)
+                    if message.contains(&format!("\"code\":\"{code}\""))
+                    && message.contains(&format!("\"reason_code\":\"{reason_code}\""))
+                    && message.contains("\"manifest_ref\":\"platform_state:77\"")
+                    && message.contains("\"manifest_revision\":77")
+                    && message.contains("\"expected_revision\":76")),
+                "composition extensions payload must pass through unchanged for code {code}"
             );
         }
     }
