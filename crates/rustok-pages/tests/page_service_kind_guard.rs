@@ -1,6 +1,7 @@
 use rustok_core::{MigrationSource, SecurityContext};
 use rustok_pages::dto::{
     BlockType, CreateBlockInput, CreatePageInput, PageBodyInput, PageTranslationInput,
+    UpdatePageInput,
 };
 use rustok_pages::error::PagesError;
 use rustok_pages::services::{BlockService, PageService};
@@ -206,6 +207,37 @@ async fn create_grapesjs_body_returns_feature_disabled_when_builder_toggle_is_fa
                 blocks: None,
                 channel_slugs: None,
                 publish: false,
+            },
+        )
+        .await;
+
+    assert!(matches!(
+        result,
+        Err(PagesError::FeatureDisabled { feature }) if feature == "builder.enabled"
+    ));
+}
+
+#[tokio::test]
+async fn update_grapesjs_body_returns_feature_disabled_when_builder_toggle_is_false() {
+    let (db, page_service, _block_service, tenant_id, security) = setup().await;
+    let page = create_page(&page_service, tenant_id, security.clone()).await;
+    seed_pages_module_settings(&db, tenant_id, "{\"builder\":{\"enabled\":false}}").await;
+
+    let result = page_service
+        .update(
+            tenant_id,
+            security,
+            page.id,
+            UpdatePageInput {
+                body: Some(PageBodyInput {
+                    locale: "en".to_string(),
+                    content: "".to_string(),
+                    format: Some("grapesjs_v1".to_string()),
+                    content_json: Some(serde_json::json!({
+                        "components": []
+                    })),
+                }),
+                ..Default::default()
             },
         )
         .await;
