@@ -48,6 +48,15 @@ node scripts/verify/verify-page-builder-toggle-profiles-consistency.mjs
 | Проверка консистентности значений в toggle профилях page-builder | `node scripts/verify/verify-page-builder-toggle-profiles-consistency.mjs` |
 | Полный baseline gate page-builder FBA перед Wave 0/Wave 1 | `./scripts/verify/verify-page-builder-fba-baseline.sh` |
 
+Альтернативно те же проверки доступны через `npm run`:
+
+```bash
+npm run verify:page-builder:contract-parity
+npm run verify:page-builder:fallback-profiles
+npm run verify:page-builder:toggle-profiles
+npm run verify:page-builder:fba:baseline
+```
+
 ## Описание скриптов
 
 ### `verify-tenant-isolation.sh`
