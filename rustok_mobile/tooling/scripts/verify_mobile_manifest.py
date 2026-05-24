@@ -100,6 +100,7 @@ def _validate_snapshot_schema(entries: object) -> str | None:
         if not isinstance(permissions, list):
             return f"snapshot entry #{index} permissions must be an array"
         seen_permissions: set[str] = set()
+        previous_permission: str | None = None
         for permission_index, permission in enumerate(permissions):
             if not isinstance(permission, str) or not permission.strip():
                 return (
@@ -109,7 +110,12 @@ def _validate_snapshot_schema(entries: object) -> str | None:
                 return (
                     f"snapshot entry #{index} duplicates permission '{permission}'"
                 )
+            if previous_permission is not None and permission < previous_permission:
+                return (
+                    f"snapshot entry #{index} permissions must be sorted ascending"
+                )
             seen_permissions.add(permission)
+            previous_permission = permission
         if not isinstance(child_pages, list):
             return f"snapshot entry #{index} child_pages must be an array"
 
