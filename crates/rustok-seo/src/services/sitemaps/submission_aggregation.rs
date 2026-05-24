@@ -1,5 +1,6 @@
 pub(super) const SITEMAP_SUBMIT_MAX_ERROR_LEN: usize = 4000;
 const SITEMAP_SUBMIT_MAX_FAILURE_DETAILS: usize = 8;
+const SITEMAP_SUBMIT_MAX_ENDPOINT_STATUSES: usize = 24;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(super) struct SitemapSubmissionSummary {
@@ -7,6 +8,8 @@ pub(super) struct SitemapSubmissionSummary {
     pub(super) failure_count: usize,
     pub(super) failures: Vec<String>,
     pub(super) omitted_failure_count: usize,
+    pub(super) endpoint_statuses: Vec<String>,
+    pub(super) omitted_endpoint_status_count: usize,
 }
 
 impl SitemapSubmissionSummary {
@@ -39,5 +42,13 @@ pub(super) fn push_submission_failure(summary: &mut SitemapSubmissionSummary, me
         summary.failures.push(message);
     } else {
         summary.omitted_failure_count += 1;
+    }
+}
+
+pub(super) fn push_endpoint_status(summary: &mut SitemapSubmissionSummary, status: String) {
+    if summary.endpoint_statuses.len() < SITEMAP_SUBMIT_MAX_ENDPOINT_STATUSES {
+        summary.endpoint_statuses.push(status);
+    } else {
+        summary.omitted_endpoint_status_count += 1;
     }
 }
