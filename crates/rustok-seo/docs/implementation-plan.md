@@ -5,11 +5,11 @@
 ## Execution checkpoint
 
 - Current phase: phase_c1_execution
-- Last checkpoint: Подготовлен execution-пакет для Iteration C1: зафиксирован scope только на runtime seam/adapters, заземлены acceptance критерии для endpoint fan-out aggregation и уточнён test matrix (all-success / partial-failure / invalid-skip / timeout truncation) без изменения public `SeoSitemapStatusRecord`.
-- Next step: Реализовать `submit_sitemap_index` в `sitemaps` runtime и добавить покрытие `cargo test -p rustok-seo --lib sitemaps` по C1 regression matrix.
+- Last checkpoint: Для C1 внедрена bounded aggregation-модель sitemap submission (детали ошибок ограничены детерминированным лимитом), test matrix обновлён до проверки detail truncation + omitted-tail semantics без изменения public `SeoSitemapStatusRecord`.
+- Next step: Разделить текущий `sitemaps` runtime на 3 дочерних подпакета (`index-generation`, `submission-adapters`, `submission-aggregation`) и довести provider seam до отдельного runtime объекта без изменения API наружу.
 - Open blockers: Для полноценных provider-specific adapters (Google Indexing API и др.) нужен отдельный tenant-secret contract и policy для secret rotation (вне текущего scope C1).
-- Hand-off notes for next agent: Держать C1 строго инфраструктурным инкрементом (adapter seam + aggregation + tests); не начинать C2/C3 и не менять public response shape до закрытия C1 verification.
-- Last updated at (UTC): 2026-05-24T17:58:10Z
+- Hand-off notes for next agent: Целевое разбиение дочерних модулей для `sitemaps` = **3** (generation/adapters/aggregation); C2/C3 не трогать до полного закрытия C1 regression/verify.
+- Last updated at (UTC): 2026-05-24T18:34:00Z
 
 ## Область работ
 
