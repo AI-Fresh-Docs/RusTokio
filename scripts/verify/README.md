@@ -487,3 +487,7 @@ fi
 ```bash
 RUSTOK_VERIFY_SKIP_FMT=1 ./scripts/verify/run-control-plane-remediation-minimal.sh
 ```
+
+```bash
+./scripts/verify/verify-all.sh control-plane-remediation-minimal
+```

@@ -753,3 +753,8 @@ rollback-стратегии и Definition of Done по итерациям.
 
 - Для нового minimal runner добавлен smoke/guard тест `scripts/tests/control_plane_remediation_minimal_runner_test.sh` (syntax + lock-conflict path + skip-fmt path до шага migration).
 - `scripts/tests/README.md` и `scripts/verify/README.md` синхронизированы с новым runner/test entrypoint, чтобы operational usage и локальные проверки были воспроизводимыми.
+
+### Актуализация 2026-05-24 (итерация 53)
+
+- `verify-all` теперь поддерживает alias `control-plane-remediation-minimal` для точечного запуска нового bundle без ручного вызова файла runner.
+- Добавлен отдельный smoke-тест `scripts/tests/control_plane_remediation_verify_all_alias_test.sh`, подтверждающий корректный route alias -> runner path.
