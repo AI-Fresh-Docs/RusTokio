@@ -114,6 +114,7 @@ fn SelectedPostCard(post: Option<BlogPostDetail>) -> impl IntoView {
 
     let title = post.title;
     let effective_locale = post.effective_locale;
+    let status = post.status;
     let slug = core::fallback_text(
         post.slug,
         &t(locale.as_deref(), "blog.selected.missingSlug", "missing-slug"),
@@ -153,6 +154,11 @@ fn SelectedPostCard(post: Option<BlogPostDetail>) -> impl IntoView {
                 <span>{core::label_value_pair(&t(locale.as_deref(), "blog.selected.publishedLabel", "published"), published_at.as_str())}</span>
             </div>
             <h3 class="mt-3 text-2xl font-semibold text-foreground">{title}</h3>
+            <div class="mt-3">
+                <span class=core::status_badge_css(status.as_str())>
+                    {status}
+                </span>
+            </div>
             <p class="mt-3 text-sm text-muted-foreground">{excerpt}</p>
             <p class="mt-4 whitespace-pre-line text-sm leading-7 text-muted-foreground">{body}</p>
             {if tags.is_empty() {
