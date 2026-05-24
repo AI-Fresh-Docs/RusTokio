@@ -74,6 +74,7 @@
 | `rustok-comments` | [docs](../../crates/rustok-comments/docs/README.md) | [plan](../../crates/rustok-comments/docs/implementation-plan.md) |
 | `rustok-forum` | [docs](../../crates/rustok-forum/docs/README.md) | [plan](../../crates/rustok-forum/docs/implementation-plan.md) |
 | `rustok-pages` | [docs](../../crates/rustok-pages/docs/README.md) | [plan](../../crates/rustok-pages/docs/implementation-plan.md) |
+| `rustok-page-builder` | [docs](../../crates/rustok-page-builder/docs/README.md) | [plan](../../crates/rustok-page-builder/docs/implementation-plan.md) |
 | `rustok-seo` | [docs](../../crates/rustok-seo/docs/README.md) | [plan](../../crates/rustok-seo/docs/implementation-plan.md) |
 | `rustok-taxonomy` | [docs](../../crates/rustok-taxonomy/docs/README.md) | [plan](../../crates/rustok-taxonomy/docs/implementation-plan.md) |
 | `rustok-media` | [docs](../../crates/rustok-media/docs/README.md) | [plan](../../crates/rustok-media/docs/implementation-plan.md) |
