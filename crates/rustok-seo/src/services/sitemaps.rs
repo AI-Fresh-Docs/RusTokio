@@ -531,6 +531,20 @@ mod tests {
 
     struct TestSitemapSubmissionAdapter {
         outcomes: Arc<Mutex<HashMap<String, Result<(), String>>>>,
+        submitted_endpoints: Arc<Mutex<Vec<String>>>,
+    }
+
+    impl TestSitemapSubmissionAdapter {
+        fn new(outcomes: HashMap<String, Result<(), String>>) -> Self {
+            Self {
+                outcomes: Arc::new(Mutex::new(outcomes)),
+                submitted_endpoints: Arc::new(Mutex::new(Vec::new())),
+            }
+        }
+
+        async fn submitted_endpoints(&self) -> Vec<String> {
+            self.submitted_endpoints.lock().await.clone()
+        }
     }
 
     #[async_trait::async_trait]
@@ -539,6 +553,10 @@ mod tests {
             &self,
             endpoint: SitemapSubmitEndpoint,
         ) -> Result<(), String> {
+            self.submitted_endpoints
+                .lock()
+                .await
+                .push(endpoint.endpoint.clone());
             let outcomes = self.outcomes.lock().await;
             outcomes
                 .get(endpoint.endpoint.as_str())
@@ -812,12 +830,10 @@ mod tests {
     async fn submit_sitemap_endpoints_all_success_returns_ok() {
         let db = test_db().await;
         let service = SeoService::new_memory(db);
-        let adapter = TestSitemapSubmissionAdapter {
-            outcomes: Arc::new(Mutex::new(HashMap::from([
-                ("https://ok-1.example.com/ping".to_string(), Ok(())),
-                ("https://ok-2.example.com/ping".to_string(), Ok(())),
-            ]))),
-        };
+        let adapter = TestSitemapSubmissionAdapter::new(HashMap::from([
+            ("https://ok-1.example.com/ping".to_string(), Ok(())),
+            ("https://ok-2.example.com/ping".to_string(), Ok(())),
+        ]));
 
         let result = service
             .submit_sitemap_endpoints_with_adapter(
@@ -837,18 +853,16 @@ mod tests {
     async fn submit_sitemap_endpoints_reports_success_failure_and_invalid() {
         let db = test_db().await;
         let service = SeoService::new_memory(db);
-        let adapter = TestSitemapSubmissionAdapter {
-            outcomes: Arc::new(Mutex::new(HashMap::from([
-                (
-                    "https://ok.example.com/ping".to_string(),
-                    Ok(()),
-                ),
-                (
-                    "https://fail.example.com/ping".to_string(),
-                    Err("endpoint `https://fail.example.com/ping` responded with status 500 Internal Server Error".to_string()),
-                ),
-            ]))),
-        };
+        let adapter = TestSitemapSubmissionAdapter::new(HashMap::from([
+            (
+                "https://ok.example.com/ping".to_string(),
+                Ok(()),
+            ),
+            (
+                "https://fail.example.com/ping".to_string(),
+                Err("endpoint `https://fail.example.com/ping` responded with status 500 Internal Server Error".to_string()),
+            ),
+        ]));
 
         let result = service
             .submit_sitemap_endpoints_with_adapter(
@@ -868,6 +882,35 @@ mod tests {
             message.contains("endpoint `https://fail.example.com/ping` responded with status 500")
         );
         assert!(message.contains("invalid endpoint: invalid endpoint"));
+        let submitted = adapter.submitted_endpoints().await;
+        assert_eq!(
+            submitted,
+            vec![
+                "https://ok.example.com/ping".to_string(),
+                "https://fail.example.com/ping".to_string(),
+            ]
+        );
+    }
+
+    #[tokio::test]
+    async fn submit_sitemap_endpoints_invalid_endpoint_is_not_submitted() {
+        let db = test_db().await;
+        let service = SeoService::new_memory(db);
+        let adapter = TestSitemapSubmissionAdapter::new(HashMap::new());
+
+        let result = service
+            .submit_sitemap_endpoints_with_adapter(
+                &["not a valid url".to_string()],
+                "https://store.example.com/sitemap.xml",
+                &adapter,
+            )
+            .await;
+
+        let message = result.expect_err("invalid endpoint should fail");
+        assert!(message.contains("0 success(es) and 1 failure(s)"));
+        assert!(message.contains("invalid endpoint: not a valid url"));
+        let submitted = adapter.submitted_endpoints().await;
+        assert!(submitted.is_empty());
     }
 
     #[test]
