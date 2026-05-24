@@ -357,3 +357,49 @@ async fn create_and_publish_markdown_is_allowed_when_builder_disabled_but_publis
         rustok_content::entities::node::ContentStatus::Published
     );
 }
+
+#[tokio::test]
+async fn publish_grapesjs_page_is_blocked_when_builder_disabled_even_if_publish_enabled() {
+    let (db, page_service, _block_service, tenant_id, security) = setup().await;
+    let draft = page_service
+        .create(
+            tenant_id,
+            security.clone(),
+            CreatePageInput {
+                translations: vec![PageTranslationInput {
+                    locale: "en".to_string(),
+                    title: "Grapes page".to_string(),
+                    slug: Some("grapes-page".to_string()),
+                    meta_title: None,
+                    meta_description: None,
+                }],
+                template: Some("default".to_string()),
+                body: Some(PageBodyInput {
+                    locale: "en".to_string(),
+                    content: "".to_string(),
+                    format: Some("grapesjs_v1".to_string()),
+                    content_json: Some(serde_json::json!({
+                        "components": []
+                    })),
+                }),
+                blocks: None,
+                channel_slugs: None,
+                publish: false,
+            },
+        )
+        .await
+        .expect("draft grapesjs page should be created while builder is enabled");
+
+    seed_pages_module_settings(
+        &db,
+        tenant_id,
+        "{\"builder\":{\"enabled\":false,\"publish\":{\"enabled\":true}}}",
+    )
+    .await;
+
+    let result = page_service.publish(tenant_id, security, draft.id).await;
+    assert!(matches!(
+        result,
+        Err(PagesError::FeatureDisabled { feature }) if feature == "builder.enabled"
+    ));
+}

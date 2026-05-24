@@ -505,6 +505,7 @@ impl PageService {
         security: SecurityContext,
         page_id: Uuid,
     ) -> PagesResult<PageResponse> {
+        self.ensure_builder_enabled_for_page(tenant_id, page_id).await?;
         self.ensure_builder_publish_enabled(tenant_id).await?;
         self.set_status(
             tenant_id,
@@ -649,6 +650,14 @@ impl PageService {
             .unwrap_or(true);
         if !enabled {
             return Err(PagesError::feature_disabled("builder.enabled"));
+        }
+        Ok(())
+    }
+
+    async fn ensure_builder_enabled_for_page(&self, tenant_id: Uuid, page_id: Uuid) -> PagesResult<()> {
+        let bodies = self.load_bodies(page_id).await?;
+        if page_uses_builder_capability(&bodies) {
+            self.ensure_builder_enabled(tenant_id).await?;
         }
         Ok(())
     }
@@ -1007,6 +1016,12 @@ fn is_builder_enabled(settings: &serde_json::Value) -> bool {
 
 fn body_uses_builder_capability(body: Option<&PreparedPageBody>) -> bool {
     body.is_some_and(|item| item.format == CONTENT_FORMAT_GRAPESJS_V1)
+}
+
+fn page_uses_builder_capability(bodies: &[page_body::Model]) -> bool {
+    bodies
+        .iter()
+        .any(|item| item.format == CONTENT_FORMAT_GRAPESJS_V1)
 }
 
 fn resolve_translation_record<'a>(
