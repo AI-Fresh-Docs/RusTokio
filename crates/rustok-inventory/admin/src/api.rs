@@ -78,6 +78,17 @@ fn graphql_url() -> String {
 }
 
 
+fn normalize_search_filter(search: Option<String>) -> Option<String> {
+    search.and_then(|value| {
+        let trimmed = value.trim();
+        if trimmed.is_empty() {
+            None
+        } else {
+            Some(trimmed.to_string())
+        }
+    })
+}
+
 fn normalize_status_filter(status: Option<String>) -> Option<String> {
     status.and_then(|value| {
         let trimmed = value.trim();
@@ -138,7 +149,7 @@ pub async fn fetch_products(
                 filter: ProductsFilter {
                     status: normalize_status_filter(status),
                     vendor: None,
-                    search,
+                    search: normalize_search_filter(search),
                     page: Some(1),
                     per_page: Some(24),
                 },
@@ -174,7 +185,17 @@ pub async fn fetch_product(
 
 #[cfg(test)]
 mod tests {
-    use super::normalize_status_filter;
+    use super::{normalize_search_filter, normalize_status_filter};
+
+    #[test]
+    fn normalize_search_filter_trims_and_drops_blank_values() {
+        assert_eq!(
+            normalize_search_filter(Some("  winter jacket  ".to_string())),
+            Some("winter jacket".to_string())
+        );
+        assert_eq!(normalize_search_filter(Some("   ".to_string())), None);
+        assert_eq!(normalize_search_filter(None), None);
+    }
 
     #[test]
     fn normalize_status_filter_trims_and_uppercases_values() {
