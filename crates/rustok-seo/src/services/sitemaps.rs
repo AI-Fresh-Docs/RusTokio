@@ -1106,6 +1106,39 @@ mod tests {
         assert!(message.ends_with("..."));
     }
 
+
+    #[test]
+    fn submission_summary_truncates_individual_failure_details_deterministically() {
+        let mut summary = SitemapSubmissionSummary {
+            success_count: 0,
+            failure_count: 1,
+            failures: Vec::new(),
+            omitted_failure_count: 0,
+            endpoint_statuses: Vec::new(),
+            omitted_endpoint_status_count: 0,
+        };
+        push_submission_failure(&mut summary, "x".repeat(1200));
+        assert_eq!(summary.failures.len(), 1);
+        assert!(summary.failures[0].len() <= 515);
+        assert!(summary.failures[0].ends_with("..."));
+    }
+
+    #[test]
+    fn submission_summary_omits_extra_endpoint_statuses_deterministically() {
+        let mut summary = SitemapSubmissionSummary {
+            success_count: 0,
+            failure_count: 0,
+            failures: Vec::new(),
+            omitted_failure_count: 0,
+            endpoint_statuses: Vec::new(),
+            omitted_endpoint_status_count: 0,
+        };
+        for idx in 0..40 {
+            super::push_endpoint_status(&mut summary, format!("status #{idx}"));
+        }
+        assert_eq!(summary.endpoint_statuses.len(), 24);
+        assert_eq!(summary.omitted_endpoint_status_count, 16);
+    }
     #[test]
     fn submission_summary_omits_extra_failure_details_deterministically() {
         let mut summary = SitemapSubmissionSummary {
