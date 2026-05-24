@@ -597,3 +597,42 @@ Go/No-Go для перехода в следующую волну:
    - owner on-call подтверждение и timestamp.
 
 Минимальный стандарт: без полного packet template модуль не может перейти из Wave 0 в Wave 1.
+
+### 12.7 Следующий практический шаг “прямо сейчас” (next 10 working days)
+
+Чтобы команда могла продолжить работу без дополнительного re-planning, фиксируется минимальный стартовый пакет на ближайшие 10 рабочих дней:
+
+1. **Contract registry update**
+   - [ ] создать/обновить machine-readable запись `builder_contract_version=v1` для provider и `consumer_min_version` для `rustok-pages`;
+   - [ ] добавить ссылку на запись в `docs/modules/registry.md` и локальный implementation-plan `crates/rustok-pages/docs/implementation-plan.md`.
+2. **Fallback smoke baseline**
+   - [ ] выполнить smoke по профилям `all_on`, `publish_off`, `builder_off` на одном internal tenant;
+   - [ ] приложить краткий отчёт с фактами по `admin list/read`, `storefront read`, `publish(dry)`.
+3. **Observability wiring check**
+   - [ ] подтвердить наличие correlation-id в цепочке `builder write -> pages publish -> storefront read`;
+   - [ ] зафиксировать baseline-значения `preview p95`, `publish p95`, sanitize failure rate.
+4. **Go/No-Go prep draft**
+   - [ ] подготовить черновик Wave 1 readiness packet по шаблону 12.6;
+   - [ ] провести асинхронный review owner-ами Platform/Builder/Pages/Frontend.
+
+**Exit criteria (next 10 working days):**
+- есть валидный contract registry snapshot;
+- есть fallback smoke evidence минимум для `all_on/publish_off/builder_off`;
+- есть observability baseline с correlation examples;
+- есть черновик readiness packet с незакрытыми рисками и owner-назначениями.
+
+### 12.8 Реестр рисков для Sprint 1–3 и правила эскалации
+
+Для того чтобы “дальше по плану” не превратилось в narrative-only tracking, фиксируется обязательный risk register:
+
+| Risk ID | Описание риска | Trigger | Mitigation | Escalation owner |
+| --- | --- | --- | --- | --- |
+| PB-FBA-R1 | anti-drift между provider/consumer metadata | несовместимые `builder_contract_version`/`consumer_min_version` | hard CI gate + rollback к последней совместимой паре | Platform team |
+| PB-FBA-R2 | fallback regression в `pages` read surfaces | 5xx или timeout при `builder_off`/`publish_off` | блокировка Wave promotion + hotfix fallback matrix | Pages owners |
+| PB-FBA-R3 | деградация capability health под pilot нагрузкой | `preview/publish` p95 выше SLO или рост sanitize failures | ограничение rollout cohort + tuning + повторный smoke | Builder reference owners |
+| PB-FBA-R4 | UX drift между Next/Leptos/Flutter adapters | различающиеся typed error semantics | parity review checkpoint + единый error mapping table | Frontend owners |
+
+**SLA эскалации:**
+- критические риски (`R1`, `R2`) эскалируются в течение 30 минут с момента детекта;
+- деградационные риски (`R3`, `R4`) — в течение 1 рабочего дня с обязательным remediation plan;
+- без закрытого mitigation item модуль не продвигается в следующую rollout-волну.
