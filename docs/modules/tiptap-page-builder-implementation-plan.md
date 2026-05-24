@@ -552,6 +552,7 @@ Go/No-Go для перехода в следующую волну:
 
 **Артефакты Sprint 3:**
 - audit trail с before/after snapshots;
+- dry-run consistency verify report (baseline command: `node scripts/verify/verify-page-builder-toggle-profiles-consistency.mjs`);
 - SLO отчёт (`preview p95`, `publish p95`, sanitize failure rate);
 - подписанный протокол Go/No-Go для pilot tenants.
 
