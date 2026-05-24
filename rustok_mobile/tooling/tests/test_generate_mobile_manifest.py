@@ -3,7 +3,7 @@ import tempfile
 import textwrap
 import unittest
 
-from rustok_mobile.tooling.scripts.generate_mobile_manifest import render, scan_modules
+from rustok_mobile.tooling.scripts.generate_mobile_manifest import render, render_snapshot_json, scan_modules
 
 
 class GenerateMobileManifestTests(unittest.TestCase):
@@ -92,3 +92,21 @@ class GenerateMobileManifestTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+    def test_render_snapshot_contains_required_ffa_keys(self):
+        payload = render_snapshot_json(
+            [
+                {
+                    "module_key": "rustok_blog",
+                    "route_segment": "blog",
+                    "nav_label": "Blog",
+                    "icon": "article",
+                    "child_pages": [{"subpath": "posts", "title": "Posts"}],
+                }
+            ]
+        )
+        self.assertIn('"module_slug": "blog"', payload)
+        self.assertIn('"surface_kind": "admin_mobile"', payload)
+        self.assertIn('"route_segment": "blog"', payload)
+        self.assertIn('"child_pages"', payload)
