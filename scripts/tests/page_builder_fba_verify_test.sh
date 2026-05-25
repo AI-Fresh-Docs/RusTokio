@@ -71,7 +71,6 @@ EOF
   cp "$VERIFY_DIR/verify-page-builder-consumer-readiness.mjs" "$FIXTURE_ROOT/scripts/verify/"
   cp "$VERIFY_DIR/verify-page-builder-fallback-profiles.mjs" "$FIXTURE_ROOT/scripts/verify/"
   cp "$VERIFY_DIR/verify-page-builder-toggle-profiles-consistency.mjs" "$FIXTURE_ROOT/scripts/verify/"
-  cp "$VERIFY_DIR/verify-page-builder-terminology.mjs" "$FIXTURE_ROOT/scripts/verify/"
   cp "$VERIFY_DIR/verify-page-builder-fba-baseline.mjs" "$FIXTURE_ROOT/scripts/verify/"
 }
 

@@ -267,7 +267,8 @@ npm run verify:page-builder:consumer:forum
   1) `verify-page-builder-contract-parity.mjs`,
   2) `verify-page-builder-consumer-readiness.mjs <module-slug>` (по умолчанию `pages` в агрегаторе),
   3) `verify-page-builder-fallback-profiles.mjs`,
-  4) `verify-page-builder-toggle-profiles-consistency.mjs`;
+  4) `verify-page-builder-toggle-profiles-consistency.mjs`,
+  5) `verify-page-builder-terminology.mjs`.
 - возвращает non-zero exit code при падении любого шага.
 
 **Severity:** GATE. Это канонический baseline-check перед promotion в следующий rollout wave.
