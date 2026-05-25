@@ -14,6 +14,10 @@ pub fn published_posts_header_view(title: String, total: u64, total_suffix: &str
     (title, published_posts_total_label(total, total_suffix))
 }
 
+pub fn selected_post_empty_state_view(title: String, body: String) -> (String, String) {
+    (title, body)
+}
+
 pub fn open_link_label(label: &str, slug: &str) -> String {
     format!("{label} {slug}")
 }
@@ -308,6 +312,20 @@ mod tests {
         assert_eq!(
             published_posts_header_view("Published posts".to_string(), 3, "total"),
             ("Published posts".to_string(), "3 total".to_string())
+        );
+    }
+
+    #[test]
+    fn selected_post_empty_state_view_returns_payload_tuple() {
+        assert_eq!(
+            selected_post_empty_state_view(
+                "Pick a published post".to_string(),
+                "Open a post from the list below.".to_string(),
+            ),
+            (
+                "Pick a published post".to_string(),
+                "Open a post from the list below.".to_string(),
+            )
         );
     }
 

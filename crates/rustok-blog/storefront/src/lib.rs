@@ -97,13 +97,21 @@ fn BlogShowcase(data: StorefrontBlogData) -> impl IntoView {
 fn SelectedPostCard(post: Option<BlogPostDetail>) -> impl IntoView {
     let locale = use_context::<UiRouteContext>().unwrap_or_default().locale;
     let Some(post) = post else {
+        let (empty_title, empty_body) = core::selected_post_empty_state_view(
+            t(locale.as_deref(), "blog.selected.emptyTitle", "Pick a published post"),
+            t(
+                locale.as_deref(),
+                "blog.selected.emptyBody",
+                "Open a post from the list below with `?slug=` or publish one from the blog admin package.",
+            ),
+        );
         return view! {
             <article class="rounded-2xl border border-dashed border-border p-6">
                 <h3 class="text-lg font-semibold text-card-foreground">
-                    {t(locale.as_deref(), "blog.selected.emptyTitle", "Pick a published post")}
+                    {empty_title}
                 </h3>
                 <p class="mt-2 text-sm text-muted-foreground">
-                    {t(locale.as_deref(), "blog.selected.emptyBody", "Open a post from the list below with `?slug=` or publish one from the blog admin package.")}
+                    {empty_body}
                 </p>
             </article>
         }
