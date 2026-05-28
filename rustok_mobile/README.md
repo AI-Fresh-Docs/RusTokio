@@ -54,6 +54,9 @@ python3 rustok_mobile/tooling/scripts/generate_mobile_manifest.py --repo-root /w
 python3 rustok_mobile/tooling/scripts/verify_mobile_manifest.py --repo-root /workspace/RusTok
 ```
 
+The verification command fails on stale generated files and prints a unified diff
+from the committed manifest/snapshot to the expected deterministic output.
+
 ## Next steps
 
 1. Start first module package (`rustok_auth_mobile`) with real screens.

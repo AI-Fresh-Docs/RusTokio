@@ -4,19 +4,29 @@
 from __future__ import annotations
 
 import argparse
+import difflib
 import json
 import pathlib
 import re
 import sys
 
 if __package__:
-    from .generate_mobile_manifest import render, render_snapshot_json, scan_modules, to_snapshot
+    from .generate_mobile_manifest import (
+        render,
+        render_snapshot_json,
+        scan_modules,
+        to_snapshot,
+    )
 else:
     current_dir = pathlib.Path(__file__).resolve().parent
     if str(current_dir) not in sys.path:
         sys.path.insert(0, str(current_dir))
-    from generate_mobile_manifest import render, render_snapshot_json, scan_modules, to_snapshot
-
+    from generate_mobile_manifest import (
+        render,
+        render_snapshot_json,
+        scan_modules,
+        to_snapshot,
+    )
 
 
 _SNAKE_CASE_RE = re.compile(r"^[a-z0-9_]+$")
@@ -29,6 +39,7 @@ def _is_snake_case(value: str) -> bool:
 
 def _is_permission_key(value: str) -> bool:
     return bool(value) and bool(_PERMISSION_RE.fullmatch(value))
+
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser()
@@ -52,7 +63,6 @@ def parse_args() -> argparse.Namespace:
         help="Path to generated registry snapshot JSON",
     )
     return parser.parse_args()
-
 
 
 def _validate_snapshot_schema(entries: object) -> str | None:
@@ -195,6 +205,36 @@ def _validate_snapshot_schema(entries: object) -> str | None:
 
     return None
 
+
+def _print_regeneration_command(repo_root: pathlib.Path) -> None:
+    print("Run:")
+    print(
+        "  python3 rustok_mobile/tooling/scripts/generate_mobile_manifest.py "
+        f"--repo-root {repo_root}"
+    )
+
+
+def _print_stale_diff(
+    *,
+    label: str,
+    path: pathlib.Path,
+    current: str,
+    expected: str,
+    repo_root: pathlib.Path,
+) -> None:
+    print(f"ERROR: {label} is stale: {path}")
+    print("Diff (current -> expected):")
+    for line in difflib.unified_diff(
+        current.splitlines(),
+        expected.splitlines(),
+        fromfile=f"{path} (current)",
+        tofile=f"{path} (expected)",
+        lineterm="",
+    ):
+        print(line)
+    _print_regeneration_command(repo_root)
+
+
 def main() -> int:
     args = parse_args()
     repo_root = pathlib.Path(args.repo_root).resolve()
@@ -215,11 +255,12 @@ def main() -> int:
 
     current = manifest_path.read_text(encoding="utf-8")
     if current != expected:
-        print("ERROR: mobile manifest is stale.")
-        print("Run:")
-        print(
-            "  python3 rustok_mobile/tooling/scripts/generate_mobile_manifest.py "
-            f"--repo-root {repo_root}"
+        _print_stale_diff(
+            label="mobile manifest",
+            path=manifest_path,
+            current=current,
+            expected=expected,
+            repo_root=repo_root,
         )
         return 1
 
@@ -229,11 +270,12 @@ def main() -> int:
 
     snapshot_current = snapshot_path.read_text(encoding="utf-8")
     if snapshot_current != expected_snapshot:
-        print("ERROR: mobile manifest snapshot is stale.")
-        print("Run:")
-        print(
-            "  python3 rustok_mobile/tooling/scripts/generate_mobile_manifest.py "
-            f"--repo-root {repo_root}"
+        _print_stale_diff(
+            label="mobile manifest snapshot",
+            path=snapshot_path,
+            current=snapshot_current,
+            expected=expected_snapshot,
+            repo_root=repo_root,
         )
         return 1
 
