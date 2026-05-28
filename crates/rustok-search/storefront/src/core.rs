@@ -271,3 +271,8 @@ pub fn next_preset_selection(current: &str, selected_key: &str) -> String {
         selected_key.to_string()
     }
 }
+
+
+pub fn has_items<T>(items: &[T]) -> bool {
+    !items.is_empty()
+}
