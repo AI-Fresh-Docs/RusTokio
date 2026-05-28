@@ -165,6 +165,47 @@ mod tests {
     }
 
     #[test]
+    fn relevance_editor_merge_helpers_are_stable() {
+        let merged = merge_relevance_editor_config(
+            RelevanceEditorConfigInput {
+                config_text: "{}",
+                ranking_default: "balanced",
+                ranking_preview: "freshness",
+                ranking_storefront: "balanced",
+                ranking_admin_global: "exact",
+                preview_presets: "[{\"key\":\"published\"}]",
+                storefront_presets: "[]",
+            },
+            RelevanceEditorMessages {
+                invalid_settings_json: "invalid settings",
+                settings_root_object: "root must be object",
+                preview_presets_label: "Preview presets",
+                storefront_presets_label: "Storefront presets",
+                editor_array_json: "{label} JSON error: {err}",
+                editor_array_type: "{label} must be an array",
+                serialize_merged_settings: "serialize failed",
+            },
+        )
+        .expect("merge should succeed");
+        let parsed = parse_json_for_editor(&merged).expect("merged config should be JSON");
+
+        assert_eq!(
+            extract_ranking_profile_value(&parsed, "search_preview"),
+            "freshness"
+        );
+        assert!(parsed["filter_presets"]["search_preview"].is_array());
+        assert_eq!(
+            parse_json_array_for_editor(
+                "Preview presets",
+                "{}",
+                "{label} JSON error: {err}",
+                "{label} must be an array",
+            ),
+            Err("Preview presets must be an array".to_string())
+        );
+    }
+
+    #[test]
     fn relevance_editor_json_helpers_are_stable() {
         let config = serde_json::json!({
             "ranking_profiles": {
@@ -339,4 +380,82 @@ pub fn render_rebuild_feedback(template: &str, scope: &str, target_id: Option<&s
     template
         .replace("{scope}", scope)
         .replace("{suffix}", rebuild_target_suffix(target_id).as_str())
+}
+
+pub struct RelevanceEditorConfigInput<'a> {
+    pub config_text: &'a str,
+    pub ranking_default: &'a str,
+    pub ranking_preview: &'a str,
+    pub ranking_storefront: &'a str,
+    pub ranking_admin_global: &'a str,
+    pub preview_presets: &'a str,
+    pub storefront_presets: &'a str,
+}
+
+pub struct RelevanceEditorMessages<'a> {
+    pub invalid_settings_json: &'a str,
+    pub settings_root_object: &'a str,
+    pub preview_presets_label: &'a str,
+    pub storefront_presets_label: &'a str,
+    pub editor_array_json: &'a str,
+    pub editor_array_type: &'a str,
+    pub serialize_merged_settings: &'a str,
+}
+
+pub fn merge_relevance_editor_config(
+    input: RelevanceEditorConfigInput<'_>,
+    messages: RelevanceEditorMessages<'_>,
+) -> Result<String, String> {
+    let mut config = parse_json_for_editor(input.config_text)
+        .ok_or_else(|| messages.invalid_settings_json.to_string())?;
+    let object = config
+        .as_object_mut()
+        .ok_or_else(|| messages.settings_root_object.to_string())?;
+
+    object.insert(
+        "ranking_profiles".to_string(),
+        serde_json::json!({
+            "default": input.ranking_default,
+            "search_preview": input.ranking_preview,
+            "storefront_search": input.ranking_storefront,
+            "admin_global_search": input.ranking_admin_global,
+        }),
+    );
+    object.insert(
+        "filter_presets".to_string(),
+        serde_json::json!({
+            "search_preview": parse_json_array_for_editor(
+                messages.preview_presets_label,
+                input.preview_presets,
+                messages.editor_array_json,
+                messages.editor_array_type,
+            )?,
+            "storefront_search": parse_json_array_for_editor(
+                messages.storefront_presets_label,
+                input.storefront_presets,
+                messages.editor_array_json,
+                messages.editor_array_type,
+            )?,
+        }),
+    );
+
+    serde_json::to_string_pretty(&config)
+        .map_err(|err| error_with_context(messages.serialize_merged_settings, &err.to_string()))
+}
+
+pub fn parse_json_array_for_editor(
+    label: &str,
+    value: &str,
+    invalid_json_template: &str,
+    array_type_template: &str,
+) -> Result<serde_json::Value, String> {
+    let parsed: serde_json::Value = serde_json::from_str(value).map_err(|err| {
+        invalid_json_template
+            .replace("{label}", label)
+            .replace("{err}", err.to_string().as_str())
+    })?;
+    if !parsed.is_array() {
+        return Err(array_type_template.replace("{label}", label));
+    }
+    Ok(parsed)
 }

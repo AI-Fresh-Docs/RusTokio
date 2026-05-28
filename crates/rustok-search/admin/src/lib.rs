@@ -364,15 +364,55 @@ pub fn SearchAdmin() -> impl IntoView {
                                     let save_settings_error_label =
                                         save_settings_error_label.clone();
                                     let config = settings_config.get_untracked();
-                                    let merged_config = match merge_relevance_editor_config(
+                                    let preview_presets_label = t(
                                         settings_locale.as_deref(),
-                                        &config,
-                                        &ranking_default_profile.get_untracked(),
-                                        &ranking_preview_profile.get_untracked(),
-                                        &ranking_storefront_profile.get_untracked(),
-                                        &ranking_admin_global_profile.get_untracked(),
-                                        &preview_presets_config.get_untracked(),
-                                        &storefront_presets_config.get_untracked(),
+                                        "search.relevance.previewPresets",
+                                        "Preview filter presets",
+                                    );
+                                    let storefront_presets_label = t(
+                                        settings_locale.as_deref(),
+                                        "search.relevance.storefrontPresets",
+                                        "Storefront filter presets",
+                                    );
+                                    let editor_array_json = t(
+                                        settings_locale.as_deref(),
+                                        "search.error.editorArrayJson",
+                                        "{label} must be valid JSON: {err}",
+                                    );
+                                    let editor_array_type = t(
+                                        settings_locale.as_deref(),
+                                        "search.error.editorArrayType",
+                                        "{label} must be a JSON array.",
+                                    );
+                                    let merged_config = match core::merge_relevance_editor_config(
+                                        core::RelevanceEditorConfigInput {
+                                            config_text: &config,
+                                            ranking_default: &ranking_default_profile.get_untracked(),
+                                            ranking_preview: &ranking_preview_profile.get_untracked(),
+                                            ranking_storefront: &ranking_storefront_profile.get_untracked(),
+                                            ranking_admin_global: &ranking_admin_global_profile.get_untracked(),
+                                            preview_presets: &preview_presets_config.get_untracked(),
+                                            storefront_presets: &storefront_presets_config.get_untracked(),
+                                        },
+                                        core::RelevanceEditorMessages {
+                                            invalid_settings_json: invalid_settings_json_label.as_str(),
+                                            settings_root_object: t(
+                                                settings_locale.as_deref(),
+                                                "search.error.settingsConfigRootObject",
+                                                "Settings config root must be a JSON object.",
+                                            )
+                                            .as_str(),
+                                            preview_presets_label: preview_presets_label.as_str(),
+                                            storefront_presets_label: storefront_presets_label.as_str(),
+                                            editor_array_json: editor_array_json.as_str(),
+                                            editor_array_type: editor_array_type.as_str(),
+                                            serialize_merged_settings: t(
+                                                settings_locale.as_deref(),
+                                                "search.error.serializeMergedSettings",
+                                                "Failed to serialize merged search settings config",
+                                            )
+                                            .as_str(),
+                                        },
                                     ) {
                                         Ok(config) => config,
                                         Err(err) => {
@@ -1809,84 +1849,4 @@ where
 #[component]
 fn FacetCard(facet: SearchFacetGroup) -> impl IntoView {
     view! { <article class="rounded-xl border border-border bg-background p-4"><div class="text-sm font-semibold capitalize text-card-foreground">{core::facet_display_name(&facet.name)}</div><div class="mt-3 flex flex-wrap gap-2">{facet.buckets.into_iter().map(|bucket| view! { <span class="inline-flex items-center rounded-full border border-border px-3 py-1 text-xs font-medium text-muted-foreground">{core::facet_bucket_label(&bucket.value, bucket.count)}</span> }).collect_view()}</div></article> }
-}
-
-#[allow(clippy::too_many_arguments)]
-fn merge_relevance_editor_config(
-    locale: Option<&str>,
-    config_text: &str,
-    ranking_default: &str,
-    ranking_preview: &str,
-    ranking_storefront: &str,
-    ranking_admin_global: &str,
-    preview_presets: &str,
-    storefront_presets: &str,
-) -> Result<String, String> {
-    let mut config = core::parse_json_for_editor(config_text).ok_or_else(|| {
-        t(
-            locale,
-            "search.error.invalidSettingsJson",
-            "Settings config must be valid JSON.",
-        )
-    })?;
-    let object = config.as_object_mut().ok_or_else(|| {
-        t(
-            locale,
-            "search.error.settingsConfigRootObject",
-            "Settings config root must be a JSON object.",
-        )
-    })?;
-
-    object.insert(
-        "ranking_profiles".to_string(),
-        serde_json::json!({
-            "default": ranking_default,
-            "search_preview": ranking_preview,
-            "storefront_search": ranking_storefront,
-            "admin_global_search": ranking_admin_global,
-        }),
-    );
-    object.insert(
-        "filter_presets".to_string(),
-        serde_json::json!({
-            "search_preview": parse_json_array_for_editor(locale, t(locale, "search.relevance.previewPresets", "Preview filter presets").as_str(), preview_presets)?,
-            "storefront_search": parse_json_array_for_editor(locale, t(locale, "search.relevance.storefrontPresets", "Storefront filter presets").as_str(), storefront_presets)?,
-        }),
-    );
-
-    serde_json::to_string_pretty(&config).map_err(|err| {
-        format!(
-            "{}: {err}",
-            t(
-                locale,
-                "search.error.serializeMergedSettings",
-                "Failed to serialize merged search settings config"
-            )
-        )
-    })
-}
-
-fn parse_json_array_for_editor(
-    locale: Option<&str>,
-    label: &str,
-    value: &str,
-) -> Result<serde_json::Value, String> {
-    let parsed: serde_json::Value = serde_json::from_str(value).map_err(|err| {
-        t(
-            locale,
-            "search.error.editorArrayJson",
-            "{label} must be valid JSON: {err}",
-        )
-        .replace("{label}", label)
-        .replace("{err}", err.to_string().as_str())
-    })?;
-    if !parsed.is_array() {
-        return Err(t(
-            locale,
-            "search.error.editorArrayType",
-            "{label} must be a JSON array.",
-        )
-        .replace("{label}", label));
-    }
-    Ok(parsed)
 }
