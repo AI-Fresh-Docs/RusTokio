@@ -158,54 +158,7 @@
         "title": "Add Page",
         "nav_label": "Add Page"
       }
-    ],
-    "builder_surface": {
-      "provider_module": "page-builder",
-      "contract": "grapesjs_v1",
-      "contract_version": "1.0",
-      "builder_contract_version": "1.0",
-      "capabilities": [
-        "preview",
-        "properties",
-        "publish",
-        "tree"
-      ],
-      "degraded_modes": {
-        "builder_disabled": "admin_builder_readonly_fallback",
-        "preview_disabled": "preview_capability_hidden_keep_read_paths",
-        "publish_disabled": "typed_feature_disabled_error_keep_read_paths"
-      },
-      "toggle_profiles": {
-        "all_on": [
-          "builder.enabled=true",
-          "builder.legacy_bridge_readonly=true",
-          "builder.preview.enabled=true",
-          "builder.properties.enabled=true",
-          "builder.publish.enabled=true"
-        ],
-        "builder_off": [
-          "builder.enabled=false",
-          "builder.legacy_bridge_readonly=true",
-          "builder.preview.enabled=false",
-          "builder.properties.enabled=false",
-          "builder.publish.enabled=false"
-        ],
-        "preview_off": [
-          "builder.enabled=true",
-          "builder.legacy_bridge_readonly=true",
-          "builder.preview.enabled=false",
-          "builder.properties.enabled=true",
-          "builder.publish.enabled=false"
-        ],
-        "publish_off": [
-          "builder.enabled=true",
-          "builder.legacy_bridge_readonly=true",
-          "builder.preview.enabled=true",
-          "builder.properties.enabled=true",
-          "builder.publish.enabled=false"
-        ]
-      }
-    }
+    ]
   },
   {
     "module_slug": "pricing",

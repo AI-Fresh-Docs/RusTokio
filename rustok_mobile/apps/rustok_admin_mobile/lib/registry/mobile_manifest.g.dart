@@ -147,53 +147,6 @@ const generatedMobileManifest = <MobileModuleEntry>[
         navLabel: 'Add Page',
       ),
     ],
-    builderSurface: MobileBuilderSurfaceMeta(
-      providerModule: 'page-builder',
-      contract: 'grapesjs_v1',
-      contractVersion: '1.0',
-      builderContractVersion: '1.0',
-      capabilities: <String>[
-        'preview',
-        'properties',
-        'publish',
-        'tree',
-      ],
-      degradedModes: <String, String>{
-        'builder_disabled': 'admin_builder_readonly_fallback',
-        'preview_disabled': 'preview_capability_hidden_keep_read_paths',
-        'publish_disabled': 'typed_feature_disabled_error_keep_read_paths',
-      },
-      toggleProfiles: <String, List<String>>{
-        'all_on': <String>[
-          'builder.enabled=true',
-          'builder.legacy_bridge_readonly=true',
-          'builder.preview.enabled=true',
-          'builder.properties.enabled=true',
-          'builder.publish.enabled=true',
-        ],
-        'builder_off': <String>[
-          'builder.enabled=false',
-          'builder.legacy_bridge_readonly=true',
-          'builder.preview.enabled=false',
-          'builder.properties.enabled=false',
-          'builder.publish.enabled=false',
-        ],
-        'preview_off': <String>[
-          'builder.enabled=true',
-          'builder.legacy_bridge_readonly=true',
-          'builder.preview.enabled=false',
-          'builder.properties.enabled=true',
-          'builder.publish.enabled=false',
-        ],
-        'publish_off': <String>[
-          'builder.enabled=true',
-          'builder.legacy_bridge_readonly=true',
-          'builder.preview.enabled=true',
-          'builder.properties.enabled=true',
-          'builder.publish.enabled=false',
-        ],
-      },
-    ),
   ),
   MobileModuleEntry(
     moduleKey: 'rustok_pricing',

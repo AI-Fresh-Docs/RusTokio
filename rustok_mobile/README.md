@@ -16,7 +16,7 @@ Flutter workspace scaffold based on `docs/research/flutter.md`.
 ## Implemented now
 
 - Host app routing with `go_router` + `ShellRoute`.
-- Generated-manifest style module registry adapter (`mobile_manifest.g.dart`) with locale, permissions, nested routes, and complete page-builder consumer metadata.
+- Generated-manifest style module registry adapter (`mobile_manifest.g.dart`) with locale, permissions, and nested routes.
 - Manifest-driven navigation icon mapping with metadata fallbacks for generic module icons.
 - Shared route contracts with snake_case query key constraints.
 - Shared GraphQL transport context/header builders (tenant/locale non-blank validation in request context).
@@ -60,12 +60,8 @@ python3 rustok_mobile/tooling/scripts/verify_mobile_manifest.py --repo-root /wor
 
 The verification command fails on stale generated files and prints a unified diff
 from the committed manifest/snapshot to the expected deterministic output. The
-snapshot includes normalized `nav_icon`, locale, permissions, child-page, and
-complete page-builder consumer metadata (contract, capabilities, degraded
-modes, and toggle profiles) so navigation/capability parity drift is visible in
-codegen checks. When a matching in-repo page-builder provider manifest exists,
-codegen also verifies consumer contract/version/capability compatibility before
-emitting `builderSurface`.
+snapshot includes normalized `nav_icon`, locale, permissions, and child-page
+metadata so navigation parity drift is visible in codegen checks.
 
 ## Check deterministic codegen
 
@@ -81,6 +77,5 @@ signal that exercises the generator CLI itself.
 
 1. Replace in-memory auth session store with secure storage and connect refresh flow to sign-in lifecycle.
 2. Expand the admin modules pilot from list/detail shell navigation to the first mutation-backed operator action.
-3. Promote page-builder-aware registry metadata into the first Flutter page-builder route guard once backend PB-FBA-1A/PB-FBA-1B are closed.
-4. Add module-owned storefront mobile packages for catalog/cart surfaces.
-5. Add deterministic generated-file checks to the mobile CI pipeline.
+3. Add module-owned storefront mobile packages for catalog/cart surfaces.
+4. Add deterministic generated-file checks to the mobile CI pipeline.

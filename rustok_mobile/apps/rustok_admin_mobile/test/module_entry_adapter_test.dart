@@ -105,7 +105,6 @@ void main() {
     expect(blog.childRoutes.map((c) => c.subpath), ['posts', 'new']);
   });
 
-
   test('normalizes case and rejects non-canonical segments', () {
     final entries = <MobileModuleEntry>[
       const MobileModuleEntry(
@@ -130,8 +129,6 @@ void main() {
     expect(media.childRoutes.single.subpath, 'library');
     expect(media.childRoutes.single.path, '/modules/media/library');
   });
-
-
 
   test('returns adaptation report with rejected module and child counters', () {
     final entries = <MobileModuleEntry>[
@@ -182,34 +179,4 @@ void main() {
     expect(adapted.localeNamespace, 'modules');
     expect(adapted.permissions, ['modules.read', 'modules.write']);
   });
-
-  test('preserves builder surface metadata for page-builder aware modules', () {
-    const builderSurface = MobileBuilderSurfaceMeta(
-      providerModule: 'page-builder',
-      contract: 'grapesjs_v1',
-      contractVersion: '1.0',
-      builderContractVersion: '1.0',
-      capabilities: ['preview', 'tree', 'properties', 'publish'],
-      degradedModes: {'builder_disabled': 'readonly'},
-      toggleProfiles: {
-        'builder_off': ['builder.enabled=false'],
-      },
-    );
-
-    final adapted = adaptModuleEntries(
-      const <MobileModuleEntry>[
-        MobileModuleEntry(
-          moduleKey: 'rustok_pages',
-          routeSegment: 'pages',
-          nav: MobileNavMeta(title: 'Pages', icon: 'module'),
-          builderSurface: builderSurface,
-        ),
-      ],
-    ).single;
-
-    expect(adapted.builderSurface, same(builderSurface));
-    expect(adapted.builderSurface?.providerModule, 'page-builder');
-    expect(adapted.builderSurface?.capabilities, contains('publish'));
-  });
-
 }

@@ -1,4 +1,3 @@
-import 'mobile_builder_surface_meta.dart';
 import 'mobile_child_page.dart';
 import 'mobile_nav_meta.dart';
 import 'mobile_surface_kind.dart';
@@ -12,7 +11,6 @@ class MobileModuleEntry {
     this.permissions = const <String>[],
     required this.nav,
     this.childPages = const <MobileChildPage>[],
-    this.builderSurface,
   });
 
   final String moduleKey;
@@ -22,5 +20,4 @@ class MobileModuleEntry {
   final List<String> permissions;
   final MobileNavMeta nav;
   final List<MobileChildPage> childPages;
-  final MobileBuilderSurfaceMeta? builderSurface;
 }

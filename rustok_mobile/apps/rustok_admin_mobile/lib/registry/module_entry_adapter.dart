@@ -13,7 +13,6 @@ class ModuleRouteEntry {
     required this.navTitle,
     required this.navIcon,
     required this.childRoutes,
-    required this.builderSurface,
   });
 
   final String moduleKey;
@@ -25,7 +24,6 @@ class ModuleRouteEntry {
   final String navTitle;
   final String navIcon;
   final List<ModuleChildRouteEntry> childRoutes;
-  final MobileBuilderSurfaceMeta? builderSurface;
 }
 
 class ModuleChildRouteEntry {
@@ -112,7 +110,6 @@ ModuleRegistryAdaptationResult adaptModuleEntriesWithReport(
         navTitle: entry.nav.title,
         navIcon: entry.nav.icon,
         childRoutes: List.unmodifiable(childRoutes),
-        builderSurface: entry.builderSurface,
       ),
     );
   }
