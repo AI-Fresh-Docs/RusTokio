@@ -1,8 +1,9 @@
 use rust_decimal::Decimal;
-use rustok_order::contracts::{
+use rustok_order::dto::{
     CreateOrderInput, CreateOrderLineItemInput, CreateOrderReturnInput, ListOrderReturnsInput,
 };
 use rustok_order::services::OrderService;
+use rustok_test_utils::mock_transactional_event_bus;
 use sea_orm::Database;
 use uuid::Uuid;
 
@@ -15,7 +16,7 @@ async fn commerce_test_schema_supports_order_returns_filters() {
 
     let tenant_id = Uuid::new_v4();
     let actor_id = Uuid::new_v4();
-    let service = OrderService::new(db.clone(), None);
+    let service = OrderService::new(db.clone(), mock_transactional_event_bus());
 
     let order = service
         .create_order(
@@ -24,16 +25,20 @@ async fn commerce_test_schema_supports_order_returns_filters() {
             CreateOrderInput {
                 customer_id: Some(Uuid::new_v4()),
                 currency_code: "usd".to_string(),
-                email: Some("buyer@example.com".to_string()),
+                shipping_total: Decimal::ZERO,
                 line_items: vec![CreateOrderLineItemInput {
                     product_id: None,
                     variant_id: None,
+                    shipping_profile_slug: "default".to_string(),
+                    seller_id: None,
                     sku: Some("RET-SKU-1".to_string()),
                     title: "Return Candidate".to_string(),
                     quantity: 1,
                     unit_price: Decimal::new(2500, 2),
                     metadata: serde_json::json!({"slot":1}),
                 }],
+                adjustments: Vec::new(),
+                tax_lines: Vec::new(),
                 metadata: serde_json::json!({"source":"commerce-order-returns-bridge-test"}),
             },
         )
@@ -47,6 +52,7 @@ async fn commerce_test_schema_supports_order_returns_filters() {
             CreateOrderReturnInput {
                 reason: Some("damaged".to_string()),
                 note: None,
+                items: Vec::new(),
                 metadata: serde_json::json!({"source":"commerce-order-returns-bridge-test"}),
             },
         )
@@ -81,7 +87,7 @@ async fn commerce_order_returns_listing_ignores_blank_status_filter() {
 
     let tenant_id = Uuid::new_v4();
     let actor_id = Uuid::new_v4();
-    let service = OrderService::new(db.clone(), None);
+    let service = OrderService::new(db.clone(), mock_transactional_event_bus());
 
     let order = service
         .create_order(
@@ -90,16 +96,20 @@ async fn commerce_order_returns_listing_ignores_blank_status_filter() {
             CreateOrderInput {
                 customer_id: Some(Uuid::new_v4()),
                 currency_code: "usd".to_string(),
-                email: Some("buyer@example.com".to_string()),
+                shipping_total: Decimal::ZERO,
                 line_items: vec![CreateOrderLineItemInput {
                     product_id: None,
                     variant_id: None,
+                    shipping_profile_slug: "default".to_string(),
+                    seller_id: None,
                     sku: Some("RET-SKU-2".to_string()),
                     title: "Return Candidate 2".to_string(),
                     quantity: 1,
                     unit_price: Decimal::new(1500, 2),
                     metadata: serde_json::json!({"slot":2}),
                 }],
+                adjustments: Vec::new(),
+                tax_lines: Vec::new(),
                 metadata: serde_json::json!({"source":"commerce-order-returns-blank-filter-test"}),
             },
         )
@@ -113,6 +123,7 @@ async fn commerce_order_returns_listing_ignores_blank_status_filter() {
             CreateOrderReturnInput {
                 reason: Some("wrong-size".to_string()),
                 note: None,
+                items: Vec::new(),
                 metadata: serde_json::json!({"source":"commerce-order-returns-blank-filter-test"}),
             },
         )

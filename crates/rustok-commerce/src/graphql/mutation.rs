@@ -1162,6 +1162,20 @@ impl CommerceMutation {
                 crate::dto::CreateOrderReturnInput {
                     reason: input.reason,
                     note: input.note,
+                    items: input
+                        .items
+                        .unwrap_or_default()
+                        .into_iter()
+                        .map(|item| {
+                            Ok(crate::dto::CreateOrderReturnItemInput {
+                                line_item_id: item.line_item_id,
+                                quantity: item.quantity,
+                                reason: item.reason,
+                                note: item.note,
+                                metadata: parse_optional_metadata(item.metadata.as_deref())?,
+                            })
+                        })
+                        .collect::<Result<Vec<_>>>()?,
                     metadata: parse_optional_metadata(input.metadata.as_deref())?,
                 },
             )
