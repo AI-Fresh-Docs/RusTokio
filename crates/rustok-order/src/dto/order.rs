@@ -105,6 +105,20 @@ pub struct CreateOrderReturnInput {
     pub reason: Option<String>,
     #[validate(length(max = 2000))]
     pub note: Option<String>,
+    #[serde(default)]
+    pub items: Vec<CreateOrderReturnItemInput>,
+    pub metadata: Value,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, Validate, ToSchema)]
+pub struct CreateOrderReturnItemInput {
+    pub line_item_id: Uuid,
+    #[validate(range(min = 1))]
+    pub quantity: i32,
+    #[validate(length(max = 255))]
+    pub reason: Option<String>,
+    #[validate(length(max = 2000))]
+    pub note: Option<String>,
     pub metadata: Value,
 }
 
@@ -218,8 +232,24 @@ pub struct OrderReturnResponse {
     pub note: Option<String>,
     pub status: String,
     pub metadata: Value,
+    pub items: Vec<OrderReturnItemResponse>,
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
     pub completed_at: Option<DateTime<Utc>>,
     pub cancelled_at: Option<DateTime<Utc>>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
+pub struct OrderReturnItemResponse {
+    pub id: Uuid,
+    pub tenant_id: Uuid,
+    pub return_id: Uuid,
+    pub order_id: Uuid,
+    pub line_item_id: Uuid,
+    pub quantity: i32,
+    pub reason: Option<String>,
+    pub note: Option<String>,
+    pub metadata: Value,
+    pub created_at: DateTime<Utc>,
+    pub updated_at: DateTime<Utc>,
 }

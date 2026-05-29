@@ -6,6 +6,7 @@
 
 - схема `orders`, `order_line_items`, `order_line_item_translations` и `order_adjustments` (localized line-item titles вынесены из base rows);
 - `OrderModule` и `OrderService`;
+- `order_returns` и `order_return_items` для order-owned post-order returns foundation;
 - write-side lifecycle заказа: `pending -> confirmed -> paid -> shipped -> delivered/cancelled`;
 - публикация order events через transactional outbox;
 - module-owned admin UI пакет `rustok-order/admin` для order operations.
@@ -21,7 +22,8 @@
 - checkout snapshot переносит pricing repricing из cart в order так, что discounted line items сохраняют
   `base/compare_at unit_price`, а savings остаются в `order_adjustments`;
 - GraphQL и REST transport пока остаются в фасаде `rustok-commerce`;
-- admin UI ownership вынесен в `rustok-order/admin`.
+- admin UI ownership вынесен в `rustok-order/admin`;
+- returns foundation хранит item-level lines с validation количества и принадлежности line-item к заказу, но не переносит refund/exchange decision tree в order boundary.
 
 ## Контракты событий
 

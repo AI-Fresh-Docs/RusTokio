@@ -3,7 +3,7 @@ use flex::attached;
 use rust_decimal::Decimal;
 use rustok_order::dto::{
     CreateOrderAdjustmentInput, CreateOrderInput, CreateOrderLineItemInput, CreateOrderReturnInput,
-    ListOrderReturnsInput,
+    CreateOrderReturnItemInput, ListOrderReturnsInput,
 };
 use rustok_order::entities::{order, order_tax_line};
 use rustok_order::error::OrderError;
@@ -350,6 +350,13 @@ async fn create_and_list_order_returns() {
             CreateOrderReturnInput {
                 reason: Some("  damaged  ".to_string()),
                 note: Some("   ".to_string()),
+                items: vec![CreateOrderReturnItemInput {
+                    line_item_id: created_order.line_items[0].id,
+                    quantity: 1,
+                    reason: Some("  torn packaging  ".to_string()),
+                    note: Some("   ".to_string()),
+                    metadata: serde_json::json!({ "condition": "opened" }),
+                }],
                 metadata: serde_json::json!({ "source": "admin-test" }),
             },
         )
@@ -358,6 +365,17 @@ async fn create_and_list_order_returns() {
     assert_eq!(created_return.status, "pending");
     assert_eq!(created_return.reason.as_deref(), Some("damaged"));
     assert_eq!(created_return.note, None);
+    assert_eq!(created_return.items.len(), 1);
+    assert_eq!(
+        created_return.items[0].line_item_id,
+        created_order.line_items[0].id
+    );
+    assert_eq!(created_return.items[0].quantity, 1);
+    assert_eq!(
+        created_return.items[0].reason.as_deref(),
+        Some("torn packaging")
+    );
+    assert_eq!(created_return.items[0].note, None);
 
     let (rows, total) = service
         .list_returns(
@@ -374,6 +392,132 @@ async fn create_and_list_order_returns() {
     assert_eq!(total, 1);
     assert_eq!(rows.len(), 1);
     assert_eq!(rows[0].id, created_return.id);
+    assert_eq!(rows[0].items.len(), 1);
+    assert_eq!(
+        rows[0].items[0].line_item_id,
+        created_order.line_items[0].id
+    );
+}
+
+#[tokio::test]
+async fn create_order_return_rejects_duplicate_line_items_and_excess_quantity() {
+    let service = setup().await;
+    let tenant_id = Uuid::new_v4();
+    let actor_id = Uuid::new_v4();
+    let order = service
+        .create_order(tenant_id, actor_id, create_order_input())
+        .await
+        .expect("order should be created");
+
+    let duplicate_error = service
+        .create_return(
+            tenant_id,
+            order.id,
+            CreateOrderReturnInput {
+                reason: Some("damaged".to_string()),
+                note: None,
+                items: vec![
+                    CreateOrderReturnItemInput {
+                        line_item_id: order.line_items[0].id,
+                        quantity: 1,
+                        reason: None,
+                        note: None,
+                        metadata: serde_json::json!({}),
+                    },
+                    CreateOrderReturnItemInput {
+                        line_item_id: order.line_items[0].id,
+                        quantity: 1,
+                        reason: None,
+                        note: None,
+                        metadata: serde_json::json!({}),
+                    },
+                ],
+                metadata: serde_json::json!({}),
+            },
+        )
+        .await
+        .unwrap_err();
+    assert!(
+        matches!(duplicate_error, OrderError::Validation(message) if message.contains("duplicate return line item"))
+    );
+
+    let quantity_error = service
+        .create_return(
+            tenant_id,
+            order.id,
+            CreateOrderReturnInput {
+                reason: Some("damaged".to_string()),
+                note: None,
+                items: vec![CreateOrderReturnItemInput {
+                    line_item_id: order.line_items[1].id,
+                    quantity: order.line_items[1].quantity + 1,
+                    reason: None,
+                    note: None,
+                    metadata: serde_json::json!({}),
+                }],
+                metadata: serde_json::json!({}),
+            },
+        )
+        .await
+        .unwrap_err();
+    assert!(
+        matches!(quantity_error, OrderError::Validation(message) if message.contains("exceeds remaining ordered quantity"))
+    );
+}
+
+#[tokio::test]
+async fn create_order_return_rejects_cumulative_quantity_above_ordered_quantity() {
+    let service = setup().await;
+    let tenant_id = Uuid::new_v4();
+    let actor_id = Uuid::new_v4();
+    let order = service
+        .create_order(tenant_id, actor_id, create_order_input())
+        .await
+        .expect("order should be created");
+
+    service
+        .create_return(
+            tenant_id,
+            order.id,
+            CreateOrderReturnInput {
+                reason: Some("partial".to_string()),
+                note: None,
+                items: vec![CreateOrderReturnItemInput {
+                    line_item_id: order.line_items[0].id,
+                    quantity: 1,
+                    reason: None,
+                    note: None,
+                    metadata: serde_json::json!({}),
+                }],
+                metadata: serde_json::json!({}),
+            },
+        )
+        .await
+        .expect("first partial return should be created");
+
+    let error = service
+        .create_return(
+            tenant_id,
+            order.id,
+            CreateOrderReturnInput {
+                reason: Some("over-return".to_string()),
+                note: None,
+                items: vec![CreateOrderReturnItemInput {
+                    line_item_id: order.line_items[0].id,
+                    quantity: order.line_items[0].quantity,
+                    reason: None,
+                    note: None,
+                    metadata: serde_json::json!({}),
+                }],
+                metadata: serde_json::json!({}),
+            },
+        )
+        .await
+        .unwrap_err();
+
+    assert!(
+        matches!(error, OrderError::Validation(message) if message.contains("exceeds remaining ordered quantity"))
+    );
 }
 
 #[tokio::test]
@@ -395,6 +539,7 @@ async fn list_order_returns_clamps_per_page_upper_bound_to_100() {
                 CreateOrderReturnInput {
                     reason: Some(format!("reason-{index}")),
                     note: None,
+                    items: Vec::new(),
                     metadata: serde_json::json!({ "source": "per-page-upper-bound-test", "index": index }),
                 },
             )
@@ -437,6 +582,7 @@ async fn list_order_returns_clamps_pagination_bounds() {
             CreateOrderReturnInput {
                 reason: Some("damaged".to_string()),
                 note: None,
+                items: Vec::new(),
                 metadata: serde_json::json!({ "source": "pagination-clamp-test-1" }),
             },
         )
@@ -450,6 +596,7 @@ async fn list_order_returns_clamps_pagination_bounds() {
             CreateOrderReturnInput {
                 reason: Some("wrong-size".to_string()),
                 note: None,
+                items: Vec::new(),
                 metadata: serde_json::json!({ "source": "pagination-clamp-test-2" }),
             },
         )
@@ -508,6 +655,7 @@ async fn list_order_returns_ignores_blank_status_filter() {
             CreateOrderReturnInput {
                 reason: Some("damaged".to_string()),
                 note: None,
+                items: Vec::new(),
                 metadata: serde_json::json!({ "source": "blank-status-filter-test" }),
             },
         )
@@ -555,6 +703,7 @@ async fn list_order_returns_applies_status_trim_and_tenant_isolation() {
             CreateOrderReturnInput {
                 reason: Some("damaged".to_string()),
                 note: None,
+                items: Vec::new(),
                 metadata: serde_json::json!({ "source": "tenant-a" }),
             },
         )
@@ -568,6 +717,7 @@ async fn list_order_returns_applies_status_trim_and_tenant_isolation() {
             CreateOrderReturnInput {
                 reason: Some("wrong-size".to_string()),
                 note: None,
+                items: Vec::new(),
                 metadata: serde_json::json!({ "source": "tenant-b" }),
             },
         )
@@ -795,6 +945,7 @@ async fn order_return_lifecycle_completes_and_rejects_second_transition() {
             CreateOrderReturnInput {
                 reason: Some("damaged".to_string()),
                 note: None,
+                items: Vec::new(),
                 metadata: serde_json::json!({ "source": "lifecycle-test" }),
             },
         )
@@ -854,6 +1005,7 @@ async fn order_return_lifecycle_cancels_and_show_is_tenant_scoped() {
             CreateOrderReturnInput {
                 reason: Some("wrong size".to_string()),
                 note: None,
+                items: Vec::new(),
                 metadata: serde_json::json!({ "source": "cancel-test" }),
             },
         )

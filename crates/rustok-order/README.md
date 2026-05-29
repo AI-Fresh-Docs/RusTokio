@@ -8,6 +8,7 @@
 
 - Own the order write-side schema, service, and status transitions.
 - Persist order snapshots and line items independently from catalog ownership.
+- Persist item-level return lines in `order_return_items` with order-owned quantity and line-item validation.
 - Persist typed order adjustments as language-neutral promotion/discount snapshots.
 - Persist discounted order pricing as `base/compare-at` line-item prices plus
   typed `order_adjustments`, instead of collapsing sale savings into a second
@@ -44,6 +45,7 @@
 - Receives shipping-scoped promotions through the same typed adjustment
   contract, so delivery discounts do not require a second implicit order total
   path.
+- Exposes returns as order-owned records with optional item-level lines while refund/exchange decisions remain outside the order write model.
 - `apps/admin` consumes `rustok-order-admin` through manifest-driven composition,
   while GraphQL/REST order transport remains in `rustok-commerce`.
 

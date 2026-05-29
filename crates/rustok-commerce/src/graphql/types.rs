@@ -600,10 +600,26 @@ pub struct GqlOrderReturn {
     pub note: Option<String>,
     pub status: String,
     pub metadata: String,
+    pub items: Vec<GqlOrderReturnItem>,
     pub created_at: String,
     pub updated_at: String,
     pub completed_at: Option<String>,
     pub cancelled_at: Option<String>,
+}
+
+#[derive(SimpleObject)]
+pub struct GqlOrderReturnItem {
+    pub id: Uuid,
+    pub tenant_id: Uuid,
+    pub return_id: Uuid,
+    pub order_id: Uuid,
+    pub line_item_id: Uuid,
+    pub quantity: i32,
+    pub reason: Option<String>,
+    pub note: Option<String>,
+    pub metadata: String,
+    pub created_at: String,
+    pub updated_at: String,
 }
 
 #[derive(SimpleObject)]
@@ -924,6 +940,16 @@ pub struct CancelOrderInput {
 
 #[derive(InputObject)]
 pub struct CreateOrderReturnInputObject {
+    pub reason: Option<String>,
+    pub note: Option<String>,
+    pub items: Option<Vec<CreateOrderReturnItemInputObject>>,
+    pub metadata: Option<String>,
+}
+
+#[derive(InputObject)]
+pub struct CreateOrderReturnItemInputObject {
+    pub line_item_id: Uuid,
+    pub quantity: i32,
     pub reason: Option<String>,
     pub note: Option<String>,
     pub metadata: Option<String>,
@@ -1864,10 +1890,29 @@ impl From<dto::OrderReturnResponse> for GqlOrderReturn {
             note: value.note,
             status: value.status,
             metadata: value.metadata.to_string(),
+            items: value.items.into_iter().map(Into::into).collect(),
             created_at: value.created_at.to_rfc3339(),
             updated_at: value.updated_at.to_rfc3339(),
             completed_at: value.completed_at.map(|value| value.to_rfc3339()),
             cancelled_at: value.cancelled_at.map(|value| value.to_rfc3339()),
+        }
+    }
+}
+
+impl From<dto::OrderReturnItemResponse> for GqlOrderReturnItem {
+    fn from(value: dto::OrderReturnItemResponse) -> Self {
+        Self {
+            id: value.id,
+            tenant_id: value.tenant_id,
+            return_id: value.return_id,
+            order_id: value.order_id,
+            line_item_id: value.line_item_id,
+            quantity: value.quantity,
+            reason: value.reason,
+            note: value.note,
+            metadata: value.metadata.to_string(),
+            created_at: value.created_at.to_rfc3339(),
+            updated_at: value.updated_at.to_rfc3339(),
         }
     }
 }

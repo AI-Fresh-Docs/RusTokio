@@ -7,7 +7,7 @@ use sea_orm::{
     PaginatorTrait, QueryFilter, QueryOrder, QuerySelect, Set, Statement, TransactionTrait,
 };
 use serde_json::Value;
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 use tracing::instrument;
 use uuid::Uuid;
 use validator::Validate;
@@ -21,7 +21,7 @@ use crate::dto::{
     CancelOrderReturnInput, CompleteOrderReturnInput, CreateOrderAdjustmentInput, CreateOrderInput,
     CreateOrderLineItemInput, CreateOrderReturnInput, CreateOrderTaxLineInput,
     ListOrderReturnsInput, ListOrdersInput, OrderAdjustmentResponse, OrderLineItemResponse,
-    OrderResponse, OrderReturnResponse, OrderTaxLineResponse,
+    OrderResponse, OrderReturnItemResponse, OrderReturnResponse, OrderTaxLineResponse,
 };
 use crate::entities;
 use crate::error::{OrderError, OrderResult};
@@ -924,7 +924,10 @@ fn adjustment_total(adjustments: &[entities::order_adjustment::Model]) -> Decima
         .fold(Decimal::ZERO, |acc, adjustment| acc + adjustment.amount)
 }
 
-fn map_order_return_response(value: entities::order_return::Model) -> OrderReturnResponse {
+fn map_order_return_response(
+    value: entities::order_return::Model,
+    items: Vec<entities::order_return_item::Model>,
+) -> OrderReturnResponse {
     OrderReturnResponse {
         id: value.id,
         tenant_id: value.tenant_id,
@@ -933,10 +936,32 @@ fn map_order_return_response(value: entities::order_return::Model) -> OrderRetur
         note: value.note,
         status: value.status,
         metadata: value.metadata,
+        items: items
+            .into_iter()
+            .map(map_order_return_item_response)
+            .collect(),
         created_at: value.created_at.with_timezone(&Utc),
         updated_at: value.updated_at.with_timezone(&Utc),
         completed_at: value.completed_at.map(|ts| ts.with_timezone(&Utc)),
         cancelled_at: value.cancelled_at.map(|ts| ts.with_timezone(&Utc)),
+    }
+}
+
+fn map_order_return_item_response(
+    value: entities::order_return_item::Model,
+) -> OrderReturnItemResponse {
+    OrderReturnItemResponse {
+        id: value.id,
+        tenant_id: value.tenant_id,
+        return_id: value.return_id,
+        order_id: value.order_id,
+        line_item_id: value.line_item_id,
+        quantity: value.quantity,
+        reason: value.reason,
+        note: value.note,
+        metadata: value.metadata,
+        created_at: value.created_at.with_timezone(&Utc),
+        updated_at: value.updated_at.with_timezone(&Utc),
     }
 }
 
@@ -1248,9 +1273,81 @@ impl OrderService {
             .validate()
             .map_err(|error| OrderError::Validation(error.to_string()))?;
         self.load_order_model(tenant_id, order_id).await?;
+        let order_items = entities::order_line_item::Entity::find()
+            .filter(entities::order_line_item::Column::OrderId.eq(order_id))
+            .all(&self.db)
+            .await?;
+        let order_items_by_id: HashMap<Uuid, entities::order_line_item::Model> = order_items
+            .into_iter()
+            .map(|item| (item.id, item))
+            .collect();
+        let requested_line_item_ids: Vec<Uuid> =
+            input.items.iter().map(|item| item.line_item_id).collect();
+        let existing_return_quantities = if requested_line_item_ids.is_empty() {
+            HashMap::new()
+        } else {
+            let active_return_ids: Vec<Uuid> = entities::order_return::Entity::find()
+                .filter(entities::order_return::Column::TenantId.eq(tenant_id))
+                .filter(entities::order_return::Column::OrderId.eq(order_id))
+                .filter(entities::order_return::Column::Status.ne(RETURN_STATUS_CANCELLED))
+                .all(&self.db)
+                .await?
+                .into_iter()
+                .map(|row| row.id)
+                .collect();
+            let mut quantities = HashMap::<Uuid, i32>::new();
+            if !active_return_ids.is_empty() {
+                for existing_item in entities::order_return_item::Entity::find()
+                    .filter(entities::order_return_item::Column::TenantId.eq(tenant_id))
+                    .filter(entities::order_return_item::Column::ReturnId.is_in(active_return_ids))
+                    .filter(
+                        entities::order_return_item::Column::LineItemId
+                            .is_in(requested_line_item_ids),
+                    )
+                    .all(&self.db)
+                    .await?
+                {
+                    *quantities.entry(existing_item.line_item_id).or_default() +=
+                        existing_item.quantity;
+                }
+            }
+            quantities
+        };
+
+        let mut seen_line_item_ids = HashSet::new();
+        for item in &input.items {
+            let Some(order_item) = order_items_by_id.get(&item.line_item_id) else {
+                return Err(OrderError::Validation(format!(
+                    "return line item {} does not belong to order {}",
+                    item.line_item_id, order_id
+                )));
+            };
+            if !seen_line_item_ids.insert(item.line_item_id) {
+                return Err(OrderError::Validation(format!(
+                    "duplicate return line item {}",
+                    item.line_item_id
+                )));
+            }
+            let existing_quantity = existing_return_quantities
+                .get(&item.line_item_id)
+                .copied()
+                .unwrap_or_default();
+            let requested_total = existing_quantity + item.quantity;
+            if requested_total > order_item.quantity {
+                return Err(OrderError::Validation(format!(
+                    "return quantity {} exceeds remaining ordered quantity {} for line item {}",
+                    item.quantity,
+                    order_item.quantity - existing_quantity,
+                    item.line_item_id
+                )));
+            }
+        }
+
         let now = Utc::now();
+        let txn = self.db.begin().await?;
+        let return_id = generate_id();
         let created = entities::order_return::ActiveModel {
-            id: Set(generate_id()),
+            id: Set(return_id),
             tenant_id: Set(tenant_id),
             order_id: Set(order_id),
             reason: Set(trim_optional_text(input.reason)),
@@ -1262,9 +1359,30 @@ impl OrderService {
             completed_at: Set(None),
             cancelled_at: Set(None),
         }
-        .insert(&self.db)
+        .insert(&txn)
         .await?;
-        Ok(map_order_return_response(created))
+
+        let mut created_items = Vec::with_capacity(input.items.len());
+        for item in input.items {
+            let created_item = entities::order_return_item::ActiveModel {
+                id: Set(generate_id()),
+                tenant_id: Set(tenant_id),
+                return_id: Set(return_id),
+                order_id: Set(order_id),
+                line_item_id: Set(item.line_item_id),
+                quantity: Set(item.quantity),
+                reason: Set(trim_optional_text(item.reason)),
+                note: Set(trim_optional_text(item.note)),
+                metadata: Set(item.metadata),
+                created_at: Set(now.into()),
+                updated_at: Set(now.into()),
+            }
+            .insert(&txn)
+            .await?;
+            created_items.push(created_item);
+        }
+        txn.commit().await?;
+        Ok(map_order_return_response(created, created_items))
     }
 
     pub async fn get_return(
@@ -1273,7 +1391,8 @@ impl OrderService {
         return_id: Uuid,
     ) -> OrderResult<OrderReturnResponse> {
         let row = self.load_return_model(tenant_id, return_id).await?;
-        Ok(map_order_return_response(row))
+        let items = self.load_return_items(tenant_id, return_id).await?;
+        Ok(map_order_return_response(row, items))
     }
 
     pub async fn complete_return(
@@ -1346,8 +1465,30 @@ impl OrderService {
         let paginator = query.paginate(&self.db, per_page);
         let total = paginator.num_items().await?;
         let rows = paginator.fetch_page(page.saturating_sub(1)).await?;
+        let return_ids: Vec<Uuid> = rows.iter().map(|row| row.id).collect();
+        let mut items_by_return_id: HashMap<Uuid, Vec<entities::order_return_item::Model>> =
+            HashMap::new();
+        if !return_ids.is_empty() {
+            for item in entities::order_return_item::Entity::find()
+                .filter(entities::order_return_item::Column::TenantId.eq(tenant_id))
+                .filter(entities::order_return_item::Column::ReturnId.is_in(return_ids))
+                .order_by_asc(entities::order_return_item::Column::CreatedAt)
+                .all(&self.db)
+                .await?
+            {
+                items_by_return_id
+                    .entry(item.return_id)
+                    .or_default()
+                    .push(item);
+            }
+        }
         Ok((
-            rows.into_iter().map(map_order_return_response).collect(),
+            rows.into_iter()
+                .map(|row| {
+                    let items = items_by_return_id.remove(&row.id).unwrap_or_default();
+                    map_order_return_response(row, items)
+                })
+                .collect(),
             total,
         ))
     }
@@ -1362,6 +1503,19 @@ impl OrderService {
             .one(&self.db)
             .await?
             .ok_or(OrderError::OrderReturnNotFound(return_id))
+    }
+
+    async fn load_return_items(
+        &self,
+        tenant_id: Uuid,
+        return_id: Uuid,
+    ) -> OrderResult<Vec<entities::order_return_item::Model>> {
+        Ok(entities::order_return_item::Entity::find()
+            .filter(entities::order_return_item::Column::TenantId.eq(tenant_id))
+            .filter(entities::order_return_item::Column::ReturnId.eq(return_id))
+            .order_by_asc(entities::order_return_item::Column::CreatedAt)
+            .all(&self.db)
+            .await?)
     }
 
     async fn transition_return<F>(
@@ -1394,6 +1548,7 @@ impl OrderService {
         active.updated_at = Set(now.into());
         mutate(&mut active, now);
         let updated = active.update(&self.db).await?;
-        Ok(map_order_return_response(updated))
+        let items = self.load_return_items(tenant_id, return_id).await?;
+        Ok(map_order_return_response(updated, items))
     }
 }
