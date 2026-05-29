@@ -80,7 +80,8 @@
 Отдельно подготовить portability-порт для route/query plumbing:
 
 - текущий Leptos implementation остаётся;
-- добавляется transport/framework-agnostic контракт для будущего Dioxus routing adapter.
+- добавляется transport/framework-agnostic контракт для будущего Dioxus routing adapter;
+- shared foundation для первых wave вынесен в `rustok-api`: `normalize_ui_text`, `parse_ui_csv`, `UiRouteQueryUpdate`, а Leptos adapter применяет эти intents через `leptos-ui-routing`.
 
 ## Phase D — Wave rollout по остальным UI пакетам (3–6 недель)
 
@@ -98,6 +99,17 @@
 - native + GraphQL adapters работают и покрыты integration тестами;
 - Leptos UI слой стал thin adapter;
 - docs модуля и central docs обновлены при изменении контрактов.
+
+## Параллельный host-track для admin/storefront
+
+Админки и фронтенды переводятся **параллельно, но не как первый слой**:
+
+1. Сначала module-owned UI packages выделяют `core/transport/ui` и сохраняют Leptos UI как thin adapter.
+2. Одновременно host-приложения (`apps/admin`, `apps/storefront` и будущие Dioxus shells) получают только переносимые host contracts: route/query, locale, auth/session, tenant scope, mount registry и manifest wiring.
+3. Host-приложения не становятся владельцами доменной UI-логики; они монтируют module surfaces через adapters.
+4. Dioxus host подключается после готовности 1–2 пилотных module cores и проверяет reuse без удаления Leptos или GraphQL/headless paths.
+
+Это означает, что изменение host wiring требует отдельной parity-проверки, но перевод доменной логики остаётся в module UI packages.
 
 ## Phase E — Dioxus pilot (2–4 недели)
 
