@@ -118,6 +118,81 @@ def _parse_toggle_profiles(raw: object) -> dict[str, list[str]]:
     return dict(sorted(profiles.items()))
 
 
+def _normalize_module_ref(raw: str) -> str:
+    return _normalize_key(raw).replace("_", "-")
+
+
+def _parse_builder_provider(data: dict[str, object]) -> dict[str, object] | None:
+    module = data.get("module")
+    fba = data.get("fba")
+    if not isinstance(module, dict) or not isinstance(fba, dict):
+        return None
+    provider = fba.get("provider")
+    if not isinstance(provider, dict):
+        return None
+
+    slug = str(module.get("slug", "")).strip()
+    contract = str(provider.get("contract", "")).strip()
+    builder_contract_version = str(provider.get("builder_contract_version", "")).strip()
+    consumer_min_version = str(provider.get("consumer_min_version", "")).strip()
+    capabilities = _parse_string_list(
+        provider.get("capabilities"), pattern=_CAPABILITY_RE
+    )
+
+    if not (slug and contract and builder_contract_version and capabilities):
+        return None
+
+    return {
+        "module_ref": _normalize_module_ref(slug),
+        "contract": contract,
+        "builder_contract_version": builder_contract_version,
+        "consumer_min_version": consumer_min_version,
+        "capabilities": capabilities,
+    }
+
+
+def _validate_builder_surface_provider(
+    *,
+    manifest: pathlib.Path,
+    module_slug: str,
+    builder_surface: dict[str, object],
+    providers: dict[str, dict[str, object]],
+) -> None:
+    provider_ref = _normalize_module_ref(str(builder_surface["provider_module"]))
+    provider = providers.get(provider_ref)
+    if provider is None:
+        return
+
+    provider_contract = str(provider["contract"])
+    consumer_contract = str(builder_surface["contract"])
+    if provider_contract != consumer_contract:
+        raise ValueError(
+            f"Builder consumer '{module_slug}' in {manifest} declares contract "
+            f"'{consumer_contract}' but provider '{provider_ref}' declares "
+            f"'{provider_contract}'"
+        )
+
+    provider_version = str(provider["builder_contract_version"])
+    consumer_version = str(builder_surface["builder_contract_version"])
+    if provider_version != consumer_version:
+        raise ValueError(
+            f"Builder consumer '{module_slug}' in {manifest} declares "
+            f"builder_contract_version '{consumer_version}' but provider "
+            f"'{provider_ref}' declares '{provider_version}'"
+        )
+
+    provider_capabilities = set(provider["capabilities"])
+    consumer_capabilities = set(builder_surface["capabilities"])
+    missing_capabilities = sorted(
+        consumer_capabilities.difference(provider_capabilities)
+    )
+    if missing_capabilities:
+        raise ValueError(
+            f"Builder consumer '{module_slug}' in {manifest} requires capabilities "
+            f"{missing_capabilities} missing from provider '{provider_ref}'"
+        )
+
+
 def _parse_builder_surface(data: dict[str, object]) -> dict[str, object] | None:
     fba = data.get("fba")
     if not isinstance(fba, dict):
@@ -210,11 +285,20 @@ def _parse_child_pages(admin_ui: dict[str, object]) -> list[dict[str, str]]:
 
 def scan_modules(repo_root: pathlib.Path) -> list[dict[str, object]]:
     manifests = sorted(repo_root.glob("crates/*/rustok-module.toml"))
+    manifest_data = [
+        (manifest, tomllib.loads(manifest.read_text(encoding="utf-8")))
+        for manifest in manifests
+    ]
+    providers: dict[str, dict[str, object]] = {}
+    for _, data in manifest_data:
+        provider = _parse_builder_provider(data)
+        if provider is not None:
+            providers[str(provider["module_ref"])] = provider
+
     modules: list[dict[str, object]] = []
     used_segments: dict[str, pathlib.Path] = {}
 
-    for manifest in manifests:
-        data = tomllib.loads(manifest.read_text(encoding="utf-8"))
+    for manifest, data in manifest_data:
         module = data.get("module", {})
         provides = data.get("provides", {})
         admin_ui = provides.get("admin_ui")
@@ -241,6 +325,14 @@ def scan_modules(repo_root: pathlib.Path) -> list[dict[str, object]]:
         ).strip()
         nav_label = nav_label or slug.title()
         module_key = f"rustok_{_normalize_key(slug.replace('-', '_'))}"
+        builder_surface = _parse_builder_surface(data)
+        if builder_surface is not None:
+            _validate_builder_surface_provider(
+                manifest=manifest,
+                module_slug=slug,
+                builder_surface=builder_surface,
+                providers=providers,
+            )
 
         modules.append(
             {
@@ -252,7 +344,7 @@ def scan_modules(repo_root: pathlib.Path) -> list[dict[str, object]]:
                 "child_pages": _parse_child_pages(admin_ui),
                 "permissions": _parse_permissions(admin_ui),
                 "locale_namespace": _parse_locale_namespace(admin_ui, slug),
-                "builder_surface": _parse_builder_surface(data),
+                "builder_surface": builder_surface,
             }
         )
         used_segments[route_segment] = manifest

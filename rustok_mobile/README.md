@@ -63,7 +63,9 @@ from the committed manifest/snapshot to the expected deterministic output. The
 snapshot includes normalized `nav_icon`, locale, permissions, child-page, and
 complete page-builder consumer metadata (contract, capabilities, degraded
 modes, and toggle profiles) so navigation/capability parity drift is visible in
-codegen checks.
+codegen checks. When a matching in-repo page-builder provider manifest exists,
+codegen also verifies consumer contract/version/capability compatibility before
+emitting `builderSurface`.
 
 ## Check deterministic codegen
 

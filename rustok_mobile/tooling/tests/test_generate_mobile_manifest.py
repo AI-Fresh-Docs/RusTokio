@@ -186,6 +186,199 @@ class GenerateMobileManifestTests(unittest.TestCase):
             modules = scan_modules(root)
             self.assertIsNone(modules[0]["builder_surface"])
 
+    def test_scan_modules_accepts_builder_provider_compatible_consumer(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = pathlib.Path(tmp)
+            write_module_manifest(
+                root,
+                "page-builder",
+                """
+                [module]
+                slug = "page_builder"
+
+                [fba.provider]
+                contract = "grapesjs_v1"
+                builder_contract_version = "1.0"
+                capabilities = ["preview", "publish", "tree"]
+                """,
+            )
+            write_module_manifest(
+                root,
+                "pages",
+                """
+                [module]
+                slug = "pages"
+
+                [dependencies.page_builder]
+                module = "page-builder"
+                contract = "grapesjs_v1"
+                contract_version = "1.0"
+                required_capabilities = ["preview", "publish"]
+
+                [provides.admin_ui]
+                route_segment = "pages"
+
+                [fba.builder_consumer]
+                builder_contract_version = "1.0"
+
+                [fba.builder_consumer.degraded_modes]
+                builder_disabled = "readonly"
+
+                [fba.builder_consumer.toggle_profiles]
+                builder_off = ["builder.enabled=false"]
+                """,
+            )
+
+            modules = scan_modules(root)
+            self.assertEqual(
+                modules[0]["builder_surface"]["provider_module"], "page-builder"
+            )
+
+    def test_scan_modules_rejects_builder_provider_contract_drift(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = pathlib.Path(tmp)
+            write_module_manifest(
+                root,
+                "page-builder",
+                """
+                [module]
+                slug = "page_builder"
+
+                [fba.provider]
+                contract = "grapesjs_v2"
+                builder_contract_version = "1.0"
+                capabilities = ["preview", "publish"]
+                """,
+            )
+            write_module_manifest(
+                root,
+                "pages",
+                """
+                [module]
+                slug = "pages"
+
+                [dependencies.page_builder]
+                module = "page-builder"
+                contract = "grapesjs_v1"
+                contract_version = "1.0"
+                required_capabilities = ["preview", "publish"]
+
+                [provides.admin_ui]
+                route_segment = "pages"
+
+                [fba.builder_consumer]
+                builder_contract_version = "1.0"
+
+                [fba.builder_consumer.degraded_modes]
+                builder_disabled = "readonly"
+
+                [fba.builder_consumer.toggle_profiles]
+                builder_off = ["builder.enabled=false"]
+                """,
+            )
+
+            with self.assertRaises(ValueError) as ctx:
+                scan_modules(root)
+            self.assertIn("declares contract 'grapesjs_v1'", str(ctx.exception))
+            self.assertIn(
+                "provider 'page-builder' declares 'grapesjs_v2'", str(ctx.exception)
+            )
+
+    def test_scan_modules_rejects_builder_provider_version_drift(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = pathlib.Path(tmp)
+            write_module_manifest(
+                root,
+                "page-builder",
+                """
+                [module]
+                slug = "page_builder"
+
+                [fba.provider]
+                contract = "grapesjs_v1"
+                builder_contract_version = "2.0"
+                capabilities = ["preview", "publish"]
+                """,
+            )
+            write_module_manifest(
+                root,
+                "pages",
+                """
+                [module]
+                slug = "pages"
+
+                [dependencies.page_builder]
+                module = "page-builder"
+                contract = "grapesjs_v1"
+                contract_version = "1.0"
+                required_capabilities = ["preview", "publish"]
+
+                [provides.admin_ui]
+                route_segment = "pages"
+
+                [fba.builder_consumer]
+                builder_contract_version = "1.0"
+
+                [fba.builder_consumer.degraded_modes]
+                builder_disabled = "readonly"
+
+                [fba.builder_consumer.toggle_profiles]
+                builder_off = ["builder.enabled=false"]
+                """,
+            )
+
+            with self.assertRaises(ValueError) as ctx:
+                scan_modules(root)
+            self.assertIn("builder_contract_version '1.0'", str(ctx.exception))
+            self.assertIn("provider 'page-builder' declares '2.0'", str(ctx.exception))
+
+    def test_scan_modules_rejects_builder_provider_capability_drift(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = pathlib.Path(tmp)
+            write_module_manifest(
+                root,
+                "page-builder",
+                """
+                [module]
+                slug = "page_builder"
+
+                [fba.provider]
+                contract = "grapesjs_v1"
+                builder_contract_version = "1.0"
+                capabilities = ["preview"]
+                """,
+            )
+            write_module_manifest(
+                root,
+                "pages",
+                """
+                [module]
+                slug = "pages"
+
+                [dependencies.page_builder]
+                module = "page-builder"
+                contract = "grapesjs_v1"
+                contract_version = "1.0"
+                required_capabilities = ["preview", "publish"]
+
+                [provides.admin_ui]
+                route_segment = "pages"
+
+                [fba.builder_consumer]
+                builder_contract_version = "1.0"
+
+                [fba.builder_consumer.degraded_modes]
+                builder_disabled = "readonly"
+
+                [fba.builder_consumer.toggle_profiles]
+                builder_off = ["builder.enabled=false"]
+                """,
+            )
+
+            with self.assertRaises(ValueError) as ctx:
+                scan_modules(root)
+            self.assertIn("requires capabilities ['publish']", str(ctx.exception))
+
     def test_render_includes_builder_surface_metadata(self):
         content = render(
             [
