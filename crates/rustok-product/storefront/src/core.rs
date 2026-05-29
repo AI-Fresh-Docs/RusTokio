@@ -2,7 +2,7 @@ use rustok_core::locale_tags_match;
 
 use crate::i18n::t;
 use crate::model::{
-    ProductPricingContext, ProductPricingDetail, ProductTranslation, ProductVariant,
+    ProductDetail, ProductPricingContext, ProductPricingDetail, ProductTranslation, ProductVariant,
 };
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -45,6 +45,91 @@ pub fn parse_storefront_quantity(value: Option<&str>) -> Option<i32> {
         .map(str::trim)
         .filter(|value| !value.is_empty())
         .and_then(|value| value.parse::<i32>().ok())
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct SelectedProductViewModel {
+    pub product_type: String,
+    pub vendor: String,
+    pub published_at: String,
+    pub seller_boundary: String,
+    pub title: String,
+    pub description: String,
+    pub catalog_snapshot: String,
+    pub pricing_preview: String,
+    pub pricing_context: Option<String>,
+    pub inventory: i32,
+    pub pricing_href: String,
+}
+
+pub fn build_selected_product_view_model(
+    product: &ProductDetail,
+    pricing: Option<&ProductPricingDetail>,
+    resolution_context: Option<&ProductPricingContext>,
+    selected_handle: Option<&str>,
+    locale: Option<&str>,
+    pricing_route_base: &str,
+) -> SelectedProductViewModel {
+    let translation = product_translation_for_locale(product.translations.as_slice(), locale);
+    let variant = product.variants.first();
+    let title = translation
+        .map(|item| item.title.clone())
+        .unwrap_or_else(|| t(locale, "product.selected.untitled", "Untitled product"));
+    let description = translation
+        .and_then(|item| item.description.clone())
+        .unwrap_or_else(|| {
+            t(
+                locale,
+                "product.selected.noDescription",
+                "No localized merchandising copy yet.",
+            )
+        });
+    let catalog_snapshot = variant
+        .and_then(|item| item.prices.first())
+        .map(|item| {
+            format_product_price(
+                locale,
+                item.currency_code.as_str(),
+                item.amount.as_str(),
+                item.compare_at_amount.as_deref(),
+                None,
+            )
+        })
+        .unwrap_or_else(|| t(locale, "product.selected.noPrice", "No pricing yet"));
+    let pricing_preview = format_pricing_preview(locale, pricing);
+    let pricing_context = resolution_context.map(|context| format_pricing_context(locale, context));
+    let pricing_href = build_storefront_pricing_href(
+        pricing_route_base,
+        selected_handle.or_else(|| translation.map(|item| item.handle.as_str())),
+        resolution_context,
+        variant,
+    );
+
+    SelectedProductViewModel {
+        product_type: product
+            .product_type
+            .clone()
+            .unwrap_or_else(|| t(locale, "product.selected.catalog", "catalog")),
+        vendor: product.vendor.clone().unwrap_or_else(|| {
+            t(
+                locale,
+                "product.selected.vendorFallback",
+                "independent label",
+            )
+        }),
+        published_at: product
+            .published_at
+            .clone()
+            .unwrap_or_else(|| t(locale, "product.selected.unscheduled", "scheduled later")),
+        seller_boundary: format_seller_boundary(locale, product.seller_id.as_deref()),
+        title,
+        description,
+        catalog_snapshot,
+        pricing_preview,
+        pricing_context,
+        inventory: variant.map(|item| item.inventory_quantity).unwrap_or(0),
+        pricing_href,
+    }
 }
 
 pub fn format_pricing_preview(
@@ -290,7 +375,7 @@ pub fn build_storefront_pricing_href(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::model::{ProductPrice, ProductPricingContext};
+    use crate::model::{ProductDetail, ProductPrice, ProductPricingContext, ProductTranslation};
 
     #[test]
     fn route_input_parses_quantity_without_ui_runtime() {
@@ -364,6 +449,75 @@ mod tests {
         assert_eq!(
             build_storefront_pricing_href("/products", Some("boot"), None, Some(&variant)),
             "/products?handle=boot&currency=USD".to_string(),
+        );
+    }
+
+    #[test]
+    fn selected_product_view_model_is_built_without_ui_runtime() {
+        let product = ProductDetail {
+            id: "product-1".to_string(),
+            status: "published".to_string(),
+            seller_id: Some("seller-1".to_string()),
+            vendor: Some("Acme".to_string()),
+            product_type: Some("Boots".to_string()),
+            tags: vec!["featured".to_string()],
+            published_at: Some("2026-05-29T00:00:00Z".to_string()),
+            translations: vec![ProductTranslation {
+                locale: "en".to_string(),
+                title: "Trail boot".to_string(),
+                handle: "trail-boot".to_string(),
+                description: Some("Ready for mud".to_string()),
+            }],
+            variants: vec![ProductVariant {
+                id: "variant-1".to_string(),
+                title: "Default".to_string(),
+                sku: Some("BOOT-1".to_string()),
+                inventory_quantity: 7,
+                in_stock: true,
+                prices: vec![ProductPrice {
+                    currency_code: "USD".to_string(),
+                    amount: "25.00".to_string(),
+                    compare_at_amount: Some("30.00".to_string()),
+                    on_sale: true,
+                }],
+            }],
+        };
+        let context = ProductPricingContext {
+            currency_code: "USD".to_string(),
+            region_id: None,
+            price_list_id: Some("list-1".to_string()),
+            channel_id: None,
+            channel_slug: Some("web".to_string()),
+            quantity: 4,
+        };
+
+        let view_model = build_selected_product_view_model(
+            &product,
+            None,
+            Some(&context),
+            None,
+            Some("en"),
+            "/pricing",
+        );
+
+        assert_eq!(view_model.product_type, "Boots");
+        assert_eq!(view_model.vendor, "Acme");
+        assert_eq!(view_model.title, "Trail boot");
+        assert_eq!(view_model.description, "Ready for mud");
+        assert_eq!(view_model.seller_boundary, "seller id: seller-1");
+        assert_eq!(view_model.catalog_snapshot, "USD 25.00 (compare-at 30.00)");
+        assert_eq!(
+            view_model.pricing_preview,
+            "Pricing module preview is unavailable."
+        );
+        assert_eq!(
+            view_model.pricing_context,
+            Some("currency USD | qty 4 | price list list-1 | channel web".to_string()),
+        );
+        assert_eq!(view_model.inventory, 7);
+        assert_eq!(
+            view_model.pricing_href,
+            "/pricing?handle=trail-boot&currency=USD&price_list_id=list-1&channel_slug=web&quantity=4",
         );
     }
 }

@@ -5,9 +5,7 @@ mod model;
 mod transport;
 
 use crate::core::{
-    build_storefront_pricing_href, build_storefront_route_input, format_pricing_context,
-    format_pricing_preview, format_product_price, format_seller_boundary,
-    product_translation_for_locale,
+    build_selected_product_view_model, build_storefront_route_input, format_seller_boundary,
 };
 use crate::i18n::t;
 use crate::model::{
@@ -155,81 +153,34 @@ fn SelectedProductCard(
         }.into_any();
     };
 
-    let translation =
-        product_translation_for_locale(product.translations.as_slice(), locale.as_deref()).cloned();
-    let variant = product.variants.first().cloned();
-    let title = translation
-        .as_ref()
-        .map(|item| item.title.clone())
-        .unwrap_or_else(|| {
-            t(
-                locale.as_deref(),
-                "product.selected.untitled",
-                "Untitled product",
-            )
-        });
-    let description = translation
-        .as_ref()
-        .and_then(|item| item.description.clone())
-        .unwrap_or_else(|| {
-            t(
-                locale.as_deref(),
-                "product.selected.noDescription",
-                "No localized merchandising copy yet.",
-            )
-        });
-    let catalog_snapshot = variant
-        .as_ref()
-        .and_then(|item| item.prices.first())
-        .map(|item| {
-            format_product_price(
-                locale.as_deref(),
-                item.currency_code.as_str(),
-                item.amount.as_str(),
-                item.compare_at_amount.as_deref(),
-                None,
-            )
-        })
-        .unwrap_or_else(|| {
-            t(
-                locale.as_deref(),
-                "product.selected.noPrice",
-                "No pricing yet",
-            )
-        });
-    let pricing_preview = format_pricing_preview(locale.as_deref(), pricing.as_ref());
-    let inventory = variant
-        .as_ref()
-        .map(|item| item.inventory_quantity)
-        .unwrap_or(0);
-    let seller_boundary = format_seller_boundary(locale.as_deref(), product.seller_id.as_deref());
-    let pricing_href = build_storefront_pricing_href(
-        route_context.module_route_base("pricing").as_str(),
-        selected_handle
-            .as_deref()
-            .or_else(|| translation.as_ref().map(|item| item.handle.as_str())),
+    let pricing_route_base = route_context.module_route_base("pricing");
+    let view_model = build_selected_product_view_model(
+        &product,
+        pricing.as_ref(),
         resolution_context.as_ref(),
-        variant.as_ref(),
+        selected_handle.as_deref(),
+        locale.as_deref(),
+        pricing_route_base.as_str(),
     );
 
     view! {
         <article class="rounded-3xl border border-border bg-background p-8">
             <div class="flex flex-wrap items-center gap-2 text-xs font-medium uppercase tracking-[0.18em] text-muted-foreground">
-                <span>{product.product_type.unwrap_or_else(|| t(locale.as_deref(), "product.selected.catalog", "catalog"))}</span>
+                <span>{view_model.product_type}</span>
                 <span>"|"</span>
-                <span>{product.vendor.unwrap_or_else(|| t(locale.as_deref(), "product.selected.vendorFallback", "independent label"))}</span>
+                <span>{view_model.vendor}</span>
                 <span>"|"</span>
-                <span>{product.published_at.unwrap_or_else(|| t(locale.as_deref(), "product.selected.unscheduled", "scheduled later"))}</span>
+                <span>{view_model.published_at}</span>
             </div>
-            <p class="mt-3 text-xs font-medium text-muted-foreground">{seller_boundary}</p>
-            <h3 class="mt-4 text-3xl font-semibold text-foreground">{title}</h3>
-            <p class="mt-4 text-sm leading-7 text-muted-foreground">{description}</p>
-            {resolution_context.as_ref().map(|context| view! {
+            <p class="mt-3 text-xs font-medium text-muted-foreground">{view_model.seller_boundary}</p>
+            <h3 class="mt-4 text-3xl font-semibold text-foreground">{view_model.title}</h3>
+            <p class="mt-4 text-sm leading-7 text-muted-foreground">{view_model.description}</p>
+            {view_model.pricing_context.as_ref().map(|pricing_context| view! {
                 <div class="mt-4 inline-flex flex-wrap items-center gap-2 rounded-2xl border border-primary/20 bg-primary/5 px-4 py-2 text-xs text-primary">
                     <span class="font-semibold uppercase tracking-[0.16em]">
                         {t(locale.as_deref(), "product.selected.previewContext", "pricing preview")}
                     </span>
-                    <span>{format_pricing_context(locale.as_deref(), context)}</span>
+                    <span>{pricing_context.clone()}</span>
                 </div>
             })}
             <p class="mt-4 text-xs text-muted-foreground">
@@ -240,14 +191,14 @@ fn SelectedProductCard(
                 )}
             </p>
             <div class="mt-6 grid gap-3 md:grid-cols-3">
-                <MetricCard title=t(locale.as_deref(), "product.selected.catalogSnapshot", "Catalog snapshot") value=catalog_snapshot />
-                <MetricCard title=t(locale.as_deref(), "product.selected.pricingPreview", "Pricing module preview") value=pricing_preview />
-                <MetricCard title=t(locale.as_deref(), "product.selected.inventory", "Inventory") value=inventory.to_string() />
+                <MetricCard title=t(locale.as_deref(), "product.selected.catalogSnapshot", "Catalog snapshot") value=view_model.catalog_snapshot />
+                <MetricCard title=t(locale.as_deref(), "product.selected.pricingPreview", "Pricing module preview") value=view_model.pricing_preview />
+                <MetricCard title=t(locale.as_deref(), "product.selected.inventory", "Inventory") value=view_model.inventory.to_string() />
             </div>
             <div class="mt-4">
                 <a
                     class="inline-flex rounded-lg border border-border px-3 py-2 text-sm font-medium text-foreground transition hover:bg-accent"
-                    href=pricing_href
+                    href=view_model.pricing_href
                 >
                     {t(
                         locale.as_deref(),

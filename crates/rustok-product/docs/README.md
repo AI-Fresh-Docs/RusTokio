@@ -26,9 +26,10 @@
   синхронизированы с этим split: UI больше не показывает generic catalog
   `variants.prices` как resolved price, а держит отдельный pricing-module preview
   hook для `adminPricingProduct` / `storefrontPricingProduct`;
-- storefront FFA slice вынес route/query normalization и pricing/seller view-model
-  helpers в `storefront/src/core.rs`; Leptos `ProductView` остаётся только
-  host-context/render adapter и вызывает transport через этот core state;
+- storefront FFA slice вынес route/query normalization, selected-product view-model
+  composition, pricing/seller labels и pricing deep-link state в
+  `storefront/src/core.rs`; Leptos `ProductView` остаётся host-context/render
+  adapter и вызывает transport через этот core state;
 - Общие DTO, entities и error surface приходят из `rustok-commerce-foundation`.
 - canonical vocabulary и attach semantics для product tags живут в
   `rustok-taxonomy` + `product_tags`, а public contract использует first-class
