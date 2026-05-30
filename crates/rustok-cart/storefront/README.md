@@ -11,12 +11,12 @@ Leptos storefront UI package for the `rustok-cart` module.
 - Supports safe cart-owned line-item decrement and remove actions without taking over checkout orchestration,
   while repricing line items through the pricing resolver on quantity change.
 - Uses native Leptos `#[server]` calls as the default internal data layer and keeps GraphQL as fallback.
-- Keeps cart UI policy and display/view-model mapping in a framework-agnostic `core/` layer and routes Leptos actions through a thin `transport` facade.
+- Keeps cart UI policy and display/view-model mapping in a framework-agnostic `core/` layer and keeps Leptos rendering in `ui/leptos.rs`, routing actions through a thin `transport` facade.
 - Leaves checkout completion and broader cross-domain orchestration inside `rustok-commerce`.
 
 ## Entry Points
 
-- `CartView` - root storefront view rendered from the host storefront slot registry.
+- `CartView` - root storefront view re-exported from `ui::leptos` and rendered from the host storefront slot registry.
 - `core::view_model` helpers re-exported from `core` - framework-agnostic display mapping for cart summary, adjustments, delivery groups, and line items.
 - `transport::fetch_cart` - thin UI-facing facade for native-first cart reads with GraphQL fallback.
 - `transport::decrement_line_item` - thin UI-facing facade for safe line-item decrement.
