@@ -325,6 +325,78 @@ fn lifecycle_hook_phases_adr_is_linked_from_indexes_and_backlog() {
 }
 
 #[test]
+fn lifecycle_operation_status_model_is_exposed_through_recovery_surface() {
+    let repo_root = Path::new(env!("CARGO_MANIFEST_DIR"))
+        .parent()
+        .and_then(Path::parent)
+        .expect("workspace root");
+    let service_rs = repo_root.join("apps/server/src/services/module_lifecycle.rs");
+    let types_rs = repo_root.join("apps/server/src/graphql/types.rs");
+    let queries_rs = repo_root.join("apps/server/src/graphql/queries.rs");
+    let mutations_rs = repo_root.join("apps/server/src/graphql/mutations.rs");
+    let admin_api_rs = repo_root.join("apps/admin/src/features/modules/api.rs");
+    let service = fs::read_to_string(&service_rs).expect("module_lifecycle.rs should be readable");
+    let types = fs::read_to_string(&types_rs).expect("graphql/types.rs should be readable");
+    let queries = fs::read_to_string(&queries_rs).expect("graphql/queries.rs should be readable");
+    let mutations =
+        fs::read_to_string(&mutations_rs).expect("graphql/mutations.rs should be readable");
+    let admin_api = fs::read_to_string(&admin_api_rs).expect("admin module api should be readable");
+
+    for required in [
+        "Validated",
+        "Running",
+        "Committed",
+        "Failed",
+        "ModuleOperationStatus::Validated",
+        "ModuleOperationStatus::Running",
+        "ModuleOperationStatus::Committed",
+        "ModuleOperationStatus::Failed",
+        "active.status = sea_orm::ActiveValue::Set(ModuleOperationStatus::Running.into())",
+        "active.status = sea_orm::ActiveValue::Set(ModuleOperationStatus::Committed.into())",
+        "active.status = sea_orm::ActiveValue::Set(ModuleOperationStatus::Failed.into())",
+    ] {
+        assert!(
+            service.contains(required),
+            "lifecycle service must preserve explicit operation status fragment `{required}`"
+        );
+    }
+
+    for field in [
+        "pub status: String",
+        "pub issue: String",
+        "pub retryable: bool",
+        "pub recommended_action: String",
+        "pub correlation_id: Option<String>",
+        "pub requested_by: Option<String>",
+        "pub error_message: Option<String>",
+        "status: plan.status.as_str().to_string()",
+    ] {
+        assert!(
+            types.contains(field),
+            "GraphQL recovery plan type must expose lifecycle read-side field `{field}`"
+        );
+    }
+
+    for surface in [queries.as_str(), mutations.as_str()] {
+        assert!(
+            surface.contains("ModuleOperationRecoveryPlan::from(&plan)"),
+            "GraphQL recovery read/write surface must map service recovery plans through the typed GraphQL plan"
+        );
+    }
+
+    for admin_fragment in [
+        "status issue retryable recommendedAction correlationId requestedBy errorMessage",
+        "retryFailedModuleOperationPostHook(operationId: $operationId)",
+        "compensateFailedModuleOperation(operationId: $operationId)",
+    ] {
+        assert!(
+            admin_api.contains(admin_fragment),
+            "admin recovery GraphQL contract must consume lifecycle status/read-side fragment `{admin_fragment}`"
+        );
+    }
+}
+
+#[test]
 fn control_plane_graphql_taxonomy_uses_canonical_error_codes() {
     let repo_root = Path::new(env!("CARGO_MANIFEST_DIR"))
         .parent()
