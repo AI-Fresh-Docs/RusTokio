@@ -17,12 +17,38 @@ pub enum RegionErrorStatusCode {
     FallbackUnavailable,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct RegionErrorStatusDescriptor {
+    pub code: RegionErrorStatusCode,
+    pub stable_code: &'static str,
+    pub locale_key: &'static str,
+}
+
+const REGION_ERROR_STATUS_DESCRIPTORS: [RegionErrorStatusDescriptor; 2] = [
+    RegionErrorStatusDescriptor {
+        code: RegionErrorStatusCode::NativeUnavailable,
+        stable_code: "native_unavailable",
+        locale_key: "region.error.status.nativeUnavailable",
+    },
+    RegionErrorStatusDescriptor {
+        code: RegionErrorStatusCode::FallbackUnavailable,
+        stable_code: "fallback_unavailable",
+        locale_key: "region.error.status.fallbackUnavailable",
+    },
+];
+
+fn region_error_status_descriptor(
+    code: RegionErrorStatusCode,
+) -> &'static RegionErrorStatusDescriptor {
+    REGION_ERROR_STATUS_DESCRIPTORS
+        .iter()
+        .find(|descriptor| descriptor.code == code)
+        .expect("every RegionErrorStatusCode must have a descriptor")
+}
+
 impl RegionErrorStatusCode {
-    pub const fn as_str(self) -> &'static str {
-        match self {
-            Self::NativeUnavailable => "native_unavailable",
-            Self::FallbackUnavailable => "fallback_unavailable",
-        }
+    pub fn as_str(self) -> &'static str {
+        region_error_status_descriptor(self).stable_code
     }
 }
 
@@ -290,6 +316,28 @@ mod tests {
             }],
             countries: vec!["DE".to_string(), "FR".to_string()],
         }
+    }
+
+    #[test]
+    fn region_error_status_descriptors_are_host_visible_contract() {
+        let descriptors = REGION_ERROR_STATUS_DESCRIPTORS;
+
+        assert_eq!(descriptors.len(), 2);
+        assert_eq!(
+            descriptors.map(|descriptor| descriptor.stable_code),
+            ["native_unavailable", "fallback_unavailable"]
+        );
+        assert_eq!(
+            descriptors.map(|descriptor| descriptor.locale_key),
+            [
+                "region.error.status.nativeUnavailable",
+                "region.error.status.fallbackUnavailable",
+            ]
+        );
+        assert_eq!(
+            region_error_status_descriptor(RegionErrorStatusCode::NativeUnavailable).stable_code,
+            RegionErrorStatusCode::NativeUnavailable.as_str()
+        );
     }
 
     #[test]
