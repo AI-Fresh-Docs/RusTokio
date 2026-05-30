@@ -103,4 +103,18 @@ class _FakeModulesRepository implements ModulesRepository {
   }) async {
     return const <ModuleOperationRecoveryPlan>[];
   }
+
+  @override
+  Future<ModuleOperationRecoveryPlan> retryFailedPostHook({
+    required String operationId,
+  }) async {
+    throw UnimplementedError('retry is not used by this test repository');
+  }
+
+  @override
+  Future<ModuleToggleResult> compensateFailedOperation({
+    required String operationId,
+  }) async {
+    throw UnimplementedError('compensation is not used by this test repository');
+  }
 }

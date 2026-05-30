@@ -113,8 +113,10 @@ class _ModuleCard extends ConsumerStatefulWidget {
 
 class _ModuleCardState extends ConsumerState<_ModuleCard> {
   Object? _toggleError;
+  Object? _recoveryActionError;
   ModuleOperationRecoveryPlan? _recoveryPlan;
   bool _isToggling = false;
+  bool _isRecovering = false;
 
   @override
   Widget build(BuildContext context) {
@@ -153,7 +155,13 @@ class _ModuleCardState extends ConsumerState<_ModuleCard> {
                   const SizedBox(height: 8),
                 ],
                 if (_recoveryPlan != null) ...[
-                  _RecoveryPlanNotice(plan: _recoveryPlan!),
+                  _RecoveryPlanNotice(
+                    plan: _recoveryPlan!,
+                    isBusy: _isRecovering,
+                    actionError: _recoveryActionError,
+                    onRetry: _retryPostHook,
+                    onCompensate: _compensateOperation,
+                  ),
                   const SizedBox(height: 8),
                 ],
                 Align(
@@ -197,6 +205,7 @@ class _ModuleCardState extends ConsumerState<_ModuleCard> {
     setState(() {
       _isToggling = true;
       _toggleError = null;
+      _recoveryActionError = null;
       _recoveryPlan = null;
     });
 
@@ -255,6 +264,70 @@ class _ModuleCardState extends ConsumerState<_ModuleCard> {
     });
   }
 
+  Future<void> _retryPostHook() async {
+    final plan = _recoveryPlan;
+    if (plan == null || _isRecovering) {
+      return;
+    }
+
+    setState(() {
+      _isRecovering = true;
+      _recoveryActionError = null;
+    });
+
+    try {
+      final repository = ref.read(modulesRepositoryProvider);
+      final nextPlan = await repository.retryFailedPostHook(
+        operationId: plan.operationId,
+      );
+      if (mounted) {
+        setState(() {
+          _recoveryPlan = nextPlan.retryable ? nextPlan : null;
+        });
+      }
+      ref.invalidate(modulesControllerProvider);
+    } catch (error) {
+      if (mounted) {
+        setState(() => _recoveryActionError = error);
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isRecovering = false);
+      }
+    }
+  }
+
+  Future<void> _compensateOperation() async {
+    final plan = _recoveryPlan;
+    if (plan == null || _isRecovering) {
+      return;
+    }
+
+    setState(() {
+      _isRecovering = true;
+      _recoveryActionError = null;
+    });
+
+    try {
+      final repository = ref.read(modulesRepositoryProvider);
+      await repository.compensateFailedOperation(
+        operationId: plan.operationId,
+      );
+      if (mounted) {
+        setState(() => _recoveryPlan = null);
+      }
+      ref.invalidate(modulesControllerProvider);
+    } catch (error) {
+      if (mounted) {
+        setState(() => _recoveryActionError = error);
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isRecovering = false);
+      }
+    }
+  }
+
   String _buildSubtitle(ModuleSummary module, String? path) {
     final parts = <String>[
       if (module.description.isNotEmpty) module.description,
@@ -267,9 +340,19 @@ class _ModuleCardState extends ConsumerState<_ModuleCard> {
 }
 
 class _RecoveryPlanNotice extends StatelessWidget {
-  const _RecoveryPlanNotice({required this.plan});
+  const _RecoveryPlanNotice({
+    required this.plan,
+    required this.isBusy,
+    required this.onRetry,
+    required this.onCompensate,
+    this.actionError,
+  });
 
   final ModuleOperationRecoveryPlan plan;
+  final bool isBusy;
+  final VoidCallback onRetry;
+  final VoidCallback onCompensate;
+  final Object? actionError;
 
   @override
   Widget build(BuildContext context) {
@@ -277,8 +360,8 @@ class _RecoveryPlanNotice extends StatelessWidget {
     final action = plan.recommendedAction.isEmpty
         ? 'review operation recovery plan'
         : plan.recommendedAction;
-    final message =
-        plan.errorMessage ?? 'Module state was committed, but a post-hook failed.';
+    final message = plan.errorMessage ??
+        'Module state was committed, but a post-hook failed.';
 
     return Material(
       color: theme.colorScheme.errorContainer,
@@ -303,6 +386,35 @@ class _RecoveryPlanNotice extends StatelessWidget {
             Text(
               'Recommended action: $action',
               style: TextStyle(color: theme.colorScheme.onErrorContainer),
+            ),
+            if (actionError != null) ...[
+              const SizedBox(height: 8),
+              Text(
+                'Recovery action failed: $actionError',
+                style: TextStyle(color: theme.colorScheme.onErrorContainer),
+              ),
+            ],
+            const SizedBox(height: 12),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                FilledButton.tonalIcon(
+                  onPressed: isBusy || !plan.retryable ? null : onRetry,
+                  icon: isBusy
+                      ? const SizedBox.square(
+                          dimension: 16,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : const Icon(Icons.refresh),
+                  label: const Text('Retry post-hook'),
+                ),
+                OutlinedButton.icon(
+                  onPressed: isBusy ? null : onCompensate,
+                  icon: const Icon(Icons.undo),
+                  label: const Text('Compensate'),
+                ),
+              ],
             ),
           ],
         ),

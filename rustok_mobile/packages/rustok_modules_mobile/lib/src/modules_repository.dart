@@ -48,6 +48,34 @@ const failedModuleOperationRecoveryPlansQuery = r'''
   }
 ''';
 
+const retryFailedModuleOperationPostHookMutation = r'''
+  mutation RetryFailedModuleOperationPostHook($operationId: UUID!) {
+    retryFailedModuleOperationPostHook(operationId: $operationId) {
+      operationId
+      moduleSlug
+      requestedEnabled
+      previousEffectiveEnabled
+      status
+      issue
+      retryable
+      recommendedAction
+      correlationId
+      requestedBy
+      errorMessage
+    }
+  }
+''';
+
+const compensateFailedModuleOperationMutation = r'''
+  mutation CompensateFailedModuleOperation($operationId: UUID!) {
+    compensateFailedModuleOperation(operationId: $operationId) {
+      moduleSlug
+      enabled
+      settings
+    }
+  }
+''';
+
 abstract interface class ModulesRepository {
   Future<List<ModuleSummary>> listModules();
 
@@ -59,6 +87,14 @@ abstract interface class ModulesRepository {
   Future<List<ModuleOperationRecoveryPlan>> failedRecoveryPlans({
     required String moduleSlug,
     int limit = 1,
+  });
+
+  Future<ModuleOperationRecoveryPlan> retryFailedPostHook({
+    required String operationId,
+  });
+
+  Future<ModuleToggleResult> compensateFailedOperation({
+    required String operationId,
   });
 }
 
@@ -147,6 +183,56 @@ class GraphQlModulesRepository implements ModulesRepository {
           .whereType<Map<String, dynamic>>()
           .map(ModuleOperationRecoveryPlan.fromJson),
     );
+  }
+
+  @override
+  Future<ModuleOperationRecoveryPlan> retryFailedPostHook({
+    required String operationId,
+  }) async {
+    final result = await _client.mutate(
+      MutationOptions(
+        document: gql(retryFailedModuleOperationPostHookMutation),
+        variables: <String, dynamic>{'operationId': operationId},
+      ),
+    );
+
+    if (result.hasException) {
+      throw result.exception!;
+    }
+
+    final payload = result.data?['retryFailedModuleOperationPostHook'];
+    if (payload is! Map<String, dynamic>) {
+      throw const FormatException(
+        'retryFailedModuleOperationPostHook response payload is missing.',
+      );
+    }
+
+    return ModuleOperationRecoveryPlan.fromJson(payload);
+  }
+
+  @override
+  Future<ModuleToggleResult> compensateFailedOperation({
+    required String operationId,
+  }) async {
+    final result = await _client.mutate(
+      MutationOptions(
+        document: gql(compensateFailedModuleOperationMutation),
+        variables: <String, dynamic>{'operationId': operationId},
+      ),
+    );
+
+    if (result.hasException) {
+      throw result.exception!;
+    }
+
+    final payload = result.data?['compensateFailedModuleOperation'];
+    if (payload is! Map<String, dynamic>) {
+      throw const FormatException(
+        'compensateFailedModuleOperation response payload is missing.',
+      );
+    }
+
+    return ModuleToggleResult.fromJson(payload);
   }
 }
 

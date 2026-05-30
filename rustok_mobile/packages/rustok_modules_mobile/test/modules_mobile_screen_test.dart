@@ -103,6 +103,58 @@ void main() {
     expect(find.text('Recommended action: retry_post_hook'), findsOneWidget);
   });
 
+  testWidgets('runs retry post-hook recovery action', (tester) async {
+    final repository = _PostHookFailureRepository();
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          modulesRepositoryProvider.overrideWithValue(repository),
+        ],
+        child: const MaterialApp(
+          home: Scaffold(
+            body: ModulesMobileScreen(canManageModules: true),
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Disable'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Retry post-hook'));
+    await tester.pumpAndSettle();
+
+    expect(repository.retryRequests, const ['op-1']);
+    expect(find.text('Recovery available'), findsNothing);
+  });
+
+  testWidgets('runs compensation recovery action', (tester) async {
+    final repository = _PostHookFailureRepository();
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          modulesRepositoryProvider.overrideWithValue(repository),
+        ],
+        child: const MaterialApp(
+          home: Scaffold(
+            body: ModulesMobileScreen(canManageModules: true),
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Disable'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Compensate'));
+    await tester.pumpAndSettle();
+
+    expect(repository.compensateRequests, const ['op-1']);
+    expect(find.text('Recovery available'), findsNothing);
+  });
+
   testWidgets('gates toggle action when modules manage permission is missing', (
     tester,
   ) async {
@@ -181,6 +233,20 @@ class _FakeModulesRepository implements ModulesRepository {
   }) async {
     return const <ModuleOperationRecoveryPlan>[];
   }
+
+  @override
+  Future<ModuleOperationRecoveryPlan> retryFailedPostHook({
+    required String operationId,
+  }) async {
+    throw UnimplementedError('retry is not used by this test repository');
+  }
+
+  @override
+  Future<ModuleToggleResult> compensateFailedOperation({
+    required String operationId,
+  }) async {
+    throw UnimplementedError('compensation is not used by this test repository');
+  }
 }
 
 class _MutableModulesRepository implements ModulesRepository {
@@ -224,10 +290,26 @@ class _MutableModulesRepository implements ModulesRepository {
   }) async {
     return const <ModuleOperationRecoveryPlan>[];
   }
+
+  @override
+  Future<ModuleOperationRecoveryPlan> retryFailedPostHook({
+    required String operationId,
+  }) async {
+    throw UnimplementedError('retry is not used by this test repository');
+  }
+
+  @override
+  Future<ModuleToggleResult> compensateFailedOperation({
+    required String operationId,
+  }) async {
+    throw UnimplementedError('compensation is not used by this test repository');
+  }
 }
 
 class _PostHookFailureRepository implements ModulesRepository {
   final List<String> recoveryQueries = <String>[];
+  final List<String> retryRequests = <String>[];
+  final List<String> compensateRequests = <String>[];
 
   @override
   Future<List<ModuleSummary>> listModules() async => const [
@@ -283,6 +365,35 @@ class _PostHookFailureRepository implements ModulesRepository {
       ),
     ];
   }
+
+  @override
+  Future<ModuleOperationRecoveryPlan> retryFailedPostHook({
+    required String operationId,
+  }) async {
+    retryRequests.add(operationId);
+    return const ModuleOperationRecoveryPlan(
+      operationId: 'op-2',
+      moduleSlug: 'blog',
+      requestedEnabled: false,
+      previousEffectiveEnabled: true,
+      status: 'committed',
+      issue: 'none',
+      retryable: false,
+      recommendedAction: 'none',
+    );
+  }
+
+  @override
+  Future<ModuleToggleResult> compensateFailedOperation({
+    required String operationId,
+  }) async {
+    compensateRequests.add(operationId);
+    return const ModuleToggleResult(
+      moduleSlug: 'blog',
+      enabled: true,
+      settings: '{}',
+    );
+  }
 }
 
 class _FailingRepository implements ModulesRepository {
@@ -305,6 +416,20 @@ class _FailingRepository implements ModulesRepository {
   Future<List<ModuleOperationRecoveryPlan>> failedRecoveryPlans({
     required String moduleSlug,
     int limit = 1,
+  }) async {
+    throw StateError('registry unavailable');
+  }
+
+  @override
+  Future<ModuleOperationRecoveryPlan> retryFailedPostHook({
+    required String operationId,
+  }) async {
+    throw StateError('registry unavailable');
+  }
+
+  @override
+  Future<ModuleToggleResult> compensateFailedOperation({
+    required String operationId,
   }) async {
     throw StateError('registry unavailable');
   }
