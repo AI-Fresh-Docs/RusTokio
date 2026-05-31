@@ -8,6 +8,18 @@ use crate::model::{
     PricingVariant,
 };
 
+#[derive(Clone, Debug, Default, serde::Serialize, serde::Deserialize)]
+pub(crate) struct StorefrontPricingQuery {
+    pub(crate) selected_handle: Option<String>,
+    pub(crate) locale: Option<String>,
+    pub(crate) currency_code: Option<String>,
+    pub(crate) region_id: Option<String>,
+    pub(crate) price_list_id: Option<String>,
+    pub(crate) channel_id: Option<String>,
+    pub(crate) channel_slug: Option<String>,
+    pub(crate) quantity: Option<i32>,
+}
+
 pub(crate) struct PricingSummary {
     pub(crate) currency_count: usize,
     pub(crate) sale_variant_count: usize,

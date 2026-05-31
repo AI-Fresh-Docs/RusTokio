@@ -4,6 +4,7 @@ use serde::{Deserialize, Serialize};
 use std::fmt::{Display, Formatter};
 use uuid::Uuid;
 
+use crate::core::StorefrontPricingQuery;
 use crate::model::{
     PricingChannelOption, PricingPriceListOption, PricingProductDetail, PricingProductList,
     PricingProductListItem, PricingProductTranslation, PricingResolutionContext, PricingVariant,
@@ -195,71 +196,7 @@ where
     .map_err(ApiError::from)
 }
 
-pub async fn fetch_storefront_pricing(
-    query: StorefrontPricingQuery,
-) -> Result<StorefrontPricingData, ApiError> {
-    let channel_id = parse_optional_uuid_string(query.channel_id.clone(), "channel_id")?;
-    let channel_slug = sanitize_channel_slug(query.channel_slug.clone());
-    let resolution_context = sanitize_resolution_context(
-        query.currency_code.clone(),
-        query.region_id.clone(),
-        query.price_list_id.clone(),
-        channel_id.clone(),
-        channel_slug.clone(),
-        query.quantity,
-    )?;
-    let currency_code = resolution_context
-        .as_ref()
-        .map(|context| context.currency_code.clone());
-    let region_id = resolution_context
-        .as_ref()
-        .and_then(|context| context.region_id.clone());
-    let price_list_id = resolution_context
-        .as_ref()
-        .and_then(|context| context.price_list_id.clone());
-    let quantity = resolution_context.as_ref().map(|context| context.quantity);
-    match fetch_storefront_pricing_server(StorefrontPricingQuery {
-        selected_handle: query.selected_handle.clone(),
-        locale: query.locale.clone(),
-        currency_code: currency_code.clone(),
-        region_id: region_id.clone(),
-        price_list_id: price_list_id.clone(),
-        channel_id: channel_id.clone(),
-        channel_slug: channel_slug.clone(),
-        quantity,
-    })
-    .await
-    {
-        Ok(data) => Ok(data),
-        Err(_) => {
-            fetch_storefront_pricing_graphql(StorefrontPricingQuery {
-                selected_handle: query.selected_handle,
-                locale: query.locale,
-                currency_code,
-                region_id,
-                price_list_id,
-                channel_id,
-                channel_slug,
-                quantity,
-            })
-            .await
-        }
-    }
-}
-
-#[derive(Clone, Debug, Default, Serialize, Deserialize)]
-pub struct StorefrontPricingQuery {
-    pub selected_handle: Option<String>,
-    pub locale: Option<String>,
-    pub currency_code: Option<String>,
-    pub region_id: Option<String>,
-    pub price_list_id: Option<String>,
-    pub channel_id: Option<String>,
-    pub channel_slug: Option<String>,
-    pub quantity: Option<i32>,
-}
-
-pub async fn fetch_storefront_pricing_server(
+pub(crate) async fn fetch_storefront_pricing_server(
     query: StorefrontPricingQuery,
 ) -> Result<StorefrontPricingData, ApiError> {
     storefront_pricing_native(query)
@@ -267,7 +204,7 @@ pub async fn fetch_storefront_pricing_server(
         .map_err(ApiError::from)
 }
 
-pub async fn fetch_storefront_pricing_graphql(
+pub(crate) async fn fetch_storefront_pricing_graphql(
     query: StorefrontPricingQuery,
 ) -> Result<StorefrontPricingData, ApiError> {
     let selected_channel_id = parse_optional_uuid_string(query.channel_id.clone(), "channel_id")?;
@@ -631,6 +568,7 @@ fn sanitize_channel_slug(channel_slug: Option<String>) -> Option<String> {
         .filter(|value| !value.is_empty())
 }
 
+#[cfg(feature = "ssr")]
 fn normalize_optional(value: Option<String>) -> Option<String> {
     value.and_then(|value| {
         let trimmed = value.trim();
@@ -642,6 +580,7 @@ fn normalize_optional(value: Option<String>) -> Option<String> {
     })
 }
 
+#[cfg(feature = "ssr")]
 fn resolve_requested_locale(
     requested: Option<String>,
     request_context_locale: Option<&str>,

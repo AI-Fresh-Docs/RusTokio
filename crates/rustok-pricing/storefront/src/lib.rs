@@ -2,12 +2,19 @@ mod api;
 mod core;
 mod i18n;
 mod model;
+mod transport;
 
 use leptos::prelude::*;
 use leptos_ui_routing::read_route_query_value;
 use rustok_api::UiRouteContext;
 
-use crate::core::*;
+use crate::core::{
+    build_pricing_route_href, build_product_storefront_href, format_channel_option_label,
+    format_effective_context, format_effective_price, format_price_list_option_label,
+    format_seller_boundary, format_variant_identity, format_variant_prices, pricing_health_badge,
+    pricing_health_label, pricing_translation_for_locale, selector_badge_class, summarize_pricing,
+    PricingRouteParams, StorefrontPricingQuery,
+};
 use crate::i18n::t;
 use crate::model::{
     PricingChannelOption, PricingPriceListOption, PricingProductDetail, PricingProductListItem,
@@ -66,7 +73,7 @@ pub fn PricingView() -> impl IntoView {
             channel_slug,
             quantity,
         )| async move {
-            api::fetch_storefront_pricing(api::StorefrontPricingQuery {
+            transport::fetch_storefront_pricing(StorefrontPricingQuery {
                 selected_handle: handle,
                 locale,
                 currency_code,
