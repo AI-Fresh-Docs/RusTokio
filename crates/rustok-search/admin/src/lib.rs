@@ -1204,6 +1204,7 @@ fn lagging_table(
     ui_locale: Option<String>,
 ) -> impl IntoView {
     let locale = ui_locale.as_deref();
+    let rows = core::build_lagging_search_document_row_view_models(rows);
     if rows.is_empty() {
         return view! { <div class="rounded-xl border border-dashed border-border p-12 text-center"><p class="text-sm text-muted-foreground">{t(locale, "search.analytics.lagging.empty", "No lagging documents detected. Search projection is currently caught up.")}</p></div> }.into_any();
     }
@@ -1219,9 +1220,9 @@ fn lagging_table(
         <tbody class="divide-y divide-border">{rows.into_iter().map(|row| view! {
             <tr class="transition-colors hover:bg-muted/30">
                 <td class="px-4 py-3 align-top"><div class="font-medium text-card-foreground">{row.title}</div><div class="mt-1 text-xs text-muted-foreground">{row.document_key}</div></td>
-                <td class="px-4 py-3 align-top text-xs text-muted-foreground">{core::source_entity_status_label(&row.source_module, &row.entity_type, &row.status)}</td>
+                <td class="px-4 py-3 align-top text-xs text-muted-foreground">{row.source_status_label}</td>
                 <td class="px-4 py-3 align-top text-xs text-muted-foreground">{row.locale}</td>
-                <td class="px-4 py-3 align-top"><span class="inline-flex rounded-full border border-amber-200 bg-amber-50 px-2.5 py-0.5 text-xs font-semibold text-amber-700">{core::format_seconds(row.lag_seconds)}</span></td>
+                <td class="px-4 py-3 align-top"><span class="inline-flex rounded-full border border-amber-200 bg-amber-50 px-2.5 py-0.5 text-xs font-semibold text-amber-700">{row.lag}</span></td>
                 <td class="px-4 py-3 align-top text-xs text-muted-foreground">{row.indexed_at}</td>
                 <td class="px-4 py-3 align-top text-xs text-muted-foreground">{row.updated_at}</td>
             </tr>

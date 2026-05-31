@@ -3,7 +3,7 @@ use rustok_api::{
 };
 
 use crate::model::{
-    SearchAnalyticsInsightRowPayload, SearchAnalyticsQueryRowPayload,
+    LaggingSearchDocumentPayload, SearchAnalyticsInsightRowPayload, SearchAnalyticsQueryRowPayload,
     SearchAnalyticsSummaryPayload, SearchDiagnosticsPayload, SearchFacetGroup,
     SearchPreviewFilters, SearchPreviewPayload,
 };
@@ -446,6 +446,32 @@ mod tests {
     }
 
     #[test]
+    fn lagging_document_row_view_models_format_render_ready_values() {
+        let rows =
+            build_lagging_search_document_row_view_models(vec![LaggingSearchDocumentPayload {
+                document_key: "product:boot-1".to_string(),
+                document_id: "boot-1".to_string(),
+                source_module: "catalog".to_string(),
+                entity_type: "product".to_string(),
+                locale: "en".to_string(),
+                status: "published".to_string(),
+                is_public: true,
+                title: "Boots".to_string(),
+                updated_at: "2026-05-31T00:01:00Z".to_string(),
+                indexed_at: "2026-05-31T00:00:00Z".to_string(),
+                lag_seconds: 61,
+            }]);
+
+        assert_eq!(rows[0].title, "Boots");
+        assert_eq!(rows[0].document_key, "product:boot-1");
+        assert_eq!(rows[0].source_status_label, "catalog/product (published)");
+        assert_eq!(rows[0].locale, "en");
+        assert_eq!(rows[0].lag, "61s");
+        assert_eq!(rows[0].indexed_at, "2026-05-31T00:00:00Z");
+        assert_eq!(rows[0].updated_at, "2026-05-31T00:01:00Z");
+    }
+
+    #[test]
     fn diagnostics_card_view_model_formats_state_and_newest_indexed() {
         let labels = SearchDiagnosticsLabels {
             healthy: "healthy".to_string(),
@@ -818,6 +844,37 @@ pub fn build_search_diagnostics_card_view_model(
             newest_indexed.as_str(),
         ),
     }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct LaggingSearchDocumentRowViewModel {
+    pub title: String,
+    pub document_key: String,
+    pub source_status_label: String,
+    pub locale: String,
+    pub lag: String,
+    pub indexed_at: String,
+    pub updated_at: String,
+}
+
+pub fn build_lagging_search_document_row_view_models(
+    rows: Vec<LaggingSearchDocumentPayload>,
+) -> Vec<LaggingSearchDocumentRowViewModel> {
+    rows.into_iter()
+        .map(|row| LaggingSearchDocumentRowViewModel {
+            title: row.title,
+            document_key: row.document_key,
+            source_status_label: source_entity_status_label(
+                &row.source_module,
+                &row.entity_type,
+                &row.status,
+            ),
+            locale: row.locale,
+            lag: format_seconds(row.lag_seconds),
+            indexed_at: row.indexed_at,
+            updated_at: row.updated_at,
+        })
+        .collect()
 }
 
 pub fn tab_class(active: bool) -> &'static str {
