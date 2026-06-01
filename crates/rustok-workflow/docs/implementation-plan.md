@@ -6,12 +6,12 @@ capability integrations без дрейфа и битой документаци
 
 ## Execution checkpoint
 
-- Current phase: plan_sync
-- Last checkpoint: Initial bootstrap by registry workflow.
-- Next step: Синхронизировать план с текущим кодом и выбрать первый незавершённый пункт.
+- Current phase: FFA admin core extraction
+- Last checkpoint: FFA-срез workflow admin вынес presentation-helpers для статусов, таблицы и шаблонов в framework-agnostic `admin/src/core.rs`; Leptos render layer теперь потребляет core view-models, а GraphQL transport не изменялся.
+- Next step: Продолжить transport split через тонкий `transport/` facade вокруг текущего GraphQL adapter, затем добавить native/server-function parity evidence перед повышением статуса.
 - Open blockers: None.
 - Hand-off notes for next agent: После каждого инкремента обновлять этот блок.
-- Last updated at (UTC): 2026-05-20T00:00:00Z
+- Last updated at (UTC): 2026-06-01T00:00:00Z
 
 
 ## FFA/FBA status
@@ -20,8 +20,9 @@ capability integrations без дрейфа и битой документаци
 - FBA status: `in_progress`
 - Evidence:
   - module plan синхронизирован с central FFA/FBA readiness board; UI surface уже опубликован и ведётся в migration/backlog ритме;
-  - дальнейшее повышение статуса выполняется только вместе с verification evidence и обновлением local+central docs.
-- Last verified at (UTC): 2026-05-24T00:00:00Z
+  - FFA admin slice: status badge presentation, workflow table row mapping, template category styling и template-name normalization теперь живут в framework-agnostic `admin/src/core.rs` с unit tests; Leptos UI остаётся thin render adapter для этого среза, а GraphQL transport сохраняется параллельно;
+  - дальнейшее повышение статуса требует native/server-function + GraphQL parity evidence и обновления local+central docs в том же change.
+- Last verified at (UTC): 2026-06-01T00:00:00Z
 - Owner: `rustok-workflow` module team
 
 ## Область работ
@@ -45,7 +46,7 @@ capability integrations без дрейфа и битой документаци
 - [x] закрепить workflow engine и execution journal как module-owned runtime;
 - [x] зафиксировать transport adapters и admin UI внутри модуля;
 - [x] нормализовать local docs и убрать битую кодировку из module docs;
-- [ ] удерживать sync между workflow runtime contract, UI surfaces и module metadata.
+- [~] удерживать sync между workflow runtime contract, UI surfaces и module metadata; текущий FFA slice вынес presentation/view-model helpers из Leptos render path без изменения manifest или transport contract.
 
 ### 2. Execution hardening
 

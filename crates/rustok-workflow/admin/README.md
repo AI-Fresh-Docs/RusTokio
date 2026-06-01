@@ -6,11 +6,13 @@ Leptos admin UI package for the `rustok-workflow` module.
 
 - Exposes the workflow admin root view used by `apps/admin`.
 - Keeps workflow-specific admin UI inside the module boundary instead of `apps/admin`.
+- Keeps status/table/template presentation rules in framework-agnostic `src/core.rs` so future host adapters can reuse the same view-model mapping without depending on Leptos runtime.
 - Participates in manifest-driven host composition through `rustok-module.toml`.
 
 ## Entry Points
 
 - `WorkflowAdmin` — root admin page component for the module.
+- `src/core.rs` — framework-agnostic FFA slice for workflow row view-models, status presentation, template category styling, and template-name normalization.
 - `rustok-module.toml [provides.admin_ui]` advertises `leptos_crate`, `route_segment`, `nav_label`, and manifest-driven nested subpages such as `templates`.
 
 ## Interactions

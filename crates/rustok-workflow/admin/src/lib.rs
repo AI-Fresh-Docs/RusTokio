@@ -1,4 +1,5 @@
 mod api;
+mod core;
 mod i18n;
 mod model;
 
@@ -8,8 +9,12 @@ use leptos_auth::hooks::{use_tenant, use_token};
 use leptos_router::components::A;
 use rustok_api::UiRouteContext;
 
+use crate::core::{
+    workflow_name_from_template_input, workflow_row_view_model, workflow_template_card_view_model,
+    WorkflowStatusPresentation,
+};
 use crate::i18n::t;
-use crate::model::{WorkflowStatus, WorkflowSummary, WorkflowTemplateDto};
+use crate::model::{WorkflowSummary, WorkflowTemplateDto};
 
 fn local_resource<S, Fut, T>(
     source: impl Fn() -> S + 'static,
@@ -217,19 +222,19 @@ fn WorkflowList(workflows: Vec<WorkflowSummary>) -> impl IntoView {
                 </thead>
                 <tbody class="divide-y divide-border">
                     {workflows.into_iter().map(|workflow| {
-                        let detail_href = format!("/workflows/{}", workflow.id);
+                        let row = workflow_row_view_model(workflow);
                         let legacy_details = legacy_details.clone();
                         view! {
                             <tr class="transition-colors hover:bg-muted/30">
-                                <td class="px-4 py-3 font-medium text-foreground">{workflow.name}</td>
+                                <td class="px-4 py-3 font-medium text-foreground">{row.name}</td>
                                 <td class="px-4 py-3">
-                                    <StatusBadge status=workflow.status />
+                                    <StatusBadge status=row.status />
                                 </td>
-                                <td class="px-4 py-3 text-muted-foreground">{workflow.failure_count}</td>
-                                <td class="px-4 py-3 text-xs text-muted-foreground">{workflow.updated_at}</td>
+                                <td class="px-4 py-3 text-muted-foreground">{row.failure_count}</td>
+                                <td class="px-4 py-3 text-xs text-muted-foreground">{row.updated_at}</td>
                                 <td class="px-4 py-3 text-right">
                                     <A
-                                        href=detail_href
+                                        href=row.detail_href
                                         attr:class="text-xs font-medium text-primary hover:underline"
                                     >
                                         {legacy_details}
@@ -246,26 +251,10 @@ fn WorkflowList(workflows: Vec<WorkflowSummary>) -> impl IntoView {
 }
 
 #[component]
-fn StatusBadge(status: WorkflowStatus) -> impl IntoView {
+fn StatusBadge(status: WorkflowStatusPresentation) -> impl IntoView {
     let locale = use_context::<UiRouteContext>().unwrap_or_default().locale;
-    let (label, class_name) = match status {
-        WorkflowStatus::Active => (
-            t(locale.as_deref(), "workflow.status.active", "Active"),
-            "bg-emerald-50 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400",
-        ),
-        WorkflowStatus::Paused => (
-            t(locale.as_deref(), "workflow.status.paused", "Paused"),
-            "bg-yellow-50 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400",
-        ),
-        WorkflowStatus::Archived => (
-            t(locale.as_deref(), "workflow.status.archived", "Archived"),
-            "bg-muted text-muted-foreground",
-        ),
-        WorkflowStatus::Draft | WorkflowStatus::Unknown => (
-            t(locale.as_deref(), "workflow.status.draft", "Draft"),
-            "bg-primary/10 text-primary",
-        ),
-    };
+    let label = t(locale.as_deref(), status.i18n_key, status.fallback_label);
+    let class_name = status.class_name;
 
     view! {
         <span class=format!("inline-flex rounded-full px-2.5 py-0.5 text-xs font-semibold {class_name}")>
@@ -356,14 +345,11 @@ fn TemplateGallery(
                                                     let token_value = token_for_request.clone();
                                                     let tenant_value = tenant_for_request.clone();
                                                     let template_id = template_id.clone();
-                                                            let workflow_name = {
-                                                                let entered = name_input.get_untracked();
-                                                                if entered.trim().is_empty() {
-                                                                    format!("{} {}", default_name_prefix, template_id)
-                                                                } else {
-                                                                    entered
-                                                                }
-                                                    };
+                                                    let workflow_name = workflow_name_from_template_input(
+                                                        &name_input.get_untracked(),
+                                                        &default_name_prefix,
+                                                        &template_id,
+                                                    );
                                                     set_pending_id.set(Some(template_id.clone()));
 
                                                     spawn_local(async move {
@@ -418,16 +404,8 @@ fn TemplateCard(
     );
     let use_label = t(locale.as_deref(), "workflow.template.use", "Use");
     let pending_label = t(locale.as_deref(), "workflow.template.pending", "...");
-    let category_color = match template.category.as_str() {
-        "content" => "bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300",
-        "commerce" => "bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-300",
-        "auth" => "bg-purple-100 text-purple-700 dark:bg-purple-900/40 dark:text-purple-300",
-        "reporting" => "bg-yellow-100 text-yellow-700 dark:bg-yellow-900/40 dark:text-yellow-300",
-        "integrations" => {
-            "bg-orange-100 text-orange-700 dark:bg-orange-900/40 dark:text-orange-300"
-        }
-        _ => "bg-muted text-muted-foreground",
-    };
+    let template = workflow_template_card_view_model(template);
+    let category_color = template.category_class_name;
 
     view! {
         <div class="flex flex-col gap-2 rounded-xl border border-border bg-background p-4">
