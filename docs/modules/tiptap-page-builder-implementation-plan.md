@@ -956,7 +956,8 @@ Notes: <known deviations or waivers>
   - [x] приложить admin/storefront host-helper evidence без деградации read/list и без builder capability requirement на storefront render;
   - [x] связать `degraded_modes` с typed error catalog (`FEATURE_DISABLED`) в provider/consumer metadata, FBA registry и runtime anti-drift gate;
   - [x] закрепить Next Admin typed-error parity (`validation/sanitize/runtime/feature-disabled`) и operator guidance через static baseline gate;
-  - [ ] собрать оставшуюся parity-таблицу typed errors для Leptos/Flutter adapters.
+  - [x] закрепить Leptos admin typed-error parity и localized operator guidance через static baseline gate;
+  - [ ] собрать оставшуюся parity-таблицу typed errors для Flutter adapters.
 
 #### Week 2 — закрыть P2/P3
 
