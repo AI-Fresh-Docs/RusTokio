@@ -6,11 +6,11 @@
 ## Execution checkpoint
 
 - Current phase: phase_b_in_progress
-- Last checkpoint: Phase B slice #27 выделил явные `ui/leptos` adapters для admin и storefront packages; crate roots теперь только wires `core`, `transport` и re-export публичных Leptos entry points.
-- Next step: Продолжить Phase B: вынести следующий render-ready фрагмент dictionaries tables или mutation feedback из `admin/src/ui/leptos.rs` в core view-model, сохраняя transport/native+GraphQL paths без изменений.
+- Last checkpoint: Phase B slice #28 перенёс render-ready rows для admin dictionaries tables (synonyms, stop words, pinned query rules) в `admin/src/core.rs`; Leptos adapter теперь только рендерит подготовленные строки и delete actions.
+- Next step: Продолжить Phase B: вынести mutation feedback/validation state dictionaries editor или следующий storefront render-ready fragment в core view-model, сохраняя transport/native+GraphQL paths без изменений.
 - Open blockers: None.
 - Hand-off notes for next agent: После каждого инкремента обновлять этот блок и central readiness board.
-- Last updated at (UTC): 2026-06-01T16:42:19Z
+- Last updated at (UTC): 2026-06-01T16:55:03Z
 
 
 ## FFA/FBA status
@@ -30,8 +30,9 @@
   - Phase B slice #24 перенёс форматирование lagging diagnostics table rows в core row view-model, сохранив transport/native+GraphQL paths без изменений;
   - Phase B slice #25 перенёс consistency diagnostics issue labels, badge classes, source/status labels и indexed fallback в core row view-model;
   - Phase B slice #26 добавил module-owned `admin/src/transport/` facade для bootstrap, preview, analytics, diagnostics, settings и dictionary operations; Leptos admin больше не вызывает `api::*` напрямую, а existing native/GraphQL fallback adapter остался в `admin/src/api.rs`;
-  - Phase B slice #27 выделил `admin/src/ui/leptos.rs` и `storefront/src/ui/leptos.rs` как явные render adapters; `admin/src/lib.rs` и `storefront/src/lib.rs` теперь только объявляют слои и re-export публичных entry points, без изменения native/GraphQL transport contract.
-- Last verified at (UTC): 2026-06-01T16:42:19Z
+  - Phase B slice #27 выделил `admin/src/ui/leptos.rs` и `storefront/src/ui/leptos.rs` как явные render adapters; `admin/src/lib.rs` и `storefront/src/lib.rs` теперь только объявляют слои и re-export публичных entry points, без изменения native/GraphQL transport contract;
+  - Phase B slice #28 добавил `SearchSynonymRowViewModel`, `SearchStopWordRowViewModel` и `SearchQueryRuleRowViewModel` в `admin/src/core.rs`; Leptos dictionaries tables больше не форматируют synonyms summary, pinned position и document/source path inline.
+- Last verified at (UTC): 2026-06-01T16:55:03Z
 - Owner: `rustok-search` module team
 
 ## Область работ
@@ -127,3 +128,4 @@
 - [x] Slice 25: render-ready values consistency diagnostics table rows перенесены в core (`SearchConsistencyIssueLabels`, `SearchConsistencyIssueRowViewModel`, `build_search_consistency_issue_row_view_models`), поэтому Leptos table только передаёт host-provided labels и рендерит подготовленные issue/source/indexed поля.
 - [x] Slice 26: admin native/GraphQL calls заведены за module-owned `transport/` facade; Leptos admin вызывает `transport::*`, а `api.rs` остаётся transport adapter implementation с прежним fallback контрактом.
 - [x] Slice 27: admin/storefront render layers вынесены в явные `ui/leptos.rs` adapters; crate roots стали wiring-only (`core` + `transport` + `ui`) и публично re-export `SearchAdmin`/`SearchView` без изменения GraphQL fallback или native server functions.
+- [x] Slice 28: dictionaries table rows перенесены в core (`SearchSynonymRowViewModel`, `SearchStopWordRowViewModel`, `SearchQueryRuleRowViewModel`), поэтому Leptos adapter больше не форматирует synonyms summary, pinned position и document/source path inline.

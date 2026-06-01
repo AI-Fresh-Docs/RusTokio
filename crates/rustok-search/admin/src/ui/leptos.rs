@@ -10,8 +10,7 @@ use crate::i18n::t;
 use crate::model::{
     LaggingSearchDocumentPayload, SearchAdminBootstrap, SearchAnalyticsPayload,
     SearchConsistencyIssuePayload, SearchDiagnosticsPayload, SearchDictionarySnapshotPayload,
-    SearchFacetGroup, SearchFilterPresetPayload, SearchPreviewPayload, SearchQueryRulePayload,
-    SearchStopWordPayload, SearchSynonymPayload,
+    SearchFacetGroup, SearchFilterPresetPayload, SearchPreviewPayload,
 };
 use crate::{core, transport};
 
@@ -1681,28 +1680,28 @@ fn dictionaries_tables(
                     <h3 class="text-base font-semibold text-card-foreground">{t(locale, "search.dictionary.synonymGroups.title", "Synonym Groups")}</h3>
                     <p class="text-sm text-muted-foreground">{t(locale, "search.dictionary.synonymGroups.subtitle", "Each group expands all included terms as equivalent tokens.")}</p>
                 </div>
-                <div class="mt-5">{synonyms_table(snapshot.synonyms, busy, delete_synonym, ui_locale.clone())}</div>
+                <div class="mt-5">{synonyms_table(core::build_search_synonym_row_view_models(snapshot.synonyms), busy, delete_synonym, ui_locale.clone())}</div>
             </section>
             <section class="rounded-2xl border border-border bg-card p-6 shadow-sm">
                 <div class="space-y-1">
                     <h3 class="text-base font-semibold text-card-foreground">{t(locale, "search.dictionary.stopWords.title", "Stop Words")}</h3>
                     <p class="text-sm text-muted-foreground">{t(locale, "search.dictionary.stopWords.tableSubtitle", "Terms removed from the effective FTS query.")}</p>
                 </div>
-                <div class="mt-5">{stop_words_table(snapshot.stop_words, busy, delete_stop_word, ui_locale.clone())}</div>
+                <div class="mt-5">{stop_words_table(core::build_search_stop_word_row_view_models(snapshot.stop_words), busy, delete_stop_word, ui_locale.clone())}</div>
             </section>
             <section class="rounded-2xl border border-border bg-card p-6 shadow-sm">
                 <div class="space-y-1">
                     <h3 class="text-base font-semibold text-card-foreground">{t(locale, "search.dictionary.pinRules.tableTitle", "Pinned Query Rules")}</h3>
                     <p class="text-sm text-muted-foreground">{t(locale, "search.dictionary.pinRules.tableSubtitle", "Exact normalized queries that promote specific documents to chosen positions.")}</p>
                 </div>
-                <div class="mt-5">{query_rules_table(snapshot.query_rules, busy, delete_query_rule, ui_locale.clone())}</div>
+                <div class="mt-5">{query_rules_table(core::build_search_query_rule_row_view_models(snapshot.query_rules), busy, delete_query_rule, ui_locale.clone())}</div>
             </section>
         </div>
     }
 }
 
 fn synonyms_table(
-    rows: Vec<SearchSynonymPayload>,
+    rows: Vec<core::SearchSynonymRowViewModel>,
     busy: ReadSignal<bool>,
     delete_synonym: Callback<String>,
     ui_locale: Option<String>,
@@ -1724,7 +1723,7 @@ fn synonyms_table(
             view! {
                 <tr class="transition-colors hover:bg-muted/30">
                     <td class="px-4 py-3 align-top"><div class="font-medium text-card-foreground">{row.term}</div></td>
-                    <td class="px-4 py-3 align-top text-xs text-muted-foreground">{row.synonyms.join(", ")}</td>
+                    <td class="px-4 py-3 align-top text-xs text-muted-foreground">{row.synonyms_summary}</td>
                     <td class="px-4 py-3 align-top text-xs text-muted-foreground">{row.updated_at}</td>
                     <td class="px-4 py-3 align-top">
                         <button type="button" class="inline-flex rounded-lg border border-border px-3 py-1 text-xs font-medium text-foreground transition hover:bg-accent disabled:opacity-50" disabled=move || busy.get() on:click=move |_| delete_synonym.run(synonym_id.clone())>{t(locale, "search.action.delete", "Delete")}</button>
@@ -1736,7 +1735,7 @@ fn synonyms_table(
 }
 
 fn stop_words_table(
-    rows: Vec<SearchStopWordPayload>,
+    rows: Vec<core::SearchStopWordRowViewModel>,
     busy: ReadSignal<bool>,
     delete_stop_word: Callback<String>,
     ui_locale: Option<String>,
@@ -1768,7 +1767,7 @@ fn stop_words_table(
 }
 
 fn query_rules_table(
-    rows: Vec<SearchQueryRulePayload>,
+    rows: Vec<core::SearchQueryRuleRowViewModel>,
     busy: ReadSignal<bool>,
     delete_query_rule: Callback<String>,
     ui_locale: Option<String>,
@@ -1796,7 +1795,7 @@ fn query_rules_table(
                     </td>
                     <td class="px-4 py-3 align-top">
                         <div class="font-medium text-card-foreground">{row.title}</div>
-                        <div class="mt-1 text-xs text-muted-foreground">{core::document_source_path(&row.document_id, &row.source_module, &row.entity_type)}</div>
+                        <div class="mt-1 text-xs text-muted-foreground">{row.target_source_path}</div>
                     </td>
                     <td class="px-4 py-3 align-top text-xs text-muted-foreground">{row.pinned_position}</td>
                     <td class="px-4 py-3 align-top text-xs text-muted-foreground">{row.updated_at}</td>

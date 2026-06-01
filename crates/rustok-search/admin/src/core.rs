@@ -5,7 +5,8 @@ use rustok_api::{
 use crate::model::{
     LaggingSearchDocumentPayload, SearchAnalyticsInsightRowPayload, SearchAnalyticsQueryRowPayload,
     SearchAnalyticsSummaryPayload, SearchConsistencyIssuePayload, SearchDiagnosticsPayload,
-    SearchFacetGroup, SearchPreviewFilters, SearchPreviewPayload,
+    SearchFacetGroup, SearchPreviewFilters, SearchPreviewPayload, SearchQueryRulePayload,
+    SearchStopWordPayload, SearchSynonymPayload,
 };
 
 pub fn parse_csv(value: &str) -> Vec<String> {
@@ -525,6 +526,52 @@ mod tests {
     }
 
     #[test]
+    fn dictionary_row_view_models_prepare_render_ready_values() {
+        let synonyms = build_search_synonym_row_view_models(vec![SearchSynonymPayload {
+            id: "syn-1".to_string(),
+            term: "boot".to_string(),
+            synonyms: vec!["boots".to_string(), "shoe".to_string()],
+            updated_at: "2026-06-01T00:00:00Z".to_string(),
+        }]);
+        assert_eq!(synonyms[0].id, "syn-1");
+        assert_eq!(synonyms[0].term, "boot");
+        assert_eq!(synonyms[0].synonyms_summary, "boots, shoe");
+        assert_eq!(synonyms[0].updated_at, "2026-06-01T00:00:00Z");
+
+        let stop_words = build_search_stop_word_row_view_models(vec![SearchStopWordPayload {
+            id: "stop-1".to_string(),
+            value: "the".to_string(),
+            updated_at: "2026-06-01T00:01:00Z".to_string(),
+        }]);
+        assert_eq!(stop_words[0].id, "stop-1");
+        assert_eq!(stop_words[0].value, "the");
+        assert_eq!(stop_words[0].updated_at, "2026-06-01T00:01:00Z");
+
+        let query_rules = build_search_query_rule_row_view_models(vec![SearchQueryRulePayload {
+            id: "pin-1".to_string(),
+            query_text: "winter boots".to_string(),
+            query_normalized: "winter boots".to_string(),
+            rule_kind: "pin".to_string(),
+            document_id: "product-1".to_string(),
+            entity_type: "product".to_string(),
+            source_module: "catalog".to_string(),
+            title: "Winter Boots".to_string(),
+            pinned_position: 1,
+            updated_at: "2026-06-01T00:02:00Z".to_string(),
+        }]);
+        assert_eq!(query_rules[0].id, "pin-1");
+        assert_eq!(query_rules[0].query_text, "winter boots");
+        assert_eq!(query_rules[0].query_normalized, "winter boots");
+        assert_eq!(query_rules[0].title, "Winter Boots");
+        assert_eq!(
+            query_rules[0].target_source_path,
+            "product-1 / catalog / product"
+        );
+        assert_eq!(query_rules[0].pinned_position, "1");
+        assert_eq!(query_rules[0].updated_at, "2026-06-01T00:02:00Z");
+    }
+
+    #[test]
     fn diagnostics_card_view_model_formats_state_and_newest_indexed() {
         let labels = SearchDiagnosticsLabels {
             healthy: "healthy".to_string(),
@@ -975,6 +1022,77 @@ pub fn build_search_consistency_issue_row_view_models(
                 updated_at: row.updated_at,
                 indexed_at: value_or_fallback(row.indexed_at, labels.not_indexed.as_str()),
             }
+        })
+        .collect()
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct SearchSynonymRowViewModel {
+    pub id: String,
+    pub term: String,
+    pub synonyms_summary: String,
+    pub updated_at: String,
+}
+
+pub fn build_search_synonym_row_view_models(
+    rows: Vec<SearchSynonymPayload>,
+) -> Vec<SearchSynonymRowViewModel> {
+    rows.into_iter()
+        .map(|row| SearchSynonymRowViewModel {
+            id: row.id,
+            term: row.term,
+            synonyms_summary: row.synonyms.join(", "),
+            updated_at: row.updated_at,
+        })
+        .collect()
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct SearchStopWordRowViewModel {
+    pub id: String,
+    pub value: String,
+    pub updated_at: String,
+}
+
+pub fn build_search_stop_word_row_view_models(
+    rows: Vec<SearchStopWordPayload>,
+) -> Vec<SearchStopWordRowViewModel> {
+    rows.into_iter()
+        .map(|row| SearchStopWordRowViewModel {
+            id: row.id,
+            value: row.value,
+            updated_at: row.updated_at,
+        })
+        .collect()
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct SearchQueryRuleRowViewModel {
+    pub id: String,
+    pub query_text: String,
+    pub query_normalized: String,
+    pub title: String,
+    pub target_source_path: String,
+    pub pinned_position: String,
+    pub updated_at: String,
+}
+
+pub fn build_search_query_rule_row_view_models(
+    rows: Vec<SearchQueryRulePayload>,
+) -> Vec<SearchQueryRuleRowViewModel> {
+    rows.into_iter()
+        .map(|row| SearchQueryRuleRowViewModel {
+            id: row.id,
+            query_text: row.query_text,
+            query_normalized: row.query_normalized,
+            title: row.title,
+            target_source_path: document_source_path(
+                &row.document_id,
+                &row.source_module,
+                &row.entity_type,
+            ),
+            pinned_position: row.pinned_position.to_string(),
+            updated_at: row.updated_at,
         })
         .collect()
 }
