@@ -10402,6 +10402,7 @@ dependencies = [
  "rustok-api",
  "serde",
  "serde_json",
+ "tokio",
 ]
 
 [[package]]
