@@ -216,6 +216,12 @@ mod tests {
             no_snippet: "No snippet returned.".to_string(),
             no_target_label: "No target".to_string(),
             open_result_label: "Open result".to_string(),
+            no_results_title: "No results".to_string(),
+            no_results_body: "Try again".to_string(),
+            engine_title: "Engine".to_string(),
+            engine_body: "Uses FTS".to_string(),
+            facet_title: "Facets".to_string(),
+            facet_body: "Facet details".to_string(),
         };
 
         let view_model = build_search_results_view_model(payload, "manual", &labels);
@@ -244,6 +250,9 @@ mod tests {
         assert_eq!(view_model.facets.len(), 1);
         assert_eq!(view_model.facets[0].display_name, "entity type");
         assert_eq!(view_model.facets[0].buckets[0].label, "product (2)");
+        assert_eq!(view_model.no_results_empty_state.title, "No results");
+        assert_eq!(view_model.feature_cards.len(), 2);
+        assert_eq!(view_model.feature_cards[0].title, "Engine");
     }
 
     #[test]
@@ -380,6 +389,12 @@ mod tests {
             no_snippet: String::new(),
             no_target_label: "No target".to_string(),
             open_result_label: "Open result".to_string(),
+            no_results_title: "No results".to_string(),
+            no_results_body: "Try again".to_string(),
+            engine_title: "Engine".to_string(),
+            engine_body: "Uses FTS".to_string(),
+            facet_title: "Facets".to_string(),
+            facet_body: "Facet details".to_string(),
         };
 
         assert_eq!(
@@ -404,6 +419,38 @@ mod tests {
                 label: "No target".to_string(),
             }
         );
+    }
+
+    #[test]
+    fn empty_state_and_feature_card_view_models_prepare_render_ready_copy() {
+        let empty = build_search_empty_state_view_model(
+            "No results".to_string(),
+            "Try a different query".to_string(),
+        );
+        assert_eq!(empty.title, "No results");
+        assert_eq!(empty.body, "Try a different query");
+
+        let labels = SearchResultsLabels {
+            summary_template: String::new(),
+            preset_template: String::new(),
+            none_label: String::new(),
+            locale_template: String::new(),
+            no_snippet: String::new(),
+            no_target_label: String::new(),
+            open_result_label: String::new(),
+            no_results_title: String::new(),
+            no_results_body: String::new(),
+            engine_title: "Engine".to_string(),
+            engine_body: "Uses FTS".to_string(),
+            facet_title: "Facet model".to_string(),
+            facet_body: "Facet details".to_string(),
+        };
+        let cards = build_search_results_feature_cards(&labels);
+        assert_eq!(cards.len(), 2);
+        assert_eq!(cards[0].title, "Engine");
+        assert_eq!(cards[0].body, "Uses FTS");
+        assert_eq!(cards[1].title, "Facet model");
+        assert_eq!(cards[1].body, "Facet details");
     }
 }
 
@@ -626,6 +673,40 @@ pub fn build_search_facet_view_models(
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
+pub struct SearchEmptyStateViewModel {
+    pub title: String,
+    pub body: String,
+}
+
+pub fn build_search_empty_state_view_model(
+    title: String,
+    body: String,
+) -> SearchEmptyStateViewModel {
+    SearchEmptyStateViewModel { title, body }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct SearchFeatureCardViewModel {
+    pub title: String,
+    pub body: String,
+}
+
+pub fn build_search_results_feature_cards(
+    labels: &SearchResultsLabels,
+) -> Vec<SearchFeatureCardViewModel> {
+    vec![
+        SearchFeatureCardViewModel {
+            title: labels.engine_title.clone(),
+            body: labels.engine_body.clone(),
+        },
+        SearchFeatureCardViewModel {
+            title: labels.facet_title.clone(),
+            body: labels.facet_body.clone(),
+        },
+    ]
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct SearchResultsLabels {
     pub summary_template: String,
     pub preset_template: String,
@@ -634,6 +715,12 @@ pub struct SearchResultsLabels {
     pub no_snippet: String,
     pub no_target_label: String,
     pub open_result_label: String,
+    pub no_results_title: String,
+    pub no_results_body: String,
+    pub engine_title: String,
+    pub engine_body: String,
+    pub facet_title: String,
+    pub facet_body: String,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -687,6 +774,8 @@ pub struct SearchResultsViewModel {
     pub has_items: bool,
     pub items: Vec<SearchResultItemViewModel>,
     pub facets: Vec<SearchFacetGroupViewModel>,
+    pub no_results_empty_state: SearchEmptyStateViewModel,
+    pub feature_cards: Vec<SearchFeatureCardViewModel>,
 }
 
 pub fn build_search_results_view_model(
@@ -748,6 +837,11 @@ pub fn build_search_results_view_model(
         has_items,
         items,
         facets: build_search_facet_view_models(facets),
+        no_results_empty_state: build_search_empty_state_view_model(
+            labels.no_results_title.clone(),
+            labels.no_results_body.clone(),
+        ),
+        feature_cards: build_search_results_feature_cards(labels),
     }
 }
 

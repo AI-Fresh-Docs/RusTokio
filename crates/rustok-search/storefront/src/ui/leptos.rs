@@ -62,15 +62,17 @@ pub fn SearchView() -> impl IntoView {
         "search.error.loadSuggestions",
         "Failed to load search suggestions",
     );
-    let empty_results_title = t(
-        locale.as_deref(),
-        "search.results.emptyTitle",
-        "Enter a search query",
-    );
-    let empty_results_body = t(
-        locale.as_deref(),
-        "search.results.emptyBody",
-        "Storefront search reads `?q=` from the generic module route and runs the public PostgreSQL FTS pipeline.",
+    let empty_results = core::build_search_empty_state_view_model(
+        t(
+            locale.as_deref(),
+            "search.results.emptyTitle",
+            "Enter a search query",
+        ),
+        t(
+            locale.as_deref(),
+            "search.results.emptyBody",
+            "Storefront search reads `?q=` from the generic module route and runs the public PostgreSQL FTS pipeline.",
+        ),
     );
     let load_results_error = t(
         locale.as_deref(),
@@ -230,8 +232,7 @@ pub fn SearchView() -> impl IntoView {
                     {move || {
                         let query = query_for_view.clone();
                         let preset_key = preset_for_view.clone();
-                        let empty_results_title = empty_results_title.clone();
-                        let empty_results_body = empty_results_body.clone();
+                        let empty_results = empty_results.clone();
                         let load_results_error = load_results_error.clone();
                         Suspend::new(async move {
                             match results.await {
@@ -239,10 +240,7 @@ pub fn SearchView() -> impl IntoView {
                                     <SearchResults query=query.clone() selected_preset=preset_key.clone() payload />
                                 }.into_any(),
                                 Ok(None) => view! {
-                                    <EmptyState
-                                        title=empty_results_title.clone()
-                                        body=empty_results_body.clone()
-                                    />
+                                    <EmptyState state=empty_results.clone() />
                                 }.into_any(),
                                 Err(err) => view! {
                                     <div class="rounded-2xl border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive">
@@ -386,36 +384,6 @@ fn SearchResults(
         "search.results.locale",
         "locale = {locale}",
     );
-    let no_results_title = t(
-        locale_context.as_deref(),
-        "search.results.noResultsTitle",
-        "No results",
-    );
-    let no_results_body = t(
-        locale_context.as_deref(),
-        "search.results.noResultsBody",
-        "Try a different query or relax the storefront filters in the query string.",
-    );
-    let engine_title = t(
-        locale_context.as_deref(),
-        "search.features.engineTitle",
-        "Engine",
-    );
-    let engine_body = t(
-        locale_context.as_deref(),
-        "search.features.engineBody",
-        "Storefront uses the public published-only search surface backed by PostgreSQL FTS.",
-    );
-    let facet_title = t(
-        locale_context.as_deref(),
-        "search.features.facetsTitle",
-        "Facet model",
-    );
-    let facet_body = t(
-        locale_context.as_deref(),
-        "search.features.facetsBody",
-        "Entity type and source module facets come from the same search payload used by admin previews.",
-    );
     let view_model = core::build_search_results_view_model(
         payload,
         selected_preset.as_str(),
@@ -438,6 +406,32 @@ fn SearchResults(
                 locale_context.as_deref(),
                 "search.results.openResult",
                 "Open result",
+            ),
+            no_results_title: t(
+                locale_context.as_deref(),
+                "search.results.noResultsTitle",
+                "No results",
+            ),
+            no_results_body: t(
+                locale_context.as_deref(),
+                "search.results.noResultsBody",
+                "Try a different query or relax the storefront filters in the query string.",
+            ),
+            engine_title: t(locale_context.as_deref(), "search.features.engineTitle", "Engine"),
+            engine_body: t(
+                locale_context.as_deref(),
+                "search.features.engineBody",
+                "Storefront uses the public published-only search surface backed by PostgreSQL FTS.",
+            ),
+            facet_title: t(
+                locale_context.as_deref(),
+                "search.features.facetsTitle",
+                "Facet model",
+            ),
+            facet_body: t(
+                locale_context.as_deref(),
+                "search.features.facetsBody",
+                "Entity type and source module facets come from the same search payload used by admin previews.",
             ),
         },
     );
@@ -465,6 +459,11 @@ fn SearchResults(
         .facets
         .into_iter()
         .map(|facet| view! { <FacetCard facet /> })
+        .collect_view();
+    let feature_card_views = view_model
+        .feature_cards
+        .into_iter()
+        .map(|card| view! { <FeatureCard card /> })
         .collect_view();
 
     view! {
@@ -499,24 +498,14 @@ fn SearchResults(
                     .into_any()
                 } else {
                     view! {
-                        <EmptyState
-                            title=no_results_title
-                            body=no_results_body
-                        />
+                        <EmptyState state=view_model.no_results_empty_state.clone() />
                     }
                     .into_any()
                 }}
             </div>
 
             <aside class="space-y-4">
-                <FeatureCard
-                    title=engine_title
-                    body=engine_body
-                />
-                <FeatureCard
-                    title=facet_title
-                    body=facet_body
-                />
+                {feature_card_views}
                 {facet_views}
             </aside>
         </div>
@@ -586,15 +575,11 @@ fn track_result_click(
 }
 
 #[component]
-fn FeatureCard<T, U>(title: T, body: U) -> impl IntoView
-where
-    T: IntoView + 'static,
-    U: IntoView + 'static,
-{
+fn FeatureCard(card: core::SearchFeatureCardViewModel) -> impl IntoView {
     view! {
         <article class="rounded-2xl border border-border bg-background p-5">
-            <div class="text-sm font-semibold text-card-foreground">{title}</div>
-            <p class="mt-2 text-sm text-muted-foreground">{body}</p>
+            <div class="text-sm font-semibold text-card-foreground">{card.title}</div>
+            <p class="mt-2 text-sm text-muted-foreground">{card.body}</p>
         </article>
     }
 }
@@ -618,11 +603,11 @@ fn FacetCard(facet: core::SearchFacetGroupViewModel) -> impl IntoView {
 }
 
 #[component]
-fn EmptyState(title: String, body: String) -> impl IntoView {
+fn EmptyState(state: core::SearchEmptyStateViewModel) -> impl IntoView {
     view! {
         <article class="rounded-2xl border border-dashed border-border p-8 text-center">
-            <h3 class="text-lg font-semibold text-card-foreground">{title}</h3>
-            <p class="mt-2 text-sm text-muted-foreground">{body}</p>
+            <h3 class="text-lg font-semibold text-card-foreground">{state.title}</h3>
+            <p class="mt-2 text-sm text-muted-foreground">{state.body}</p>
         </article>
     }
 }
