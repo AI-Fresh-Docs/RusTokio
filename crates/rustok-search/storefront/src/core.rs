@@ -213,6 +213,7 @@ mod tests {
             preset_template: "preset: {preset}".to_string(),
             none_label: "none".to_string(),
             locale_template: "locale: {locale}".to_string(),
+            query_label: "Query".to_string(),
             no_snippet: "No snippet returned.".to_string(),
             no_target_label: "No target".to_string(),
             open_result_label: "Open result".to_string(),
@@ -224,14 +225,16 @@ mod tests {
             facet_body: "Facet details".to_string(),
         };
 
-        let view_model = build_search_results_view_model(payload, "manual", &labels);
+        let view_model = build_search_results_view_model(payload, "manual", "boots", &labels);
 
+        assert_eq!(view_model.header.query_label, "Query");
+        assert_eq!(view_model.header.query, "boots");
         assert_eq!(
-            view_model.summary,
+            view_model.header.summary,
             "1 results in 12ms via postgres/balanced"
         );
-        assert_eq!(view_model.preset, "preset: manual");
-        assert_eq!(view_model.locale, "locale: ru");
+        assert_eq!(view_model.header.preset, "preset: manual");
+        assert_eq!(view_model.header.locale, "locale: ru");
         assert!(view_model.has_items);
         assert_eq!(view_model.items[0].id, "doc-1");
         assert_eq!(view_model.items[0].source_label, "product | catalog");
@@ -386,6 +389,7 @@ mod tests {
             preset_template: String::new(),
             none_label: String::new(),
             locale_template: String::new(),
+            query_label: String::new(),
             no_snippet: String::new(),
             no_target_label: "No target".to_string(),
             open_result_label: "Open result".to_string(),
@@ -435,6 +439,7 @@ mod tests {
             preset_template: String::new(),
             none_label: String::new(),
             locale_template: String::new(),
+            query_label: String::new(),
             no_snippet: String::new(),
             no_target_label: String::new(),
             open_result_label: String::new(),
@@ -712,6 +717,7 @@ pub struct SearchResultsLabels {
     pub preset_template: String,
     pub none_label: String,
     pub locale_template: String,
+    pub query_label: String,
     pub no_snippet: String,
     pub no_target_label: String,
     pub open_result_label: String,
@@ -766,11 +772,18 @@ pub fn build_search_result_action_view_model(
     })
 }
 
-#[derive(Debug, Clone)]
-pub struct SearchResultsViewModel {
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct SearchResultsHeaderViewModel {
+    pub query_label: String,
+    pub query: String,
     pub summary: String,
     pub preset: String,
     pub locale: String,
+}
+
+#[derive(Debug, Clone)]
+pub struct SearchResultsViewModel {
+    pub header: SearchResultsHeaderViewModel,
     pub has_items: bool,
     pub items: Vec<SearchResultItemViewModel>,
     pub facets: Vec<SearchFacetGroupViewModel>,
@@ -781,6 +794,7 @@ pub struct SearchResultsViewModel {
 pub fn build_search_results_view_model(
     payload: SearchPreviewPayload,
     selected_preset: &str,
+    query: &str,
     labels: &SearchResultsLabels,
 ) -> SearchResultsViewModel {
     let locale = locale_or_all(payload.items.first().and_then(|item| item.locale.clone()));
@@ -821,19 +835,23 @@ pub fn build_search_results_view_model(
         .collect();
 
     SearchResultsViewModel {
-        summary: render_results_summary(
-            labels.summary_template.as_str(),
-            total,
-            took_ms,
-            engine.as_str(),
-            ranking_profile.as_str(),
-        ),
-        preset: render_preset_label(
-            labels.preset_template.as_str(),
-            applied_preset_or_selected(preset_key, selected_preset, labels.none_label.as_str())
-                .as_str(),
-        ),
-        locale: render_locale_label(labels.locale_template.as_str(), locale.as_str()),
+        header: SearchResultsHeaderViewModel {
+            query_label: labels.query_label.clone(),
+            query: query.to_string(),
+            summary: render_results_summary(
+                labels.summary_template.as_str(),
+                total,
+                took_ms,
+                engine.as_str(),
+                ranking_profile.as_str(),
+            ),
+            preset: render_preset_label(
+                labels.preset_template.as_str(),
+                applied_preset_or_selected(preset_key, selected_preset, labels.none_label.as_str())
+                    .as_str(),
+            ),
+            locale: render_locale_label(labels.locale_template.as_str(), locale.as_str()),
+        },
         has_items,
         items,
         facets: build_search_facet_view_models(facets),

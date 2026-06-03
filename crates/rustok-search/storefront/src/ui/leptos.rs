@@ -363,11 +363,6 @@ fn SearchResults(
     payload: SearchPreviewPayload,
 ) -> impl IntoView {
     let locale_context = use_context::<UiRouteContext>().unwrap_or_default().locale;
-    let query_label = t(
-        locale_context.as_deref(),
-        "search.results.queryLabel",
-        "Query",
-    );
     let results_summary_template = t(
         locale_context.as_deref(),
         "search.results.summary",
@@ -387,11 +382,17 @@ fn SearchResults(
     let view_model = core::build_search_results_view_model(
         payload,
         selected_preset.as_str(),
+        query.as_str(),
         &core::SearchResultsLabels {
             summary_template: results_summary_template,
             preset_template,
             none_label,
             locale_template,
+            query_label: t(
+                locale_context.as_deref(),
+                "search.results.queryLabel",
+                "Query",
+            ),
             no_snippet: t(
                 locale_context.as_deref(),
                 "search.results.noSnippet",
@@ -473,18 +474,18 @@ fn SearchResults(
                     <div class="flex flex-wrap items-center justify-between gap-3">
                         <div>
                             <div class="text-xs font-medium uppercase tracking-[0.2em] text-muted-foreground">
-                                {query_label}
+                                {view_model.header.query_label.clone()}
                             </div>
-                            <h3 class="mt-2 text-xl font-semibold text-foreground">{query}</h3>
+                            <h3 class="mt-2 text-xl font-semibold text-foreground">{view_model.header.query.clone()}</h3>
                             <p class="mt-2 text-sm text-muted-foreground">
-                                {view_model.summary.clone()}
+                                {view_model.header.summary.clone()}
                             </p>
                             <p class="mt-2 text-xs text-muted-foreground">
-                                {view_model.preset.clone()}
+                                {view_model.header.preset.clone()}
                             </p>
                         </div>
                         <div class="rounded-xl border border-border bg-muted/20 px-4 py-3 text-sm text-card-foreground">
-                            {view_model.locale.clone()}
+                            {view_model.header.locale.clone()}
                         </div>
                     </div>
                 </article>

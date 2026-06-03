@@ -6,8 +6,8 @@
 ## Execution checkpoint
 
 - Current phase: phase_b_in_progress
-- Last checkpoint: Phase B slice #36 перенёс storefront empty-state и feature-card presentation в `storefront/src/core.rs`; Leptos cards теперь рендерят `SearchEmptyStateViewModel` и `SearchFeatureCardViewModel`.
-- Next step: Продолжить Phase B: вынести оставшиеся storefront summary/header presentation или dictionaries mutation feedback envelope/status state в core view-model, сохраняя разделённые native/GraphQL adapters без изменения public contract.
+- Last checkpoint: Phase B slice #37 перенёс storefront results header summary/query/locale presentation в `storefront/src/core.rs`; Leptos header теперь рендерит `SearchResultsHeaderViewModel`.
+- Next step: Продолжить Phase B: вынести оставшиеся storefront shell/form presentation или dictionaries mutation feedback envelope/status state в core view-model, сохраняя разделённые native/GraphQL adapters без изменения public contract.
 - Open blockers: None.
 - Hand-off notes for next agent: После каждого инкремента обновлять этот блок и central readiness board.
 - Last updated at (UTC): 2026-06-03T00:00:00Z
@@ -40,6 +40,7 @@
   - Phase B slice #34 добавил `SearchFacetGroupViewModel`, `SearchFacetBucketViewModel` и `build_search_facet_view_models` в `storefront/src/core.rs`; Leptos facet cards больше не форматируют facet names/bucket labels inline.
   - Phase B slice #35 добавил `SearchResultActionViewModel` и `build_search_result_action_view_model` в `storefront/src/core.rs`; Leptos result cards больше не решают no-target/open-link labels, href state или click-tracking position inline.
   - Phase B slice #36 добавил `SearchEmptyStateViewModel`, `SearchFeatureCardViewModel`, `build_search_empty_state_view_model` и `build_search_results_feature_cards` в `storefront/src/core.rs`; Leptos empty/feature cards больше не владеют title/body presentation objects.
+  - Phase B slice #37 добавил `SearchResultsHeaderViewModel` в `storefront/src/core.rs`; Leptos results header больше не собирает query label, query string, summary, preset и locale presentation inline.
 - Last verified at (UTC): 2026-06-03T00:00:00Z
 - Owner: `rustok-search` module team
 
@@ -145,3 +146,4 @@
 - [x] Slice 34: storefront facet cards перенесены в core (`SearchFacetGroupViewModel`, `SearchFacetBucketViewModel`, `build_search_facet_view_models`), поэтому Leptos adapter рендерит готовые facet display names and bucket labels без inline formatting.
 - [x] Slice 35: storefront result actions перенесены в core (`SearchResultActionViewModel`, `build_search_result_action_view_model`), поэтому Leptos adapter рендерит prepared no-target/open-link states и только исполняет click tracking/navigation.
 - [x] Slice 36: storefront empty states and feature cards перенесены в core (`SearchEmptyStateViewModel`, `SearchFeatureCardViewModel`, `build_search_empty_state_view_model`, `build_search_results_feature_cards`), поэтому Leptos adapter рендерит готовые title/body models без локального presentation ownership.
+- [x] Slice 37: storefront results header перенесён в core (`SearchResultsHeaderViewModel`), поэтому Leptos adapter рендерит готовые query label/query/summary/preset/locale fields без локальной header presentation сборки.

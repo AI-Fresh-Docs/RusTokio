@@ -204,3 +204,4 @@
 - `rustok-search` slice #34 evidence: storefront facet display names and bucket labels moved into `storefront/src/core.rs`; Leptos facet cards render core-owned facet view-models without inline facet formatting.
 - `rustok-search` slice #35 evidence: storefront result action no-target/open-link state and click-tracking position moved into `storefront/src/core.rs`; Leptos result cards render the prepared action model and only execute click tracking/navigation.
 - `rustok-search` slice #36 evidence: storefront empty-state and feature-card title/body presentation moved into `storefront/src/core.rs`; Leptos cards render core-owned view-models without local presentation ownership.
+- `rustok-search` slice #37 evidence: storefront results header query label/query/summary/preset/locale presentation moved into `storefront/src/core.rs`; Leptos header renders the core-owned header view-model.
