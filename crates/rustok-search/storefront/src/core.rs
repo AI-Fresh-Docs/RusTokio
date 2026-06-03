@@ -1,4 +1,4 @@
-use crate::model::{SearchFacetGroup, SearchPreviewPayload, SearchSuggestion};
+use crate::model::{SearchFacetGroup, SearchFilterPreset, SearchPreviewPayload, SearchSuggestion};
 
 pub fn parse_csv(value: &str) -> Vec<String> {
     value
@@ -296,6 +296,45 @@ mod tests {
             SearchSuggestionNavigation::SearchQuery("Fallback document".to_string())
         );
     }
+
+    #[test]
+    fn preset_chip_view_models_prepare_state_and_next_selection() {
+        let presets = vec![
+            crate::model::SearchFilterPreset {
+                key: "featured".to_string(),
+                label: "Featured".to_string(),
+                entity_types: vec!["product".to_string()],
+                source_modules: Vec::new(),
+                statuses: vec!["published".to_string()],
+                ranking_profile: Some("default".to_string()),
+            },
+            crate::model::SearchFilterPreset {
+                key: "content".to_string(),
+                label: "Content".to_string(),
+                entity_types: vec!["page".to_string()],
+                source_modules: vec!["pages".to_string()],
+                statuses: vec!["published".to_string()],
+                ranking_profile: None,
+            },
+        ];
+
+        let view_models = build_search_preset_chip_view_models(presets, "featured");
+
+        assert_eq!(view_models.len(), 2);
+        assert_eq!(view_models[0].key, "featured");
+        assert_eq!(view_models[0].label, "Featured");
+        assert!(view_models[0].is_selected);
+        assert_eq!(view_models[0].class_name, PRESET_CHIP_SELECTED_CLASS);
+        assert_eq!(view_models[0].next_selection, "");
+        assert!(!view_models[1].is_selected);
+        assert_eq!(view_models[1].class_name, PRESET_CHIP_IDLE_CLASS);
+        assert_eq!(view_models[1].next_selection, "content");
+        assert_eq!(
+            preset_chip_class("content", "content"),
+            PRESET_CHIP_SELECTED_CLASS
+        );
+        assert_eq!(preset_chip_class("", "content"), PRESET_CHIP_IDLE_CLASS);
+    }
 }
 
 pub fn entity_source_label(entity_type: &str, source_module: &str) -> String {
@@ -446,6 +485,45 @@ pub fn next_preset_selection(current: &str, selected_key: &str) -> String {
     } else {
         selected_key.to_string()
     }
+}
+
+pub const PRESET_CHIP_SELECTED_CLASS: &str = "inline-flex items-center rounded-full border border-primary bg-primary/10 px-3 py-1 text-xs font-medium text-primary";
+pub const PRESET_CHIP_IDLE_CLASS: &str = "inline-flex items-center rounded-full border border-border px-3 py-1 text-xs font-medium text-muted-foreground";
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct SearchPresetChipViewModel {
+    pub key: String,
+    pub label: String,
+    pub is_selected: bool,
+    pub class_name: &'static str,
+    pub next_selection: String,
+}
+
+pub fn preset_chip_class(current: &str, preset_key: &str) -> &'static str {
+    if current == preset_key {
+        PRESET_CHIP_SELECTED_CLASS
+    } else {
+        PRESET_CHIP_IDLE_CLASS
+    }
+}
+
+pub fn build_search_preset_chip_view_models(
+    presets: Vec<SearchFilterPreset>,
+    selected_preset: &str,
+) -> Vec<SearchPresetChipViewModel> {
+    presets
+        .into_iter()
+        .map(|preset| {
+            let is_selected = selected_preset == preset.key;
+            SearchPresetChipViewModel {
+                next_selection: next_preset_selection(selected_preset, preset.key.as_str()),
+                class_name: preset_chip_class(selected_preset, preset.key.as_str()),
+                is_selected,
+                key: preset.key,
+                label: preset.label,
+            }
+        })
+        .collect()
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]

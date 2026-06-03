@@ -328,32 +328,33 @@ fn PresetChips(
 ) -> impl IntoView {
     view! {
         <div class="mt-3 flex flex-wrap gap-2">
-            {presets.into_iter().map(|preset| {
-                let key = preset.key.clone();
-                let label = preset.label.clone();
-                let class_key = key.clone();
-                let query_value = query.clone();
-                view! {
-                    <button
-                        class=move || if selected_preset.get() == class_key {
-                            "inline-flex items-center rounded-full border border-primary bg-primary/10 px-3 py-1 text-xs font-medium text-primary"
-                        } else {
-                            "inline-flex items-center rounded-full border border-border px-3 py-1 text-xs font-medium text-muted-foreground"
-                        }
-                        on:click=move |_| {
-                            let next = core::next_preset_selection(
+            {core::build_search_preset_chip_view_models(presets, selected_preset.get().as_str())
+                .into_iter()
+                .map(|chip| {
+                    let key = chip.key.clone();
+                    let class_key = chip.key.clone();
+                    let query_value = query.clone();
+                    view! {
+                        <button
+                            class=move || core::preset_chip_class(
                                 selected_preset.get().as_str(),
-                                key.as_str(),
-                            );
-                            set_selected_preset.set(next.clone());
-                            navigate_to_search_query(&query_value, Some(next));
-                        }
-                        type="button"
-                    >
-                        {label}
-                    </button>
-                }
-            }).collect_view()}
+                                class_key.as_str(),
+                            )
+                            on:click=move |_| {
+                                let next = core::next_preset_selection(
+                                    selected_preset.get().as_str(),
+                                    key.as_str(),
+                                );
+                                set_selected_preset.set(next.clone());
+                                navigate_to_search_query(&query_value, Some(next));
+                            }
+                            type="button"
+                        >
+                            {chip.label.clone()}
+                        </button>
+                    }
+                })
+                .collect_view()}
         </div>
     }
 }
