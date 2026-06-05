@@ -84,10 +84,14 @@ fn native_read_path_targets_inventory_backend_service() {
         "#[server(prefix = \"/api/fn\", endpoint = \"inventory/bootstrap\")]",
         "#[server(prefix = \"/api/fn\", endpoint = \"inventory/products\")]",
         "#[server(prefix = \"/api/fn\", endpoint = \"inventory/product\")]",
+        "#[server(prefix = \"/api/fn\", endpoint = \"inventory/variant/set-quantity\")]",
         "AdminInventoryReadService::new",
         "assert_requested_tenant",
         "Permission::INVENTORY_LIST",
         "Permission::INVENTORY_READ",
+        "Permission::INVENTORY_UPDATE",
+        "InventoryService::new",
+        "set_inventory",
     ] {
         assert!(
             native.contains(marker),

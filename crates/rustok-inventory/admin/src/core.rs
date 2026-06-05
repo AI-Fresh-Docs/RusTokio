@@ -37,6 +37,20 @@ pub(crate) struct InventoryProductSelector {
     pub locale: Option<String>,
 }
 
+#[derive(Clone, Debug)]
+pub(crate) struct InventorySetQuantityRequest {
+    pub tenant_id: String,
+    pub variant_id: String,
+    pub quantity: i32,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub(crate) struct InventorySetQuantityInput {
+    pub tenant_id: String,
+    pub variant_id: String,
+    pub quantity: i32,
+}
+
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(crate) enum InventoryHealthState {
     Backorder,
@@ -83,6 +97,18 @@ pub(crate) fn normalized_product_selector(
     InventoryProductSelector {
         id,
         locale: normalize_locale_filter(locale),
+    }
+}
+
+pub(crate) fn normalized_set_quantity_input(
+    tenant_id: String,
+    variant_id: String,
+    quantity: i32,
+) -> InventorySetQuantityInput {
+    InventorySetQuantityInput {
+        tenant_id: tenant_id.trim().to_string(),
+        variant_id: variant_id.trim().to_string(),
+        quantity,
     }
 }
 
@@ -188,6 +214,19 @@ mod tests {
             inventory_policy: policy.to_string(),
             in_stock,
         }
+    }
+
+    #[test]
+    fn normalized_set_quantity_input_trims_route_identifiers_without_changing_quantity() {
+        let input = normalized_set_quantity_input(
+            " tenant-id ".to_string(),
+            " variant-id ".to_string(),
+            -3,
+        );
+
+        assert_eq!(input.tenant_id, "tenant-id");
+        assert_eq!(input.variant_id, "variant-id");
+        assert_eq!(input.quantity, -3);
     }
 
     #[test]
