@@ -5,9 +5,9 @@
 
 ## Execution checkpoint
 
-- Current phase: ffa_product_admin_list_controls_policy_slice
-- Last checkpoint: Product admin list controls copy/status filter options now build through `ProductAdminListControlsViewModel` in `admin/src/core.rs`; `ProductAdminListStateViewModel` remains semantic and Leptos owns framework-specific classes while rendering core-owned state messages.
-- Next step: Continue FFA-first sequencing by extracting remaining admin route/query write intents into typed core helpers without changing the current GraphQL transport contract.
+- Current phase: ffa_product_admin_route_query_intent_slice
+- Last checkpoint: Product admin selection route/query write policy now builds through `ProductAdminRouteQueryIntent` helpers in `admin/src/core.rs`; the Leptos adapter only applies typed push/replace/clear intents to `RouteQueryWriter`.
+- Next step: Continue FFA-first sequencing by extracting remaining admin header/shell copy and profile-panel loading/error copy into typed core helpers without changing the current GraphQL transport contract.
 - Open blockers: None.
 - Hand-off notes for next agent: После каждого инкремента обновлять этот блок.
 - Last updated at (UTC): 2026-06-07T00:00:00Z
@@ -38,6 +38,7 @@
   - FFA slice: product admin list action labels and busy-state availability are composed by `ProductAdminListActionLabels` / `product_admin_list_actions_disabled` in `admin/src/core.rs`; Leptos list actions bind prepared labels and use the core disabled predicate;
   - FFA slice: product admin list loading/empty/error state copy is composed by semantic `ProductAdminListStateViewModel` helpers in `admin/src/core.rs`; Leptos list rendering maps semantic state kind to framework-specific classes;
   - FFA slice: product admin list controls copy/search placeholder/status filter options are composed by `ProductAdminListControlsViewModel` in `admin/src/core.rs`; Leptos list controls only bind prepared labels/options;
+  - FFA slice: product admin route/query selection writes are composed by `ProductAdminRouteQueryIntent` helpers in `admin/src/core.rs`; Leptos applies typed push/replace/clear intents without owning the product selection query policy;
   - дальнейшее повышение статуса выполняется только вместе с verification evidence и обновлением local+central docs.
 - Last verified at (UTC): 2026-06-07T00:00:00Z
 - Owner: `rustok-product` module team
@@ -67,7 +68,7 @@
   `ProductAdminStatusMutationCommand` / `ProductAdminStatusTarget`, а delete command mapping — через
   `ProductAdminDeleteCommand`, а delete-result policy — через
   `ProductAdminDeleteResultViewModel` / `ProductAdminDeleteOutcome`, а list action labels/availability — через
-  `ProductAdminListActionLabels` / `product_admin_list_actions_disabled`, loading/empty/error list state — через `ProductAdminListStateViewModel` helpers, а list controls/search/status options — через `ProductAdminListControlsViewModel` в `admin/src/core.rs`; Leptos слой
+  `ProductAdminListActionLabels` / `product_admin_list_actions_disabled`, loading/empty/error list state — через `ProductAdminListStateViewModel` helpers, а list controls/search/status options — через `ProductAdminListControlsViewModel`, а product selection route/query writes — через `ProductAdminRouteQueryIntent` helpers в `admin/src/core.rs`; Leptos слой
   изолирован в `admin/src/ui/leptos.rs` как render/effect adapter;
 - module-owned storefront UI пакет `rustok-product/storefront` уже поднят и
   подключён в manifest-driven storefront composition для published catalog

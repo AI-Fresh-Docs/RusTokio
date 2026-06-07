@@ -1,3 +1,5 @@
+use rustok_api::AdminQueryKey;
+
 use crate::i18n::t;
 use crate::model::{
     ProductAdminBootstrap, ProductDetail, ProductDraft, ProductListItem, ProductPricingDetail,
@@ -755,6 +757,37 @@ pub(crate) fn product_admin_list_actions_disabled(is_busy: bool) -> bool {
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
+pub(crate) enum ProductAdminRouteQueryIntent {
+    Push { key: &'static str, value: String },
+    Replace { key: &'static str, value: String },
+    Clear { key: &'static str },
+}
+
+pub(crate) fn product_admin_open_product_query_intent(
+    product_id: String,
+) -> ProductAdminRouteQueryIntent {
+    ProductAdminRouteQueryIntent::Push {
+        key: AdminQueryKey::ProductId.as_str(),
+        value: product_id,
+    }
+}
+
+pub(crate) fn product_admin_saved_product_query_intent(
+    product_id: String,
+) -> ProductAdminRouteQueryIntent {
+    ProductAdminRouteQueryIntent::Replace {
+        key: AdminQueryKey::ProductId.as_str(),
+        value: product_id,
+    }
+}
+
+pub(crate) fn product_admin_clear_product_query_intent() -> ProductAdminRouteQueryIntent {
+    ProductAdminRouteQueryIntent::Clear {
+        key: AdminQueryKey::ProductId.as_str(),
+    }
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub(crate) enum ProductAdminListStateKind {
     Loading,
     Empty,
@@ -944,6 +977,32 @@ mod tests {
             inventory_quantity: 7,
             publish_now: true,
         }
+    }
+
+    #[test]
+    fn product_admin_route_query_intents_keep_product_selection_policy_in_core() {
+        assert_eq!(
+            product_admin_open_product_query_intent("product-1".to_string()),
+            ProductAdminRouteQueryIntent::Push {
+                key: AdminQueryKey::ProductId.as_str(),
+                value: "product-1".to_string(),
+            }
+        );
+
+        assert_eq!(
+            product_admin_saved_product_query_intent("product-2".to_string()),
+            ProductAdminRouteQueryIntent::Replace {
+                key: AdminQueryKey::ProductId.as_str(),
+                value: "product-2".to_string(),
+            }
+        );
+
+        assert_eq!(
+            product_admin_clear_product_query_intent(),
+            ProductAdminRouteQueryIntent::Clear {
+                key: AdminQueryKey::ProductId.as_str(),
+            }
+        );
     }
 
     #[test]

@@ -45,6 +45,19 @@ fn product_admin_list_state_class(kind: &ProductAdminListStateKind) -> &'static 
     }
 }
 
+fn apply_product_admin_route_query_intent(
+    query_writer: &RouteQueryWriter,
+    intent: ProductAdminRouteQueryIntent,
+) {
+    match intent {
+        ProductAdminRouteQueryIntent::Push { key, value } => query_writer.push_value(key, value),
+        ProductAdminRouteQueryIntent::Replace { key, value } => {
+            query_writer.replace_value(key, value);
+        }
+        ProductAdminRouteQueryIntent::Clear { key } => query_writer.clear_key(key),
+    }
+}
+
 #[component]
 pub fn ProductAdmin() -> impl IntoView {
     let route_context = use_context::<UiRouteContext>().unwrap_or_default();
@@ -357,8 +370,10 @@ pub fn ProductAdmin() -> impl IntoView {
                         set_publish_now,
                     );
                     set_refresh_nonce.update(|value| *value += 1);
-                    submit_query_writer
-                        .replace_value(AdminQueryKey::ProductId.as_str(), product_id);
+                    apply_product_admin_route_query_intent(
+                        &submit_query_writer,
+                        product_admin_saved_product_query_intent(product_id),
+                    );
                 }
                 Err(err) => set_error.set(Some(format!("{save_product_error_label}: {err}"))),
             }
@@ -379,7 +394,10 @@ pub fn ProductAdmin() -> impl IntoView {
     let reset_query_writer = query_writer.clone();
     let delete_query_writer = query_writer.clone();
     let reset_current_product = Callback::new(move |_| {
-        reset_query_writer.clear_key(AdminQueryKey::ProductId.as_str());
+        apply_product_admin_route_query_intent(
+            &reset_query_writer,
+            product_admin_clear_product_query_intent(),
+        );
         reset_form();
     });
 
@@ -542,7 +560,10 @@ pub fn ProductAdmin() -> impl IntoView {
                                                         </p>
                                                     </div>
                                                     <div class="flex flex-wrap gap-2">
-                                                        <button type="button" class="inline-flex rounded-lg border border-border px-3 py-2 text-sm font-medium text-foreground transition hover:bg-accent disabled:opacity-50" disabled=move || product_admin_list_actions_disabled(busy.get()) on:click=move |_| item_query_writer.push_value(AdminQueryKey::ProductId.as_str(), edit_id.clone())>
+                                                        <button type="button" class="inline-flex rounded-lg border border-border px-3 py-2 text-sm font-medium text-foreground transition hover:bg-accent disabled:opacity-50" disabled=move || product_admin_list_actions_disabled(busy.get()) on:click=move |_| apply_product_admin_route_query_intent(
+                                                            &item_query_writer,
+                                                            product_admin_open_product_query_intent(edit_id.clone()),
+                                                        )>
                                                             {edit_label.clone()}
                                                         </button>
                                                         <button type="button" class="inline-flex rounded-lg border border-border px-3 py-2 text-sm font-medium text-foreground transition hover:bg-accent disabled:opacity-50" disabled=move || product_admin_list_actions_disabled(busy.get()) on:click=move |_| mutate_status(
@@ -1083,7 +1104,10 @@ fn mutate_delete(
         );
 
         if view_model.clear_selection {
-            query_writer.clear_key(AdminQueryKey::ProductId.as_str());
+            apply_product_admin_route_query_intent(
+                &query_writer,
+                product_admin_clear_product_query_intent(),
+            );
             clear_product_form(
                 set_editing_id,
                 set_selected,
