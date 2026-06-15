@@ -30,7 +30,7 @@ pub struct FlexSchemaView {
 }
 
 /// Standalone Flex entry view used by transport adapters.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct FlexEntryView {
     pub id: Uuid,
     pub schema_id: Uuid,
@@ -40,6 +40,23 @@ pub struct FlexEntryView {
     pub status: String,
     pub created_at: String,
     pub updated_at: String,
+}
+
+/// Retroactive schema validation report of existing entries.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SchemaRetroValidationReport {
+    pub schema_id: Uuid,
+    pub total_entries_checked: i32,
+    pub valid_entries_count: i32,
+    pub drifted_entries_count: i32,
+    pub drift_details: Vec<EntryDriftDetail>,
+}
+
+/// Detailed validation errors for a drifted entry.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct EntryDriftDetail {
+    pub entry_id: Uuid,
+    pub errors: Vec<rustok_core::field_schema::FieldValidationError>,
 }
 
 /// Transport-agnostic command for creating a standalone schema.
@@ -482,6 +499,12 @@ pub trait FlexStandaloneService: Send + Sync {
         schema_id: Uuid,
         entry_id: Uuid,
     ) -> Result<(), FlexError>;
+
+    async fn validate_retroactively(
+        &self,
+        tenant_id: Uuid,
+        schema_id: Uuid,
+    ) -> Result<SchemaRetroValidationReport, FlexError>;
 }
 
 #[cfg(test)]
@@ -909,6 +932,20 @@ mod tests {
         ) -> Result<(), FlexError> {
             self.delete_entry_calls.fetch_add(1, Ordering::SeqCst);
             Ok(())
+        }
+
+        async fn validate_retroactively(
+            &self,
+            tenant_id: Uuid,
+            schema_id: Uuid,
+        ) -> Result<SchemaRetroValidationReport, FlexError> {
+            Ok(SchemaRetroValidationReport {
+                schema_id,
+                total_entries_checked: 0,
+                valid_entries_count: 0,
+                drifted_entries_count: 0,
+                drift_details: Vec::new(),
+            })
         }
     }
 

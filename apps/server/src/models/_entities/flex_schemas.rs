@@ -11,6 +11,7 @@ pub struct Model {
     pub fields_config: Json,
     pub settings: Json,
     pub is_active: bool,
+    pub version: i32,
     pub created_at: DateTimeWithTimeZone,
     pub updated_at: DateTimeWithTimeZone,
 }

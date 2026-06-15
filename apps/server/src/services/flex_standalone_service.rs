@@ -3,7 +3,7 @@
 use async_trait::async_trait;
 use sea_orm::{
     ActiveModelTrait, ActiveValue::Set, ColumnTrait, DatabaseConnection, EntityTrait, QueryFilter,
-    QueryOrder,
+    QueryOrder, TransactionTrait, ConnectionTrait,
 };
 use serde_json::{Map, Value as JsonValue};
 use std::collections::{HashMap, HashSet};
@@ -16,7 +16,8 @@ use rustok_core::{
 };
 
 use crate::models::{
-    flex_entries, flex_entry_localized_values, flex_schema_translations, flex_schemas, tenants,
+    flex_entries, flex_entry_localized_values, flex_schema_translations, flex_schema_versions,
+    flex_schemas, tenants,
 };
 use crate::services::flex_standalone_validation_service::FlexStandaloneValidationService;
 
@@ -28,6 +29,50 @@ struct PreparedStandaloneEntryWrite {
     shared_data: JsonValue,
     localized_data: Option<JsonValue>,
     localized_keys: HashSet<String>,
+}
+
+async fn upsert_schema_translation_conn<C: ConnectionTrait>(
+    conn: &C,
+    schema_id: Uuid,
+    locale: &str,
+    slug_fallback: &str,
+    name: Option<String>,
+    description: Option<String>,
+) -> Result<flex_schema_translations::Model, FlexError> {
+    let existing = flex_schema_translations::Entity::find()
+        .filter(flex_schema_translations::Column::SchemaId.eq(schema_id))
+        .filter(flex_schema_translations::Column::Locale.eq(locale))
+        .one(conn)
+        .await
+        .map_err(|e| FlexError::Database(e.to_string()))?;
+
+    match existing {
+        Some(row) => {
+            let mut model: flex_schema_translations::ActiveModel = row.into();
+            if let Some(name) = name {
+                model.name = Set(name);
+            }
+            if let Some(description) = description {
+                model.description = Set(Some(description));
+            }
+
+            model
+                .update(conn)
+                .await
+                .map_err(|e| FlexError::Database(e.to_string()))
+        }
+        None => flex_schema_translations::ActiveModel {
+            schema_id: Set(schema_id),
+            locale: Set(locale.to_string()),
+            name: Set(name.unwrap_or_else(|| slug_fallback.to_string())),
+            description: Set(description),
+            created_at: sea_orm::ActiveValue::NotSet,
+            updated_at: sea_orm::ActiveValue::NotSet,
+        }
+        .insert(conn)
+        .await
+        .map_err(|e| FlexError::Database(e.to_string())),
+    }
 }
 
 impl FlexStandaloneSeaOrmService {
@@ -157,40 +202,7 @@ impl FlexStandaloneSeaOrmService {
         name: Option<String>,
         description: Option<String>,
     ) -> Result<flex_schema_translations::Model, FlexError> {
-        let existing = flex_schema_translations::Entity::find()
-            .filter(flex_schema_translations::Column::SchemaId.eq(schema_id))
-            .filter(flex_schema_translations::Column::Locale.eq(locale))
-            .one(&self.db)
-            .await
-            .map_err(|e| FlexError::Database(e.to_string()))?;
-
-        match existing {
-            Some(row) => {
-                let mut model: flex_schema_translations::ActiveModel = row.into();
-                if let Some(name) = name {
-                    model.name = Set(name);
-                }
-                if let Some(description) = description {
-                    model.description = Set(Some(description));
-                }
-
-                model
-                    .update(&self.db)
-                    .await
-                    .map_err(|e| FlexError::Database(e.to_string()))
-            }
-            None => flex_schema_translations::ActiveModel {
-                schema_id: Set(schema_id),
-                locale: Set(locale.to_string()),
-                name: Set(name.unwrap_or_else(|| slug_fallback.to_string())),
-                description: Set(description),
-                created_at: sea_orm::ActiveValue::NotSet,
-                updated_at: sea_orm::ActiveValue::NotSet,
-            }
-            .insert(&self.db)
-            .await
-            .map_err(|e| FlexError::Database(e.to_string())),
-        }
+        upsert_schema_translation_conn(&self.db, schema_id, locale, slug_fallback, name, description).await
     }
 
     fn select_entry_localization<'a>(
@@ -414,29 +426,52 @@ impl flex::FlexStandaloneService for FlexStandaloneSeaOrmService {
         input: flex::CreateFlexSchemaCommand,
     ) -> Result<flex::FlexSchemaView, FlexError> {
         let locale = self.tenant_default_locale(tenant_id).await?;
-        let row = flex_schemas::ActiveModel {
-            id: Set(rustok_core::generate_id()),
-            tenant_id: Set(tenant_id),
-            slug: Set(input.slug),
-            fields_config: Set(serde_json::to_value(input.fields_config).unwrap_or_default()),
-            settings: Set(input.settings.unwrap_or_else(|| serde_json::json!({}))),
-            is_active: Set(input.is_active.unwrap_or(true)),
-            created_at: sea_orm::ActiveValue::NotSet,
-            updated_at: sea_orm::ActiveValue::NotSet,
-        }
-        .insert(&self.db)
-        .await
-        .map_err(|e| FlexError::Database(e.to_string()))?;
+        let db = self.db.clone();
+        let input_clone = input.clone();
 
-        let translation = self
-            .upsert_schema_translation(
-                row.id,
+        let (row, translation) = db.transaction::<_, (flex_schemas::Model, flex_schema_translations::Model), FlexError>(|txn| Box::pin(async move {
+            let schema_id = rustok_core::generate_id();
+            let fields_val = serde_json::to_value(input_clone.fields_config).unwrap_or_default();
+            let settings_val = input_clone.settings.unwrap_or_else(|| serde_json::json!({}));
+
+            let row = flex_schemas::ActiveModel {
+                id: Set(schema_id),
+                tenant_id: Set(tenant_id),
+                slug: Set(input_clone.slug),
+                fields_config: Set(fields_val.clone()),
+                settings: Set(settings_val.clone()),
+                is_active: Set(input_clone.is_active.unwrap_or(true)),
+                version: Set(1),
+                created_at: sea_orm::ActiveValue::NotSet,
+                updated_at: sea_orm::ActiveValue::NotSet,
+            }
+            .insert(txn)
+            .await
+            .map_err(|e| FlexError::Database(e.to_string()))?;
+
+            flex_schema_versions::ActiveModel {
+                schema_id: Set(schema_id),
+                version: Set(1),
+                fields_config: Set(fields_val),
+                settings: Set(settings_val),
+                created_at: sea_orm::ActiveValue::NotSet,
+            }
+            .insert(txn)
+            .await
+            .map_err(|e| FlexError::Database(e.to_string()))?;
+
+            let translation = upsert_schema_translation_conn(
+                txn,
+                schema_id,
                 &locale,
                 &row.slug,
-                Some(input.name),
-                input.description,
+                Some(input_clone.name),
+                input_clone.description,
             )
             .await?;
+
+            Ok((row, translation))
+        })).await?;
 
         Ok(Self::schema_to_view(row, Some(&translation)))
     }
@@ -449,41 +484,71 @@ impl flex::FlexStandaloneService for FlexStandaloneSeaOrmService {
         input: flex::UpdateFlexSchemaCommand,
     ) -> Result<flex::FlexSchemaView, FlexError> {
         let locale = self.tenant_default_locale(tenant_id).await?;
-        let row = self.get_schema_or_not_found(tenant_id, schema_id).await?;
-        let mut model: flex_schemas::ActiveModel = row.into();
+        let db = self.db.clone();
+        let input_clone = input.clone();
 
-        if let Some(fields_config) = input.fields_config {
-            model.fields_config = Set(serde_json::to_value(fields_config).unwrap_or_default());
-        }
-        if let Some(settings) = input.settings {
-            model.settings = Set(settings);
-        }
-        if let Some(is_active) = input.is_active {
-            model.is_active = Set(is_active);
-        }
+        let (updated, translation) = db.transaction::<_, (flex_schemas::Model, Option<flex_schema_translations::Model>), FlexError>(|txn| Box::pin(async move {
+            let row = flex_schemas::Entity::find_by_id(schema_id)
+                .filter(flex_schemas::Column::TenantId.eq(tenant_id))
+                .one(txn)
+                .await
+                .map_err(|e| FlexError::Database(e.to_string()))?
+                .ok_or(FlexError::NotFound(schema_id))?;
 
-        let updated = model
-            .update(&self.db)
+            let mut model: flex_schemas::ActiveModel = row.clone().into();
+
+            if let Some(fields_config) = &input_clone.fields_config {
+                model.fields_config = Set(serde_json::to_value(fields_config).unwrap_or_default());
+            }
+            if let Some(settings) = &input_clone.settings {
+                model.settings = Set(settings.clone());
+            }
+            if let Some(is_active) = input_clone.is_active {
+                model.is_active = Set(is_active);
+            }
+
+            let new_version = row.version + 1;
+            model.version = Set(new_version);
+
+            let updated = model
+                .update(txn)
+                .await
+                .map_err(|e| FlexError::Database(e.to_string()))?;
+
+            flex_schema_versions::ActiveModel {
+                schema_id: Set(schema_id),
+                version: Set(new_version),
+                fields_config: Set(updated.fields_config.clone()),
+                settings: Set(updated.settings.clone()),
+                created_at: sea_orm::ActiveValue::NotSet,
+            }
+            .insert(txn)
             .await
             .map_err(|e| FlexError::Database(e.to_string()))?;
 
-        let translation = if input.name.is_some() || input.description.is_some() {
-            Some(
-                self.upsert_schema_translation(
-                    updated.id,
-                    &locale,
-                    &updated.slug,
-                    input.name,
-                    input.description,
+            let translation = if input_clone.name.is_some() || input_clone.description.is_some() {
+                Some(
+                    upsert_schema_translation_conn(
+                        txn,
+                        updated.id,
+                        &locale,
+                        &updated.slug,
+                        input_clone.name,
+                        input_clone.description,
+                    )
+                    .await?,
                 )
-                .await?,
-            )
-        } else {
-            let mut translations = self.load_schema_translation_map(&[updated.id]).await?;
-            translations
-                .remove(&updated.id)
-                .and_then(|items| Self::select_schema_translation(&items, &locale).cloned())
-        };
+            } else {
+                let items = flex_schema_translations::Entity::find()
+                    .filter(flex_schema_translations::Column::SchemaId.eq(updated.id))
+                    .all(txn)
+                    .await
+                    .map_err(|e| FlexError::Database(e.to_string()))?;
+                Self::select_schema_translation(&items, &locale).cloned()
+            };
+
+            Ok((updated, translation))
+        })).await?;
 
         Ok(Self::schema_to_view(updated, translation.as_ref()))
     }
@@ -688,6 +753,73 @@ impl flex::FlexStandaloneService for FlexStandaloneSeaOrmService {
             .map_err(|e| FlexError::Database(e.to_string()))?;
 
         Ok(())
+    }
+
+    async fn validate_retroactively(
+        &self,
+        tenant_id: Uuid,
+        schema_id: Uuid,
+    ) -> Result<flex::SchemaRetroValidationReport, FlexError> {
+        let schema = self.get_schema_or_not_found(tenant_id, schema_id).await?;
+        let custom_fields_schema = schema.build_custom_fields_schema()?;
+        let localized_keys = Self::localized_field_keys(&custom_fields_schema);
+
+        let entries = flex_entries::Entity::find()
+            .filter(flex_entries::Column::TenantId.eq(tenant_id))
+            .filter(flex_entries::Column::SchemaId.eq(schema_id))
+            .all(&self.db)
+            .await
+            .map_err(|e| FlexError::Database(e.to_string()))?;
+
+        let entry_ids: Vec<Uuid> = entries.iter().map(|row| row.id).collect();
+        let localized_map = self
+            .load_entry_localization_map(tenant_id, &entry_ids)
+            .await?;
+
+        let total_entries_checked = entries.len() as i32;
+        let mut valid_entries_count = 0;
+        let mut drifted_entries_count = 0;
+        let mut drift_details = Vec::new();
+
+        for entry in entries {
+            let mut entry_errors = Vec::new();
+            let localized_rows = localized_map.get(&entry.id);
+
+            if let Some(rows) = localized_rows {
+                for localized_row in rows {
+                    let (mut merged_data, _) = Self::split_entry_data(&entry.data, &localized_keys);
+                    if let Some(obj) = localized_row.data.as_object() {
+                        for (key, val) in obj {
+                            merged_data.insert(key.clone(), val.clone());
+                        }
+                    }
+                    let errors = custom_fields_schema.validate(&JsonValue::Object(merged_data));
+                    entry_errors.extend(errors);
+                }
+            } else {
+                let (merged_data, _) = Self::split_entry_data(&entry.data, &localized_keys);
+                let errors = custom_fields_schema.validate(&JsonValue::Object(merged_data));
+                entry_errors.extend(errors);
+            }
+
+            if !entry_errors.is_empty() {
+                drifted_entries_count += 1;
+                drift_details.push(flex::EntryDriftDetail {
+                    entry_id: entry.id,
+                    errors: entry_errors,
+                });
+            } else {
+                valid_entries_count += 1;
+            }
+        }
+
+        Ok(flex::SchemaRetroValidationReport {
+            schema_id,
+            total_entries_checked,
+            valid_entries_count,
+            drifted_entries_count,
+            drift_details,
+        })
     }
 }
 
