@@ -25,6 +25,7 @@ use super::{
         CreateFieldDefinitionInput, CreateFlexEntryInput, CreateFlexSchemaInput,
         DeleteFieldDefinitionPayload, DeleteFlexPayload, FieldDefinitionObject, FlexEntryObject,
         FlexSchemaObject, UpdateFieldDefinitionInput, UpdateFlexEntryInput, UpdateFlexSchemaInput,
+        SchemaRetroValidationReportObject,
     },
 };
 
@@ -401,6 +402,26 @@ impl FlexMutation {
 
         publish_event(ctx, event);
         Ok(DeleteFlexPayload { success: true })
+    }
+
+    /// Retroactively validate all entries of a standalone Flex schema against its current definitions.
+    ///
+    /// Requires `flex_schemas:read`.
+    async fn validate_flex_schema_retroactively(
+        &self,
+        ctx: &Context<'_>,
+        schema_id: Uuid,
+    ) -> Result<SchemaRetroValidationReportObject> {
+        let _auth = require_permission(ctx, Permission::FLEX_SCHEMAS_READ)?;
+        let tenant = ctx.data::<TenantContext>()?;
+        let app_ctx = ctx.data::<loco_rs::prelude::AppContext>()?;
+        let service = FlexStandaloneSeaOrmService::new(app_ctx.db.clone());
+
+        service
+            .validate_retroactively(tenant.id, schema_id)
+            .await
+            .map(SchemaRetroValidationReportObject::from)
+            .map_err(map_flex_error)
     }
 }
 

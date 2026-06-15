@@ -266,6 +266,12 @@ pub struct FieldDefinition {
     /// Display order (ascending).
     #[serde(default)]
     pub position: i32,
+    /// Optional field group key to organize fields into sections/tabs in UI.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub group_key: Option<String>,
+    /// Optional layout configuration structure (JSON object/array) for custom presentation.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub layout_config: Option<serde_json::Value>,
     /// Inactive fields are excluded from validation and defaults.
     #[serde(default = "default_true")]
     pub is_active: bool,

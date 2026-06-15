@@ -5,7 +5,10 @@ use serde_json::Value as JsonValue;
 use uuid::Uuid;
 
 use crate::models::user_field_definitions::Model;
-use flex::{FieldDefinitionView, FlexEntryView, FlexSchemaView};
+use flex::{
+    FieldDefinitionView, FlexEntryView, FlexSchemaView, SchemaRetroValidationReport,
+    EntryDriftDetail,
+};
 
 /// GraphQL representation of a field definition.
 #[derive(Debug, Clone, SimpleObject)]
@@ -211,4 +214,69 @@ pub struct UpdateFlexEntryInput {
 #[derive(Debug, Clone, SimpleObject)]
 pub struct DeleteFlexPayload {
     pub success: bool,
+}
+
+#[derive(Debug, Clone, SimpleObject)]
+pub struct FieldValidationErrorObject {
+    pub field_key: String,
+    pub message: String,
+    pub error_code: String,
+}
+
+impl From<rustok_core::field_schema::FieldValidationError> for FieldValidationErrorObject {
+    fn from(err: rustok_core::field_schema::FieldValidationError) -> Self {
+        let code_str = match err.error_code {
+            rustok_core::field_schema::FieldErrorCode::Required => "required",
+            rustok_core::field_schema::FieldErrorCode::InvalidType => "invalid_type",
+            rustok_core::field_schema::FieldErrorCode::TooShort => "too_short",
+            rustok_core::field_schema::FieldErrorCode::TooLong => "too_long",
+            rustok_core::field_schema::FieldErrorCode::BelowMinimum => "below_minimum",
+            rustok_core::field_schema::FieldErrorCode::AboveMaximum => "above_maximum",
+            rustok_core::field_schema::FieldErrorCode::PatternMismatch => "pattern_mismatch",
+            rustok_core::field_schema::FieldErrorCode::InvalidOption => "invalid_option",
+            rustok_core::field_schema::FieldErrorCode::InvalidFormat => "invalid_format",
+            rustok_core::field_schema::FieldErrorCode::NestingTooDeep => "nesting_too_deep",
+        };
+        Self {
+            field_key: err.field_key,
+            message: err.message,
+            error_code: code_str.to_string(),
+        }
+    }
+}
+
+#[derive(Debug, Clone, SimpleObject)]
+pub struct EntryDriftDetailObject {
+    pub entry_id: Uuid,
+    pub errors: Vec<FieldValidationErrorObject>,
+}
+
+impl From<EntryDriftDetail> for EntryDriftDetailObject {
+    fn from(view: EntryDriftDetail) -> Self {
+        Self {
+            entry_id: view.entry_id,
+            errors: view.errors.into_iter().map(FieldValidationErrorObject::from).collect(),
+        }
+    }
+}
+
+#[derive(Debug, Clone, SimpleObject)]
+pub struct SchemaRetroValidationReportObject {
+    pub schema_id: Uuid,
+    pub total_entries_checked: i32,
+    pub valid_entries_count: i32,
+    pub drifted_entries_count: i32,
+    pub drift_details: Vec<EntryDriftDetailObject>,
+}
+
+impl From<SchemaRetroValidationReport> for SchemaRetroValidationReportObject {
+    fn from(view: SchemaRetroValidationReport) -> Self {
+        Self {
+            schema_id: view.schema_id,
+            total_entries_checked: view.total_entries_checked,
+            valid_entries_count: view.valid_entries_count,
+            drifted_entries_count: view.drifted_entries_count,
+            drift_details: view.drift_details.into_iter().map(EntryDriftDetailObject::from).collect(),
+        }
+    }
 }

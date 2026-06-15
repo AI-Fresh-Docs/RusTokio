@@ -39,7 +39,7 @@ pub use standalone::{
     update_schema_with_event, validate_create_entry_command, validate_create_schema_command,
     validate_update_entry_command, validate_update_schema_command, CreateFlexEntryCommand,
     CreateFlexSchemaCommand, FlexEntryView, FlexSchemaView, FlexStandaloneService,
-    UpdateFlexEntryCommand, UpdateFlexSchemaCommand,
+    UpdateFlexEntryCommand, UpdateFlexSchemaCommand, SchemaRetroValidationReport, EntryDriftDetail,
 };
 
 pub use events::{

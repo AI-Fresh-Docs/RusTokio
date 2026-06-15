@@ -1,6 +1,6 @@
 use axum::{
     extract::{Path, State},
-    routing::get,
+    routing::{get, post},
     Json,
 };
 use loco_rs::app::AppContext;
@@ -415,6 +415,33 @@ async fn delete_entry(
     Ok(Json(DeleteFlexResponse { success: true }))
 }
 
+#[utoipa::path(
+    post,
+    path = "/api/v1/flex/schemas/{schema_id}/retro-validate",
+    tag = "flex",
+    security(("bearer_auth" = [])),
+    params(("schema_id" = Uuid, Path, description = "Standalone Flex schema ID")),
+    responses(
+        (status = 200, description = "Retroactive schema validation report of existing entries", body = SchemaRetroValidationReportResponse),
+        (status = 401, description = "Unauthorized"),
+        (status = 403, description = "Forbidden"),
+        (status = 404, description = "Not found")
+    )
+)]
+async fn validate_schema_retroactively(
+    State(ctx): State<AppContext>,
+    CurrentTenant(tenant): CurrentTenant,
+    RequireFlexSchemasRead(_user): RequireFlexSchemasRead,
+    Path(schema_id): Path<Uuid>,
+) -> Result<Json<SchemaRetroValidationReportResponse>> {
+    let service = FlexStandaloneSeaOrmService::new(ctx.db.clone());
+    let report = service
+        .validate_retroactively(tenant.id, schema_id)
+        .await
+        .map_err(map_flex_rest_error)?;
+    Ok(Json(map_retro_report(report)))
+}
+
 pub fn routes() -> Routes {
     Routes::new()
         .prefix("api/v1/flex/schemas")
@@ -428,6 +455,7 @@ pub fn routes() -> Routes {
             "/{schema_id}/entries/{entry_id}",
             get(get_entry).patch(update_entry).delete(delete_entry),
         )
+        .add("/{schema_id}/retro-validate", post(validate_schema_retroactively))
 }
 
 fn publish_event(ctx: &AppContext, event: EventEnvelope) {
@@ -478,6 +506,65 @@ fn map_flex_rest_error(error: rustok_core::field_schema::FlexError) -> crate::er
         flex::FlexMappedErrorKind::Internal => crate::error::Error::InternalServerError,
         flex::FlexMappedErrorKind::NotFound => crate::error::Error::NotFound,
         flex::FlexMappedErrorKind::BadUserInput => crate::error::Error::BadRequest(mapped.message),
+    }
+}
+
+#[derive(Debug, Serialize, ToSchema)]
+pub struct FieldValidationErrorResponse {
+    pub field_key: String,
+    pub message: String,
+    pub error_code: String,
+}
+
+#[derive(Debug, Serialize, ToSchema)]
+pub struct EntryDriftDetailResponse {
+    pub entry_id: Uuid,
+    pub errors: Vec<FieldValidationErrorResponse>,
+}
+
+#[derive(Debug, Serialize, ToSchema)]
+pub struct SchemaRetroValidationReportResponse {
+    pub schema_id: Uuid,
+    pub total_entries_checked: i32,
+    pub valid_entries_count: i32,
+    pub drifted_entries_count: i32,
+    pub drift_details: Vec<EntryDriftDetailResponse>,
+}
+
+fn map_validation_error(err: rustok_core::field_schema::FieldValidationError) -> FieldValidationErrorResponse {
+    let code_str = match err.error_code {
+        rustok_core::field_schema::FieldErrorCode::Required => "required",
+        rustok_core::field_schema::FieldErrorCode::InvalidType => "invalid_type",
+        rustok_core::field_schema::FieldErrorCode::TooShort => "too_short",
+        rustok_core::field_schema::FieldErrorCode::TooLong => "too_long",
+        rustok_core::field_schema::FieldErrorCode::BelowMinimum => "below_minimum",
+        rustok_core::field_schema::FieldErrorCode::AboveMaximum => "above_maximum",
+        rustok_core::field_schema::FieldErrorCode::PatternMismatch => "pattern_mismatch",
+        rustok_core::field_schema::FieldErrorCode::InvalidOption => "invalid_option",
+        rustok_core::field_schema::FieldErrorCode::InvalidFormat => "invalid_format",
+        rustok_core::field_schema::FieldErrorCode::NestingTooDeep => "nesting_too_deep",
+    };
+    FieldValidationErrorResponse {
+        field_key: err.field_key,
+        message: err.message,
+        error_code: code_str.to_string(),
+    }
+}
+
+fn map_drift_detail(drift: flex::EntryDriftDetail) -> EntryDriftDetailResponse {
+    EntryDriftDetailResponse {
+        entry_id: drift.entry_id,
+        errors: drift.errors.into_iter().map(map_validation_error).collect(),
+    }
+}
+
+fn map_retro_report(report: flex::SchemaRetroValidationReport) -> SchemaRetroValidationReportResponse {
+    SchemaRetroValidationReportResponse {
+        schema_id: report.schema_id,
+        total_entries_checked: report.total_entries_checked,
+        valid_entries_count: report.valid_entries_count,
+        drifted_entries_count: report.drifted_entries_count,
+        drift_details: report.drift_details.into_iter().map(map_drift_detail).collect(),
     }
 }
 
